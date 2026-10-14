@@ -56,3 +56,15 @@ export const OLIVE_STATES = { SAINES: 'Saines', TOMBEES: 'Tombées (ramassées a
 export const PRODUCTION_STATUS = { PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' };
 export const PRODUCTION_STATUS_CLASS = { PLANIFIE: '', EN_COURS: 'badge-warn', TERMINE: 'badge-ok', ANNULE: 'badge-off' };
 export const OIL_CATEGORIES = { EXTRA_VIERGE: 'Extra vierge', VIERGE: 'Vierge', COURANTE: 'Courante', LAMPANTE: 'Lampante', NON_CLASSEE: 'Non classée' };
+
+export const DOC_TYPES = { DEVIS: 'Devis', COMMANDE: 'Commande', LIVRAISON: 'Bon de livraison', FACTURE: 'Facture', AVOIR: 'Avoir' };
+export const DOC_PATHS = { DEVIS: 'devis', COMMANDE: 'commandes', LIVRAISON: 'livraisons', FACTURE: 'factures', AVOIR: 'avoirs' };
+export const DOC_STATUS = { BROUILLON: 'Brouillon', VALIDE: 'Validé', TRANSFORME: 'Transformé', ANNULE: 'Annulé' };
+export const DOC_STATUS_CLASS = { BROUILLON: '', VALIDE: 'badge-ok', TRANSFORME: 'badge-role', ANNULE: 'badge-off' };
+export const CONTRACT_TYPES = { CDI: 'CDI', CDD: 'CDD', SAISONNIER: 'Saisonnier', STAGE: 'Stage', AUTRE: 'Autre' };
+export const EMPLOYEE_STATUS = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', SORTI: 'Sorti' };
+export const LEAVE_TYPES = { CONGE_ANNUEL: 'Congé annuel', MALADIE: 'Maladie', SANS_SOLDE: 'Sans solde', EXCEPTIONNEL: 'Exceptionnel' };
+export const LEAVE_STATUS = { EN_ATTENTE: 'En attente', VALIDEE: 'Validée', REFUSEE: 'Refusée', ANNULEE: 'Annulée' };
+export const LEAVE_STATUS_CLASS = { EN_ATTENTE: 'badge-warn', VALIDEE: 'badge-ok', REFUSEE: 'badge-off', ANNULEE: '' };
+export const GRAVITES = { MINEURE: 'Mineure', MAJEURE: 'Majeure', CRITIQUE: 'Critique' };
+export const ANOMALY_STATUS = { OUVERTE: 'Ouverte', EN_COURS: 'En cours', CLOTUREE: 'Clôturée' };

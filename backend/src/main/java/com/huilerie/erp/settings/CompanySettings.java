@@ -41,6 +41,12 @@ public class CompanySettings {
     @JoinColumn(name = "pressage_article_id")
     private com.huilerie.erp.catalog.Article pressageArticle;
 
+    @Column(name = "timbre_fiscal", precision = 12, scale = 3)
+    private java.math.BigDecimal timbreFiscal;
+
+    @Column(name = "inactivite_minutes")
+    private Integer inactiviteMinutes;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -66,6 +72,10 @@ public class CompanySettings {
     public boolean isVenteCreditAutorisee() { return venteCreditAutorisee; }
     public void setVenteCreditAutorisee(boolean v) { venteCreditAutorisee = v; }
     public Instant getUpdatedAt() { return updatedAt; }
+    public java.math.BigDecimal getTimbreFiscal() { return timbreFiscal; }
+    public void setTimbreFiscal(java.math.BigDecimal v) { timbreFiscal = v; }
+    public Integer getInactiviteMinutes() { return inactiviteMinutes; }
+    public void setInactiviteMinutes(Integer v) { inactiviteMinutes = v; }
     public java.math.BigDecimal getTarifPressageKg() { return tarifPressageKg; }
     public void setTarifPressageKg(java.math.BigDecimal v) { tarifPressageKg = v; }
     public com.huilerie.erp.catalog.Article getPressageArticle() { return pressageArticle; }

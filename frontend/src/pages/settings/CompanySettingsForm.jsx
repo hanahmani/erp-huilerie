@@ -27,6 +27,8 @@ export default function CompanySettingsForm() {
   }, []);
   const fields = [
     ...baseFields,
+    { name: 'timbreFiscal', label: 'Timbre fiscal par facture (DT)', type: 'number', hint: 'Ajouté à chaque facture validée. Vide = aucun.' },
+    { name: 'inactiviteMinutes', label: 'Déconnexion après inactivité (minutes)', type: 'number', hint: '30 minutes par défaut.' },
     { name: 'tarifPressageKg', label: 'Tarif du pressage (DT par kg d\'olives)', type: 'number', hint: 'Prérempli à chaque réception, modifiable.' },
     { name: 'pressageArticleId', label: 'Article « huile des clients »', type: 'select', numeric: true, placeholder: 'Aucun',
       options: oils.map((a) => ({ value: a.id, label: `${a.nom} (${a.uniteCode})` })), hint: 'Article suivi par lot dans lequel est stockée l\'huile des clients.' },
@@ -38,7 +40,7 @@ export default function CompanySettingsForm() {
 
   useEffect(() => {
     settingsService.get()
-      .then((s) => setValues({ ...s, raisonSociale: s.raisonSociale ?? '', tarifPressageKg: s.tarifPressageKg ?? '', pressageArticleId: s.pressageArticleId ?? '' }))
+      .then((s) => setValues({ ...s, raisonSociale: s.raisonSociale ?? '', tarifPressageKg: s.tarifPressageKg ?? '', pressageArticleId: s.pressageArticleId ?? '', timbreFiscal: s.timbreFiscal ?? '', inactiviteMinutes: s.inactiviteMinutes ?? '' }))
       .catch((e) => setError(e.message));
   }, []);
 
@@ -52,7 +54,7 @@ export default function CompanySettingsForm() {
     setSaved(false);
     try {
       const s = await settingsService.save(toPayload(fields, values));
-      setValues({ ...s, tarifPressageKg: s.tarifPressageKg ?? '', pressageArticleId: s.pressageArticleId ?? '' });
+      setValues({ ...s, tarifPressageKg: s.tarifPressageKg ?? '', pressageArticleId: s.pressageArticleId ?? '', timbreFiscal: s.timbreFiscal ?? '', inactiviteMinutes: s.inactiviteMinutes ?? '' });
       setSaved(true);
     } catch (err) {
       setError(err.message);

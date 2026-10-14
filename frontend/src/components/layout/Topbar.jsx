@@ -4,6 +4,8 @@ import { KeyRound, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { formatToday, initials } from '../../utils/format';
 import { roleLabel } from '../../utils/roles';
+import NotificationBell from './NotificationBell';
+import GlobalSearch from './GlobalSearch';
 
 export default function Topbar({ onToggleMenu }) {
   const { user, logout } = useAuth();
@@ -31,6 +33,9 @@ export default function Topbar({ onToggleMenu }) {
         <span className="today">{formatToday()}</span>
       </div>
 
+      <div className="topbar-right">
+      <GlobalSearch />
+      <NotificationBell />
       <div className="user-menu" ref={ref}>
         <button type="button" className="user-btn" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
           <span className="avatar">{initials(user)}</span>
@@ -45,6 +50,7 @@ export default function Topbar({ onToggleMenu }) {
             <button type="button" onClick={handleLogout}><LogOut size={16} />Se déconnecter</button>
           </div>
         ) : null}
+      </div>
       </div>
     </header>
   );

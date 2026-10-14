@@ -22,6 +22,10 @@ import NotFoundPage from '../pages/errors/NotFoundPage';
 import ReportsPage from '../pages/reports/ReportsPage';
 import RolesPage from '../pages/admin/RolesPage';
 import AuditPage from '../pages/admin/AuditPage';
+import SalesDocsPage from '../pages/salesdocs/SalesDocsPage';
+import QualityPage from '../pages/quality/QualityPage';
+import HrPage from '../pages/hr/HrPage';
+import NotificationsPage from '../pages/NotificationsPage';
 
 export default function AppRoutes() {
   return (
@@ -45,6 +49,14 @@ export default function AppRoutes() {
           <Route path="conditionnement" element={<P permission="PACKAGING_VIEW"><PackagingPage /></P>} />
           <Route path="ventes/rapide" element={<P permission="SALES_CREATE"><QuickSalePage /></P>} />
           <Route path="ventes/historique" element={<P permission="SALES_VIEW"><SalesHistoryPage /></P>} />
+          <Route path="ventes/devis" element={<P permission="SALES_VIEW"><SalesDocsPage key="DEVIS" type="DEVIS" /></P>} />
+          <Route path="ventes/commandes" element={<P permission="SALES_VIEW"><SalesDocsPage key="COMMANDE" type="COMMANDE" /></P>} />
+          <Route path="ventes/livraisons" element={<P permission="SALES_VIEW"><SalesDocsPage key="LIVRAISON" type="LIVRAISON" /></P>} />
+          <Route path="ventes/factures" element={<P permission="SALES_VIEW"><SalesDocsPage key="FACTURE" type="FACTURE" /></P>} />
+          <Route path="ventes/avoirs" element={<P permission="SALES_VIEW"><SalesDocsPage key="AVOIR" type="AVOIR" /></P>} />
+          <Route path="qualite" element={<P permission="QUALITY_VIEW"><QualityPage /></P>} />
+          <Route path="rh" element={<P permission={['HR_VIEW', 'LEAVE_REQUEST', 'LEAVE_VALIDATE']}><HrPage /></P>} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="finance" element={<P permission={['FINANCE_VIEW', 'CASH_SESSION']}><FinancePage /></P>} />
           <Route path="rapports" element={<P permission="REPORT_VIEW"><ReportsPage /></P>} />
           <Route path="roles" element={<P permission={['ROLE_MANAGE', 'USER_MANAGE']}><RolesPage /></P>} />

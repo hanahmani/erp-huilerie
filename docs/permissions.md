@@ -96,3 +96,20 @@ RESP_PRODUCTION `REPORT_VIEW` ; RESP_FINANCIER `FINANCE_MANAGE`, `REPORT_VIEW`.
 | GET | `/api/reports/production` | REPORT_VIEW |
 
 Le rôle CAISSIER reçoit `PRESSING_VIEW` (migration V7) pour pouvoir encaisser un pressage.
+
+## Ajouts v0.5
+
+Nouvelles permissions : `SALESDOC_MANAGE`, `INVOICE_VALIDATE`, `QUALITY_VIEW`, `QUALITY_MANAGE`, `HR_VIEW`, `HR_MANAGE`,
+`LEAVE_REQUEST`, `LEAVE_VALIDATE`. Nouveaux rôles système : Responsable commercial, Responsable qualité, Responsable RH, Employé.
+Tous les rôles existants reçoivent `LEAVE_REQUEST`.
+
+| Route | Permission |
+|---|---|
+| `/api/sales-documents` (lecture) | SALES_VIEW |
+| création, modification, validation, transformation, annulation | SALESDOC_MANAGE (+ INVOICE_VALIDATE pour valider une facture) |
+| `/{id}/pay` | SALESDOC_MANAGE ou FINANCE_MANAGE |
+| `/{id}/credit-note` | INVOICE_VALIDATE |
+| `/api/quality/*` | QUALITY_VIEW / QUALITY_MANAGE |
+| `/api/hr/employees`, `/absences`, `/services`, `/positions` | HR_VIEW / HR_MANAGE |
+| `/api/hr/leaves` | LEAVE_REQUEST (ses demandes), HR_VIEW (toutes), LEAVE_VALIDATE (décision) |
+| `/api/notifications`, `/api/search` | connecté (résultats filtrés selon les permissions) |

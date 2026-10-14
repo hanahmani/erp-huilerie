@@ -39,6 +39,7 @@ export default function AuditPage() {
                        { key: 'a', header: 'Action', render: (a) => <span className="badge badge-role">{a.action}</span> },
                        { key: 'e', header: 'Élément', render: (a) => (a.entityType ? `${a.entityType}${a.entityId ? ` #${a.entityId}` : ''}` : '—') },
                        { key: 'x', header: 'Détails', render: (a) => <span className="muted">{a.details || ''}</span> },
+                       { key: 'ip', header: 'Adresse IP', render: (a) => <span className="muted">{a.ip || '—'}</span> },
                      ]} />
         )}
         <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />

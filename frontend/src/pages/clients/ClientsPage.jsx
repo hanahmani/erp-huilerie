@@ -10,6 +10,8 @@ const fields = [
   { name: 'telephone', label: 'Téléphone' },
   { name: 'cin', label: 'CIN', hidden: (v) => v.type === 'PROFESSIONNEL' },
   { name: 'matriculeFiscal', label: 'Matricule fiscal', required: false, hint: 'Obligatoire pour un professionnel.' },
+  { name: 'email', label: 'E-mail', type: 'email' },
+  { name: 'conditionsPaiement', label: 'Conditions de paiement', hint: 'Ex. comptant, 30 jours fin de mois' },
   { name: 'plafondCredit', label: 'Plafond de crédit (DT)', type: 'number', hint: 'Vide = pas de plafond.' },
   { name: 'adresse', label: 'Adresse', type: 'textarea', wide: true },
 ];

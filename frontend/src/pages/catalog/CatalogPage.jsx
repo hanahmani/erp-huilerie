@@ -33,6 +33,7 @@ export default function CatalogPage() {
     { name: 'prixAchat', label: "Prix d'achat (DT)", type: 'number' },
     { name: 'prixVente', label: 'Prix de vente (DT)', type: 'number', hint: 'Obligatoire si vendable.' },
     { name: 'seuilMin', label: 'Seuil d\'alerte de stock', type: 'number', hint: 'Dans l\'unité de l\'article.' },
+    { name: 'stockMax', label: 'Stock maximum', type: 'number', hint: 'Facultatif.' },
     { name: 'codeBarres', label: 'Code-barres' },
     { name: 'description', label: 'Description', type: 'textarea', wide: true },
     { name: 'vendable', label: 'Vendable en caisse', type: 'checkbox' },

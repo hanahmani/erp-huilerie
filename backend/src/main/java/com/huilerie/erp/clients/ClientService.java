@@ -23,6 +23,16 @@ public class ClientService {
     private final SaleRepository sales;
     private final DocumentNumberService numbers;
     private final AuditService audit;
+    private com.huilerie.erp.salesdocs.SalesDocumentRepository invoices;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setInvoices(com.huilerie.erp.salesdocs.SalesDocumentRepository invoices) {
+        this.invoices = invoices;
+    }
+
+    private java.math.BigDecimal due(Long clientId) {
+        return Money.ofAny(sales.outstandingByClient(clientId)).add(Money.ofAny(invoices.outstandingByClient(clientId)));
+    }
 
     public ClientService(ClientRepository clients, SaleRepository sales, DocumentNumberService numbers,
                          AuditService audit) {
@@ -37,14 +47,14 @@ public class ClientService {
     public PageResponse<ClientDto.Response> search(String q, ClientType type, Boolean actif, int page, int size) {
         PageRequest pr = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by("nom"));
         return PageResponse.of(clients.search(Text.search(q), type, actif, pr),
-                c -> ClientDto.Response.from(c, Money.of(sales.outstandingByClient(c.getId()))));
+                c -> ClientDto.Response.from(c, due(c.getId())));
     }
 
     @PreAuthorize("hasAuthority('CLIENT_VIEW')")
     @Transactional(readOnly = true)
     public ClientDto.Response get(Long id) {
         Client c = client(id);
-        return ClientDto.Response.from(c, Money.of(sales.outstandingByClient(id)));
+        return ClientDto.Response.from(c, due(id));
     }
 
     @PreAuthorize("hasAuthority('CLIENT_MANAGE')")
@@ -67,9 +77,11 @@ public class ClientService {
         c.setCin(Text.clean(r.cin()));
         c.setMatriculeFiscal(Text.clean(r.matriculeFiscal()));
         c.setPlafondCredit(Money.strict(r.plafondCredit(), "Plafond de crédit"));
+        c.setEmail(Text.clean(r.email()));
+        c.setConditionsPaiement(Text.clean(r.conditionsPaiement()));
         c = clients.save(c);
         audit.log(SecurityUtils.username(), id == null ? "CREATE" : "UPDATE", "Client", String.valueOf(c.getId()), c.getCode());
-        return ClientDto.Response.from(c, Money.of(sales.outstandingByClient(c.getId())));
+        return ClientDto.Response.from(c, due(c.getId()));
     }
 
     @PreAuthorize("hasAuthority('CLIENT_MANAGE')")
@@ -78,7 +90,7 @@ public class ClientService {
         Client c = client(id);
         c.setActif(actif);
         audit.log(SecurityUtils.username(), actif ? "ACTIVATE" : "DEACTIVATE", "Client", String.valueOf(id), null);
-        return ClientDto.Response.from(c, Money.of(sales.outstandingByClient(id)));
+        return ClientDto.Response.from(c, due(id));
     }
 
     public Client client(Long id) {

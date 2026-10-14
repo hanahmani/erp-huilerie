@@ -15,6 +15,7 @@ MySQL 8.4, encodage `utf8mb4`, schéma géré exclusivement par Flyway
 | V5.1    | `db/vendor/mysql/V5_1__…append_only.sql` | MySQL uniquement : triggers interdisant la modification des journaux |
 | V6      | `V6__achats_finance_inventaire_parametrage.sql` | taxes, catégories de dépenses, rôles personnalisés, fiche utilisateur, achats, réceptions, paiements fournisseurs, règlements clients, dépenses, sessions de caisse, inventaires, 5 permissions |
 | V6.1    | `db/vendor/mysql/V6_1__…append_only.sql` | MySQL : paiements et lignes de réception non modifiables |
+| V8      | `V8__ventes_facturation_qualite_rh.sql` | documents commerciaux et paiements, qualité (critères, contrôles, anomalies), RH (services, postes, employés, congés, absences, jours fériés), lecture des notifications, champs clients/fournisseurs/articles, IP d'audit, timbre et inactivité, rôles et permissions |
 | V7      | `V7__pressage_production_conditionnement.sql` | pressages, remises d'huile, paiements de pressage, ordres de production, entrées et sous-produits, conditionnements et emballages consommés, paramètres du pressage |
 
 Règle : une migration appliquée n'est **jamais modifiée**. Toute évolution passe par un nouveau

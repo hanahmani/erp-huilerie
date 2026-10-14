@@ -64,6 +64,10 @@ public class SupplierService {
         s.setAdresse(Text.clean(r.adresse()));
         s.setCin(cin);
         s.setMatriculeFiscal(mf);
+        s.setEmail(Text.clean(r.email()));
+        s.setConditionsPaiement(Text.clean(r.conditionsPaiement()));
+        s.setBanque(Text.clean(r.banque()));
+        s.setRib(Text.clean(r.rib()) == null ? null : r.rib().replace(" ", ""));
         s = suppliers.save(s);
         audit.log(SecurityUtils.username(), id == null ? "CREATE" : "UPDATE", "Supplier", String.valueOf(s.getId()), s.getCode());
         return SupplierDto.Response.from(s);

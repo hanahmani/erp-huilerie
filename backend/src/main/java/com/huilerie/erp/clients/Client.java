@@ -37,6 +37,12 @@ public class Client {
     @Column(name = "matricule_fiscal", length = 50)
     private String matriculeFiscal;
 
+    @Column(length = 120)
+    private String email;
+
+    @Column(name = "conditions_paiement", length = 100)
+    private String conditionsPaiement;
+
     @Column(name = "plafond_credit", precision = 12, scale = 3)
     private BigDecimal plafondCredit;
 
@@ -78,6 +84,10 @@ public class Client {
     public BigDecimal getPlafondCredit() { return plafondCredit; }
     public void setPlafondCredit(BigDecimal v) { plafondCredit = v; }
     public boolean isActif() { return actif; }
+    public String getEmail() { return email; }
+    public void setEmail(String v) { email = v; }
+    public String getConditionsPaiement() { return conditionsPaiement; }
+    public void setConditionsPaiement(String v) { conditionsPaiement = v; }
     public void setActif(boolean v) { actif = v; }
     public Instant getCreatedAt() { return createdAt; }
 }

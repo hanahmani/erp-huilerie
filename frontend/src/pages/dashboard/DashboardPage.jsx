@@ -56,6 +56,10 @@ export default function DashboardPage() {
             {data.pressagesImpayes != null && Number(data.pressagesImpayes) ? <StatCard label="Pressages non payés" value={formatDT(data.pressagesImpayes)} tone="warn" /> : null}
             {data.huileProduiteMois != null ? <StatCard label="Huile produite ce mois" value={formatQty(data.huileProduiteMois, 'L')} hint={data.rendementMois != null ? `Rendement ${Number(data.rendementMois).toFixed(2)} L/100 kg` : undefined} /> : null}
             {data.triturationsEnCours != null && data.triturationsEnCours ? <StatCard label="Triturations à faire ou en cours" value={data.triturationsEnCours} /> : null}
+            {data.facturationMois != null ? <StatCard label="Facturé ce mois" value={formatDT(data.facturationMois)} /> : null}
+            {data.facturesImpayees != null && Number(data.facturesImpayees) ? <StatCard label="Factures impayées" value={formatDT(data.facturesImpayees)} tone="warn" /> : null}
+            {data.employesActifs != null ? <StatCard label="Employés actifs" value={data.employesActifs} /> : null}
+            {data.congesEnAttente ? <StatCard label="Congés à valider" value={data.congesEnAttente} tone="warn" /> : null}
             {data.achatsMois != null ? <StatCard label="Achats du mois" value={formatDT(data.achatsMois)} /> : null}
             {data.commandesARecevoir != null ? <StatCard label="Commandes à réceptionner" value={data.commandesARecevoir} tone={data.commandesARecevoir ? 'warn' : undefined} /> : null}
             {data.dettesFournisseurs != null ? <StatCard label="Dû aux fournisseurs" value={formatDT(data.dettesFournisseurs)} tone={Number(data.dettesFournisseurs) ? 'warn' : undefined} /> : null}

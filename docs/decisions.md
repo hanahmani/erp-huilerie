@@ -49,3 +49,12 @@
 23. **Conditionnement** : volume de vrac = quantité × contenance de l'article fini. Le produit fini suivi par lot
     reprend le numéro du lot de vrac. Annulation par mouvements `ANNULATION_PLUS/MOINS`, refusée si les produits
     ont déjà été vendus (stock insuffisant).
+24. **Documents commerciaux** : une seule table pour devis, commandes, livraisons, factures et avoirs. Numéro attribué
+    à la validation. Le stock sort à la validation du bon de livraison, ou de la facture quand elle n'est pas issue d'une
+    livraison (jamais deux fois). Une facture validée ne s'annule que par un avoir total (remboursement et retour en stock facultatifs).
+25. **Timbre fiscal** : montant fixe paramétré, ajouté à la validation de chaque facture. La TVA vient des taxes paramétrées.
+26. **Qualité** : un contrôle compare chaque valeur aux seuils de son critère ; « appliquer la décision » bloque le lot et
+    ouvre une anomalie s'il est non conforme, ou le débloque s'il est conforme.
+27. **Congés** : jours ouvrés du lundi au vendredi, hors jours fériés saisis ; seul le congé annuel débite le solde ;
+    personne ne valide sa propre demande.
+28. **Notifications** : calculées à la demande à partir des données ; seul l'état « lu » est stocké.

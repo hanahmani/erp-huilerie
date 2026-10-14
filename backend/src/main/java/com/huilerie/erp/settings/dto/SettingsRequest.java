@@ -14,6 +14,10 @@ public record SettingsRequest(
         boolean venteCreditAutorisee,
         @jakarta.validation.constraints.DecimalMin(value = "0", message = "Le tarif ne peut pas être négatif.")
         java.math.BigDecimal tarifPressageKg,
-        Long pressageArticleId
+        Long pressageArticleId,
+        @jakarta.validation.constraints.DecimalMin(value = "0", message = "Le timbre ne peut pas être négatif.")
+        java.math.BigDecimal timbreFiscal,
+        @jakarta.validation.constraints.Min(value = 5, message = "5 minutes minimum.")
+        @jakarta.validation.constraints.Max(value = 480, message = "480 minutes maximum.") Integer inactiviteMinutes
 ) {
 }

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ShoppingBasket, Factory, Droplets, Package, Boxes, ReceiptText,
-  Wallet, Users, Truck, BookOpen, ShieldCheck, Settings, BarChart3, KeyRound, History,
+  Wallet, Users, Truck, BookOpen, ShieldCheck, Settings, BarChart3, KeyRound, History, FileText, ClipboardCheck, UserRound,
 } from 'lucide-react';
 
 /**
@@ -19,15 +19,26 @@ export const NAVIGATION = [
     title: 'Activité',
     items: [
       {
-        key: 'sales', label: 'Ventes', icon: ReceiptText, permission: 'SALES_VIEW', path: '/ventes',
+        key: 'sales', label: 'Caisse', icon: ReceiptText, permission: 'SALES_VIEW', path: '/ventes',
         children: [
           { key: 'sales-quick', label: 'Vente rapide', path: '/ventes/rapide', permission: 'SALES_CREATE' },
-          { key: 'sales-history', label: 'Historique', path: '/ventes/historique', permission: 'SALES_VIEW' },
+          { key: 'sales-history', label: 'Tickets', path: '/ventes/historique', permission: 'SALES_VIEW' },
+        ],
+      },
+      {
+        key: 'salesdocs', label: 'Ventes et facturation', icon: FileText, permission: 'SALES_VIEW', path: '/ventes/devis',
+        children: [
+          { key: 'sd-devis', label: 'Devis', path: '/ventes/devis', permission: 'SALES_VIEW' },
+          { key: 'sd-cmd', label: 'Commandes', path: '/ventes/commandes', permission: 'SALES_VIEW' },
+          { key: 'sd-bl', label: 'Livraisons', path: '/ventes/livraisons', permission: 'SALES_VIEW' },
+          { key: 'sd-fac', label: 'Factures', path: '/ventes/factures', permission: 'SALES_VIEW' },
+          { key: 'sd-avr', label: 'Avoirs', path: '/ventes/avoirs', permission: 'SALES_VIEW' },
         ],
       },
       { key: 'pressing', label: 'Pressage client', path: '/pressage', icon: Droplets, permission: 'PRESSING_VIEW' },
       { key: 'production', label: 'Production', path: '/production', icon: Factory, permission: 'PRODUCTION_VIEW' },
       { key: 'packaging', label: 'Conditionnement', path: '/conditionnement', icon: Package, permission: 'PACKAGING_VIEW' },
+      { key: 'quality', label: 'Contrôle qualité', path: '/qualite', icon: ClipboardCheck, permission: 'QUALITY_VIEW' },
       { key: 'purchases', label: 'Achats', path: '/achats', icon: ShoppingBasket, permission: 'PURCHASE_VIEW' },
     ],
   },
@@ -45,6 +56,7 @@ export const NAVIGATION = [
     items: [
       { key: 'finance', label: 'Finance et caisse', path: '/finance', icon: Wallet, permission: ['FINANCE_VIEW', 'CASH_SESSION'] },
       { key: 'reports', label: 'Rapports', path: '/rapports', icon: BarChart3, permission: 'REPORT_VIEW' },
+      { key: 'hr', label: 'RH et congés', path: '/rh', icon: UserRound, permission: ['HR_VIEW', 'LEAVE_REQUEST', 'LEAVE_VALIDATE'] },
     ],
   },
   {
@@ -73,6 +85,9 @@ export const MODULES = {
   salesHistory: { title: 'Historique des ventes', phase: 5, description: 'Toutes les ventes validées, avec réimpression du ticket.', planned: ['Filtres par date, ticket, client, caissier', 'Consultation et réimpression', 'Annulation autorisée et tracée'] },
   finance: { title: 'Finance', phase: 6, description: 'Caisse, dépenses, créances et dettes.', planned: ['Caisse et résumé journalier', 'Paiements et paiements partiels', 'Dépenses', 'Dettes fournisseurs et créances clients'] },
   users: { title: 'Utilisateurs', description: 'Comptes des employés, rôles et accès.' },
+  quality: { title: 'Contrôle qualité', description: 'Analyses des lots, conformité et anomalies.' },
+  hr: { title: 'RH et congés', description: 'Employés, contrats, congés et absences.' },
+  salesdocs: { title: 'Ventes et facturation', description: 'Devis, commandes, livraisons, factures et avoirs.' },
   reports: { title: 'Rapports', description: 'Ventes, achats, stock valorisé et trésorerie, exportables.' },
   roles: { title: 'Rôles', description: 'Qui peut faire quoi, module par module.' },
   audit: { title: 'Journal', description: 'Historique des opérations sensibles.' },

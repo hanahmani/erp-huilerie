@@ -34,6 +34,7 @@ export default function LoginPage() {
     <form onSubmit={submit} noValidate>
       <h1>Connexion</h1>
       <p>Entrez l'identifiant et le mot de passe fournis par l'administrateur.</p>
+      {location.state?.idle ? <Alert type="info">Vous avez été déconnecté après une période d'inactivité.</Alert> : null}
       <Alert type="error">{error}</Alert>
       <TextField label="Identifiant" name="username" autoComplete="username" autoFocus required
                  value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />

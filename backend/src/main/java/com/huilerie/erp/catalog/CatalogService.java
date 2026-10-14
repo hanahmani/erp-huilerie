@@ -152,6 +152,10 @@ public class CatalogService {
         a.setPrixAchat(Money.strict(r.prixAchat(), "Prix d'achat"));
         a.setPrixVente(Money.strict(r.prixVente(), "Prix de vente"));
         a.setSeuilMin(Money.strict(r.seuilMin(), "Seuil minimal"));
+        a.setStockMax(Money.strict(r.stockMax(), "Stock maximum"));
+        if (a.getSeuilMin() != null && a.getStockMax() != null && a.getStockMax().compareTo(a.getSeuilMin()) < 0) {
+            throw new BusinessException("Le stock maximum doit être supérieur au seuil minimal.");
+        }
         a.setCodeBarres(barcode);
         a.setVendable(r.vendable());
         a.setSuiviLot(r.suiviLot());

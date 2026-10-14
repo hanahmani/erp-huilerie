@@ -210,3 +210,4 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 14px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-weight: 500; }
+.link-btn { background: none; border: none; padding: 0; margin-right: 10px; font: inherit; color: var(--olive-600); text-decoration: underline; cursor: pointer; }

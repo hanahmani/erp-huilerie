@@ -36,6 +36,18 @@ public class Supplier {
     @Column(name = "matricule_fiscal", length = 50)
     private String matriculeFiscal;
 
+    @Column(length = 120)
+    private String email;
+
+    @Column(name = "conditions_paiement", length = 100)
+    private String conditionsPaiement;
+
+    @Column(length = 100)
+    private String banque;
+
+    @Column(length = 34)
+    private String rib;
+
     @Column(nullable = false)
     private boolean actif = true;
 
@@ -72,6 +84,14 @@ public class Supplier {
     public String getMatriculeFiscal() { return matriculeFiscal; }
     public void setMatriculeFiscal(String v) { matriculeFiscal = v; }
     public boolean isActif() { return actif; }
+    public String getEmail() { return email; }
+    public void setEmail(String v) { email = v; }
+    public String getConditionsPaiement() { return conditionsPaiement; }
+    public void setConditionsPaiement(String v) { conditionsPaiement = v; }
+    public String getBanque() { return banque; }
+    public void setBanque(String v) { banque = v; }
+    public String getRib() { return rib; }
+    public void setRib(String v) { rib = v; }
     public void setActif(boolean v) { actif = v; }
     public Instant getCreatedAt() { return createdAt; }
 }

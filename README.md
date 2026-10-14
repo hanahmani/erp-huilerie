@@ -1,6 +1,6 @@
 # ERP Huilerie Ben Chaaben
 
-Application web de gestion de l'huilerie. Version **0.4** :
+Application web de gestion de l'huilerie. Version **0.5** — correspondance avec le cahier des charges : `docs/conformite-cdc.md`.
 
 - fondations : authentification, utilisateurs, rôles et permissions vérifiés côté serveur ;
 - paramètres de l'huilerie, unités, catégories, articles, clients, fournisseurs ;
@@ -15,7 +15,11 @@ Application web de gestion de l'huilerie. Version **0.4** :
 - pressage client : pesée, suivi, huile du client stockée à part, encaissement, remise, bons imprimables ;
 - production : trituration des olives de l'huilerie, rendement, acidité et catégorie, sous-produits ;
 - conditionnement : vrac → bouteilles et bidons, emballages consommés ;
-- traçabilité des lots en amont et en aval.
+- traçabilité des lots en amont et en aval ;
+- ventes et facturation : devis, commandes, livraisons, factures (TVA, timbre, échéance, paiements partiels), avoirs ;
+- contrôle qualité : critères, contrôles, blocage des lots non conformes, anomalies ;
+- RH : employés, contrats, services, postes, congés (jours ouvrés, solde, validation), absences, jours fériés ;
+- notifications (cloche), recherche globale (Ctrl+K), déconnexion après inactivité, scripts de sauvegarde.
 
 État détaillé par module : `docs/avancement.md`. Choix techniques : `docs/decisions.md`.
 
@@ -132,6 +136,12 @@ Tests backend fournis :
   n'est pas payé, remise partielle puis soldée, sur-remise refusée, tare invalide, annulation après fin refusée.
 - `ProductionServiceTest` : consommation des olives au démarrage, rendement, catégorie, sous-produits,
   olives insuffisantes, olives d'un client refusées, classement par acidité.
+- `SalesDocumentServiceTest` : cycle devis → commande → livraison → facture, stock sorti une seule fois,
+  paiements plafonnés, facture directe et avoir avec retour en stock, document validé non modifiable,
+  plafond de crédit, validation de facture réservée.
+- `HrServiceTest` : jours ouvrés et fériés, solde débité à la validation, chevauchement et solde insuffisant,
+  refus motivé, contrat saisonnier sans date de fin.
+- `QualityServiceTest` : non-conformité qui bloque le lot et ouvre une anomalie, conformité qui débloque.
 - `PackagingServiceTest` : volume de vrac, emballages, produits finis, annulation compensée, vrac insuffisant,
   huile d'un client refusée, contenance obligatoire.
 
@@ -181,7 +191,11 @@ Les fichiers `.env` ne sont jamais versionnés (voir `.gitignore`).
     acheter et réceptionner des olives, puis planifier une trituration.
 12. **Conditionnement** : articles « Huile conditionnée » avec leur contenance en litres et articles « Emballage ».
 
-## 7. Suite du développement
+## 7. Sauvegarde
+
+Voir `docs/sauvegarde.md` : `./scripts/sauvegarde.sh` (à planifier chaque nuit) et `./scripts/restauration.sh`.
+
+## 8. Suite du développement
 
 | Phase | Contenu                                                                  |
 |-------|--------------------------------------------------------------------------|

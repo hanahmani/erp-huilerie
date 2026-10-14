@@ -46,6 +46,17 @@ public class DashboardService {
     private final com.huilerie.erp.finance.CashSessionRepository cashSessions;
     private com.huilerie.erp.pressing.PressingRepository pressings;
     private com.huilerie.erp.production.ProductionOrderRepository productions;
+    private com.huilerie.erp.salesdocs.SalesDocumentRepository invoices;
+    private com.huilerie.erp.hr.EmployeeRepository employees;
+    private com.huilerie.erp.hr.LeaveRequestRepository leaves;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setMore(com.huilerie.erp.salesdocs.SalesDocumentRepository invoices, com.huilerie.erp.hr.EmployeeRepository employees,
+                 com.huilerie.erp.hr.LeaveRequestRepository leaves) {
+        this.invoices = invoices;
+        this.employees = employees;
+        this.leaves = leaves;
+    }
 
     @org.springframework.beans.factory.annotation.Autowired
     void setOperations(com.huilerie.erp.pressing.PressingRepository pressings,
@@ -123,7 +134,11 @@ public class DashboardService {
                 productionView ? productions.countByStatutIn(List.of(com.huilerie.erp.production.ProductionOrder.Status.PLANIFIE,
                         com.huilerie.erp.production.ProductionOrder.Status.EN_COURS)) : null,
                 productionView ? Money.ofAny(monthProd[2]) : null,
-                productionView ? monthYield(monthProd) : null);
+                productionView ? monthYield(monthProd) : null,
+                salesView ? Money.ofAny(invoices.totalOutstanding()) : null,
+                salesView ? Money.ofAny(invoices.invoicedBetween(today.withDayOfMonth(1), today)) : null,
+                SecurityUtils.has("HR_VIEW") ? employees.countByStatut("ACTIF") : null,
+                SecurityUtils.has("LEAVE_VALIDATE") ? leaves.countByStatut("EN_ATTENTE") : null);
     }
 
     /** Espèces théoriques de la caisse ouverte (fond + entrées − sorties en espèces). */

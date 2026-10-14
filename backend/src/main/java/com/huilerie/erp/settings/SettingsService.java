@@ -51,6 +51,8 @@ public class SettingsService {
         s.setMatriculeFiscal(Text.clean(r.matriculeFiscal()));
         s.setMessageTicket(Text.clean(r.messageTicket()));
         s.setVenteCreditAutorisee(r.venteCreditAutorisee());
+        s.setTimbreFiscal(com.huilerie.erp.common.Money.strict(r.timbreFiscal(), "Timbre fiscal"));
+        s.setInactiviteMinutes(r.inactiviteMinutes());
         s.setTarifPressageKg(com.huilerie.erp.common.Money.strict(r.tarifPressageKg(), "Tarif de pressage"));
         if (r.pressageArticleId() == null) {
             s.setPressageArticle(null);

@@ -36,7 +36,11 @@ public class TestUsers {
 
     /** Vide les tables métier (H2 uniquement : sous MySQL les journaux sont protégés par trigger). */
     public void reset() {
-        for (String table : new String[]{"company_settings", "pressing_payments", "pressing_returns", "pressings",
+        jdbc.update("UPDATE sales_documents SET source_id = NULL");
+        for (String table : new String[]{"notification_reads", "sales_document_payments", "sales_document_lines",
+                "sales_documents", "quality_results", "quality_anomalies", "quality_controls", "quality_criteria",
+                "absences", "leave_requests", "public_holidays", "employees", "hr_services", "hr_positions",
+                "company_settings", "pressing_payments", "pressing_returns", "pressings",
                 "production_byproducts", "production_inputs", "production_orders", "packaging_consumptions",
                 "packaging_orders", "goods_receipt_lines", "goods_receipts", "supplier_payments",
                 "purchase_lines", "purchases", "client_payments", "inventory_lines", "inventories", "expenses",

@@ -17,10 +17,10 @@ import java.time.Instant;
 public class AuditController {
 
     public record Line(Long id, Instant date, String username, String action, String entityType, String entityId,
-                       String details) {
+                       String details, String ip) {
         static Line from(AuditLog a) {
             return new Line(a.getId(), a.getCreatedAt(), a.getUsername(), a.getAction(), a.getEntityType(),
-                    a.getEntityId(), a.getDetails());
+                    a.getEntityId(), a.getDetails(), a.getIp());
         }
     }
 

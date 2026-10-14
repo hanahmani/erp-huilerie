@@ -30,6 +30,9 @@ public class AuditLog {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(length = 45)
+    private String ip;
+
     protected AuditLog() {
     }
 
@@ -41,6 +44,12 @@ public class AuditLog {
         this.details = details;
         this.createdAt = Instant.now();
     }
+
+    void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public String getIp() { return ip; }
 
     public Long getId() { return id; }
     public String getUsername() { return username; }

@@ -9,6 +9,10 @@ const fields = [
   { name: 'cin', label: 'CIN', hint: "Agriculteur : CIN ou matricule fiscal." },
   { name: 'matriculeFiscal', label: 'Matricule fiscal', hint: 'Obligatoire pour une entreprise.' },
   { name: 'telephone', label: 'Téléphone' },
+  { name: 'email', label: 'E-mail', type: 'email' },
+  { name: 'conditionsPaiement', label: 'Conditions de paiement' },
+  { name: 'banque', label: 'Banque' },
+  { name: 'rib', label: 'RIB', hint: '20 chiffres' },
   { name: 'adresse', label: 'Adresse', type: 'textarea', wide: true },
 ];
 

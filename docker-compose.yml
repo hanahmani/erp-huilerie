@@ -45,13 +45,20 @@ services:
       TZ: Africa/Tunis
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8090}:8080"  # API directe, pour les tests manuels
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
 
   frontend:
     build: ./frontend
     container_name: huilerie-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy              # évite les « Erreur 502 » pendant le démarrage de Spring
     ports:
       - "${APP_PORT:-8080}:80"                  # l'ERP : http://localhost:8080
 

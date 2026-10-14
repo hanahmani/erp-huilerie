@@ -49,6 +49,9 @@ public class Article {
     @Column(name = "seuil_min", precision = 15, scale = 3)
     private BigDecimal seuilMin;
 
+    @Column(name = "stock_max", precision = 15, scale = 3)
+    private BigDecimal stockMax;
+
     @Column(name = "code_barres", unique = true, length = 64)
     private String codeBarres;
 
@@ -103,6 +106,8 @@ public class Article {
     public void setPrixVente(BigDecimal v) { prixVente = v; }
     public BigDecimal getSeuilMin() { return seuilMin; }
     public void setSeuilMin(BigDecimal v) { seuilMin = v; }
+    public BigDecimal getStockMax() { return stockMax; }
+    public void setStockMax(BigDecimal v) { stockMax = v; }
     public String getCodeBarres() { return codeBarres; }
     public void setCodeBarres(String v) { codeBarres = v; }
     public boolean isVendable() { return vendable; }

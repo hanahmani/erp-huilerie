@@ -47,7 +47,7 @@ export default function Sidebar({ open, onNavigate }) {
         })}
       </nav>
 
-      <div className="sidebar-foot">Version 0.4</div>
+      <div className="sidebar-foot">Version 0.5</div>
     </aside>
   );
 }

@@ -19,7 +19,9 @@ public enum MovementType {
     CONDITIONNEMENT_SORTIE(-1, false),
     CONDITIONNEMENT_ENTREE(1, false),
     ANNULATION_PLUS(1, false),
-    ANNULATION_MOINS(-1, false);
+    ANNULATION_MOINS(-1, false),
+    LIVRAISON(-1, false),
+    RETOUR_CLIENT(1, false);
 
     private final int sens;
     private final boolean manual;
