@@ -1,0 +1,1 @@
+Dossier des migrations propres à H2 (tests). Les triggers « append-only » existent uniquement pour MySQL.
