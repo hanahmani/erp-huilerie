@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { tokenStore } from '../services/api';
 import { useInactivityLogout } from '../hooks/useInactivityLogout';
 import { settingsService } from '../services/settingsService';
 import Sidebar from '../components/layout/Sidebar';
@@ -13,7 +14,8 @@ export default function MainLayout() {
   const navigate = useNavigate();
   useEffect(() => { settingsService.get().then((s) => s.inactiviteMinutes && setTimeoutMin(s.inactiviteMinutes)).catch(() => {}); }, []);
   const onIdle = useCallback(() => { logout(); navigate('/connexion', { replace: true, state: { idle: true } }); }, [logout, navigate]);
-  const warning = useInactivityLogout(timeout, onIdle);
+  // « Se souvenir de moi » : l'utilisateur a choisi de rester connecté, pas de déconnexion pour inactivité.
+  const warning = useInactivityLogout(timeout, onIdle, !tokenStore.remembered());
   return (
     <div className="app-shell">
       {warning ? <div className="idle-warning" role="alert">Inactivité : déconnexion automatique dans moins d'une minute.</div> : null}

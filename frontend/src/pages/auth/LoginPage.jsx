@@ -9,7 +9,7 @@ export default function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ username: '', password: '', remember: false });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const u = await login(form.username, form.password);
+      const u = await login(form.username, form.password, form.remember);
       const target = u.mustChangePassword ? '/profil' : location.state?.from || '/';
       navigate(target, { replace: true });
     } catch (err) {
@@ -40,6 +40,10 @@ export default function LoginPage() {
                  value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
       <TextField label="Mot de passe" name="password" type="password" autoComplete="current-password" required
                  value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+      <label className="remember">
+        <input type="checkbox" checked={form.remember} onChange={(e) => setForm({ ...form, remember: e.target.checked })} />
+        Se souvenir de moi
+      </label>
       <Button type="submit" block loading={loading} disabled={!form.username || !form.password}>
         Se connecter
       </Button>

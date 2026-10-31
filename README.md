@@ -154,6 +154,7 @@ Tests backend fournis :
 | `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` | oui (hors Docker) | Connexion JDBC du backend         |
 | `JWT_SECRET`              | oui         | Clé de signature des jetons, 32 caractères minimum       |
 | `JWT_EXPIRATION_MINUTES`  | non (480)   | Durée de validité d'une session                          |
+| `JWT_REMEMBER_EXPIRATION_MINUTES` | non (43200) | Durée de session avec « Se souvenir de moi » (30 jours) |
 | `ADMIN_INITIAL_USERNAME`  | 1er démarrage | Identifiant du premier administrateur                  |
 | `ADMIN_INITIAL_PASSWORD`  | 1er démarrage | Mot de passe provisoire, à retirer ensuite             |
 | `CORS_ALLOWED_ORIGINS`    | non         | Origines autorisées si le frontend est sur un autre domaine |

@@ -2,10 +2,18 @@
 const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.BASE_URL + 'api';
 const TOKEN_KEY = 'huilerie.token';
 
+// « Se souvenir de moi » : localStorage (survit à la fermeture du navigateur), sinon sessionStorage.
 export const tokenStore = {
-  get: () => sessionStorage.getItem(TOKEN_KEY),
-  set: (token) => sessionStorage.setItem(TOKEN_KEY, token),
-  clear: () => sessionStorage.removeItem(TOKEN_KEY),
+  get: () => localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY),
+  remembered: () => Boolean(localStorage.getItem(TOKEN_KEY)),
+  set: (token, remember) => {
+    tokenStore.clear();
+    (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+  },
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  },
 };
 
 export class ApiError extends Error {

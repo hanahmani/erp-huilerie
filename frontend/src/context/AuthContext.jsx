@@ -28,16 +28,16 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('auth:expired', onExpired);
   }, []);
 
-  const login = useCallback(async (username, password) => {
-    const res = await authService.login(username, password);
-    tokenStore.set(res.token);
+  const login = useCallback(async (username, password, remember = false) => {
+    const res = await authService.login(username, password, remember);
+    tokenStore.set(res.token, remember);
     setUser(res.user);
     return res.user;
   }, []);
 
   const changePassword = useCallback(async (current, next) => {
     const res = await authService.changePassword(current, next);
-    tokenStore.set(res.token);
+    tokenStore.set(res.token, tokenStore.remembered());
     setUser(res.user);
   }, []);
 

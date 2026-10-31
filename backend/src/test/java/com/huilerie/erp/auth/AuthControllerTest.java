@@ -122,6 +122,28 @@ class AuthControllerTest {
     }
 
     @Test
+    void seSouvenirDeMoiDonneUneSessionLongueConserveeAuChangementDeMotDePasse() throws Exception {
+        testUsers.create("caissier1", false, "CAISSIER");
+
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(Map.of("username", "caissier1", "password", TestUsers.PASSWORD))))
+                .andExpect(jsonPath("$.expiresIn").value(60 * 60));
+
+        String json = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(Map.of("username", "caissier1", "password", TestUsers.PASSWORD, "rememberMe", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresIn").value(30 * 24 * 60 * 60))
+                .andReturn().getResponse().getContentAsString();
+        String token = om.readTree(json).get("token").asText();
+
+        String body = om.writeValueAsString(Map.of("currentPassword", TestUsers.PASSWORD, "newPassword", "NouveauMdp2026"));
+        mvc.perform(post("/api/auth/change-password").header(HttpHeaders.AUTHORIZATION, bearer(token))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresIn").value(30 * 24 * 60 * 60));
+    }
+
+    @Test
     void ilNExisteAucuneRouteDInscription() throws Exception {
         mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isUnauthorized());

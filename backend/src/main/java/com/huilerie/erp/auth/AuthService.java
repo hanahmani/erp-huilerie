@@ -32,7 +32,7 @@ public class AuthService {
         this.auditService = auditService;
     }
 
-    public LoginResponse login(String rawUsername, String password) {
+    public LoginResponse login(String rawUsername, String password, boolean remember) {
         String username = rawUsername.trim().toLowerCase();
         AppUser user = userRepository.findByUsername(username).orElse(null);
         if (user == null || !user.isActive() || !passwordEncoder.matches(password, user.getPasswordHash())) {
@@ -42,7 +42,7 @@ public class AuthService {
         user.markLogin();
         userRepository.save(user);
         auditService.log(username, "LOGIN_SUCCESS", "User", String.valueOf(user.getId()), null);
-        return new LoginResponse(jwtService.issue(user), jwtService.ttlSeconds(), MeResponse.from(user));
+        return new LoginResponse(jwtService.issue(user, remember), jwtService.ttlSeconds(remember), MeResponse.from(user));
     }
 
     @Transactional(readOnly = true)
@@ -52,7 +52,7 @@ public class AuthService {
 
     /** Change le mot de passe et renvoie un nouveau jeton (les anciens deviennent invalides). */
     @Transactional
-    public LoginResponse changePassword(String username, String currentPassword, String newPassword) {
+    public LoginResponse changePassword(String username, String currentPassword, String newPassword, boolean remember) {
         AppUser user = findActive(username);
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             throw new BusinessException("Le mot de passe actuel est incorrect.");
@@ -64,7 +64,7 @@ public class AuthService {
         user.changePassword(passwordEncoder.encode(newPassword));
         userRepository.saveAndFlush(user);
         auditService.log(username, "PASSWORD_CHANGE", "User", String.valueOf(user.getId()), null);
-        return new LoginResponse(jwtService.issue(user), jwtService.ttlSeconds(), MeResponse.from(user));
+        return new LoginResponse(jwtService.issue(user, remember), jwtService.ttlSeconds(remember), MeResponse.from(user));
     }
 
     private AppUser findActive(String username) {
