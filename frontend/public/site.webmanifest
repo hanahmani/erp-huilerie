@@ -1,0 +1,15 @@
+{
+  "name": "Huilerie Ben Chaaben — Gestion",
+  "short_name": "Ben Chaaben",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "icons": [
+    { "src": "android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "maskable-icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "theme_color": "#324023",
+  "background_color": "#FFFFFF",
+  "display": "standalone"
+}
