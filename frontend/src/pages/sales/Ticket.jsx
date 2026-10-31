@@ -20,7 +20,7 @@ export default function Ticket({ sale, settings, format = '80', reprint }) {
   return (
     <div className={`ticket ticket-${format}`}>
       <header className="ticket-head">
-        <img src="/logo/logo.png" alt="" className="ticket-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        <img src={import.meta.env.BASE_URL + 'logo/logo.png'} alt="" className="ticket-logo" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         {s.raisonSociale ? <div className="ticket-company">{s.raisonSociale}</div> : null}
         {s.adresse ? <div>{s.adresse}</div> : null}
         {s.telephone ? <div>Tél. {s.telephone}</div> : null}

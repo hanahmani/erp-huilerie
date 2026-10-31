@@ -1,0 +1,15 @@
+# Surcouche PROD — serveur landing-poc, derrière robocare-nginx
+# URL : https://benchaaben.olive.robocare.tn
+# Seul le frontend est relié à web-network ; son nginx interne proxifie /api vers le backend.
+
+services:
+  frontend:
+    build:
+      args:
+        VITE_BASE: /
+    ports: !reset []
+    networks: [default, web-network]
+
+networks:
+  web-network:
+    external: true

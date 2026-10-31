@@ -4,8 +4,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci || npm install
 COPY . .
-ENV VITE_API_URL=/api
-RUN npm run build
+ARG VITE_BASE=/
+ENV VITE_BASE=$VITE_BASE
+RUN npm run build -- --base=$VITE_BASE
 
 # ---------- Étape 2 : Nginx sert les fichiers et relaie /api ----------
 FROM nginx:1.27-alpine

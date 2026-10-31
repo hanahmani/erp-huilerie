@@ -1,5 +1,5 @@
 // Client HTTP unique : ajoute le jeton, transforme les erreurs de l'API en messages lisibles.
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.BASE_URL + 'api';
 const TOKEN_KEY = 'huilerie.token';
 
 export const tokenStore = {
