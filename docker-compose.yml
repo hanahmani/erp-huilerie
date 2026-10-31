@@ -15,6 +15,7 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
+      - --log-bin-trust-function-creators=1   # binlog actif : sinon huilerie_app ne peut pas créer les triggers (V5_1)
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
