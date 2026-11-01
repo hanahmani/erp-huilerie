@@ -54,6 +54,7 @@
 25. **Timbre fiscal** : montant fixe paramétré, ajouté à la validation de chaque facture. La TVA vient des taxes paramétrées.
 26. **Qualité** : un contrôle compare chaque valeur aux seuils de son critère ; « appliquer la décision » bloque le lot et
     ouvre une anomalie s'il est non conforme, ou le débloque s'il est conforme.
-27. **Congés** : jours ouvrés du lundi au vendredi, hors jours fériés saisis ; seul le congé annuel débite le solde ;
-    personne ne valide sa propre demande.
+27. **RH** : une journée pointée (Play / Stop) par employé et par jour vaut le TJM de l'employé au moment du pointage
+    (figé) ; reste dû = somme des TJM − paiements (salaire, journées, avance), négatif si les avances dépassent.
+    Chaque paiement est une sortie de caisse. Congés et absences supprimés (migration V13).
 28. **Notifications** : calculées à la demande à partir des données ; seul l'état « lu » est stocké.

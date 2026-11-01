@@ -12,23 +12,18 @@ export const salesDocService = {
 };
 
 export const hrService = {
-  services: () => api.get('/hr/services'),
-  saveService: (id, nom) => (id ? api.put(`/hr/services/${id}`, { nom }) : api.post('/hr/services', { nom })),
-  positions: () => api.get('/hr/positions'),
-  savePosition: (id, nom) => (id ? api.put(`/hr/positions/${id}`, { nom }) : api.post('/hr/positions', { nom })),
   employees: (params) => api.get(`/hr/employees${toQuery(params)}`),
+  employee: (id) => api.get(`/hr/employees/${id}`),
   saveEmployee: (id, body) => (id ? api.put(`/hr/employees/${id}`, body) : api.post('/hr/employees', body)),
-  me: () => api.get('/hr/me'),
-  leaves: (params) => api.get(`/hr/leaves${toQuery(params)}`),
-  requestLeave: (body) => api.post('/hr/leaves', body),
-  decide: (id, accepter, motifRefus) => api.post(`/hr/leaves/${id}/decision`, { accepter, motifRefus }),
-  cancelLeave: (id) => api.post(`/hr/leaves/${id}/cancel`),
-  workingDays: (from, to) => api.get(`/hr/leaves/working-days${toQuery({ from, to })}`),
-  absences: (params) => api.get(`/hr/absences${toQuery(params)}`),
-  recordAbsence: (body) => api.post('/hr/absences', body),
-  holidays: () => api.get('/hr/holidays'),
-  addHoliday: (body) => api.post('/hr/holidays', body),
-  deleteHoliday: (id) => api.delete(`/hr/holidays/${id}`),
+  setStatus: (id, actif) => api.patch(`/hr/employees/${id}/status`, { actif }),
+  start: (id) => api.post(`/hr/employees/${id}/start`),
+  stop: (id) => api.post(`/hr/employees/${id}/stop`),
+  workDays: (params) => api.get(`/hr/work-days${toQuery(params)}`),
+  addWorkDay: (body) => api.post('/hr/work-days', body),
+  updateWorkDay: (id, body) => api.put(`/hr/work-days/${id}`, body),
+  deleteWorkDay: (id) => api.delete(`/hr/work-days/${id}`),
+  pay: (id, body) => api.post(`/hr/employees/${id}/payments`, body),
+  payments: (params) => api.get(`/hr/payments${toQuery(params)}`),
 };
 
 export const notificationService = {

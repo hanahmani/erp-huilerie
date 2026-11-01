@@ -22,7 +22,7 @@ Le README précise ce qui a réellement été compilé et exécuté.
 | 16 | Matières premières | ✅ | Olives achetées (réception d'achat avec lot), stock par lot, consommation en production. 🟡 Pas d'alerte de délai d'attente avant trituration. |
 | 17 | Lots et traçabilité | ✅ | Amont (achat, pressage, trituration) et aval (trituration, ventes, remises), navigation de lot en lot, historique des mouvements. |
 | 18 | Contrôle qualité | ✅ | Critères paramétrables, contrôles multi-critères, décision automatique (blocage / déblocage), anomalies et actions correctives. |
-| 19–20 | RH, congés | ✅ | Employés, services, postes, contrats et fins de contrat, lien compte utilisateur, demandes de congé (jours ouvrés, jours fériés, chevauchement, solde), validation / refus, absences. |
+| 19–20 | RH | ✅ | Employés simplifiés (identité, TJM, actif / inactif), pointage Play / Stop avec heures corrigeables, paiements (salaire, journées, avance) en sortie de caisse, reste dû = journées × TJM − paiements. Congés, absences, services et postes supprimés (V13). ⬜ Annulation d'un paiement. |
 | 21 | Finance | ✅ | Journal de caisse, sessions de caisse avec écarts, dépenses par catégorie, créances, dettes. |
 | 22 | Rapports | ✅ | Ventes, achats, stock valorisé, trésorerie, dépenses, production et pressage (rendement par variété, par catégorie) ; export CSV, impression. ⬜ Rapport utilisateurs. |
 | 23 | Notifications | ✅ | Cloche et page dédiée, alertes par permission, marquer comme lu. ⬜ e-mail. |

@@ -48,14 +48,14 @@ public class DashboardService {
     private com.huilerie.erp.production.ProductionOrderRepository productions;
     private com.huilerie.erp.salesdocs.SalesDocumentRepository invoices;
     private com.huilerie.erp.hr.EmployeeRepository employees;
-    private com.huilerie.erp.hr.LeaveRequestRepository leaves;
+    private com.huilerie.erp.hr.WorkDayRepository workDays;
 
     @org.springframework.beans.factory.annotation.Autowired
     void setMore(com.huilerie.erp.salesdocs.SalesDocumentRepository invoices, com.huilerie.erp.hr.EmployeeRepository employees,
-                 com.huilerie.erp.hr.LeaveRequestRepository leaves) {
+                 com.huilerie.erp.hr.WorkDayRepository workDays) {
         this.invoices = invoices;
         this.employees = employees;
-        this.leaves = leaves;
+        this.workDays = workDays;
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -137,8 +137,8 @@ public class DashboardService {
                 productionView ? monthYield(monthProd) : null,
                 salesView ? Money.ofAny(invoices.totalOutstanding()) : null,
                 salesView ? Money.ofAny(invoices.invoicedBetween(today.withDayOfMonth(1), today)) : null,
-                SecurityUtils.has("HR_VIEW") ? employees.countByStatut("ACTIF") : null,
-                SecurityUtils.has("LEAVE_VALIDATE") ? leaves.countByStatut("EN_ATTENTE") : null);
+                SecurityUtils.has("HR_VIEW") ? employees.countByActifTrue() : null,
+                SecurityUtils.has("HR_VIEW") ? workDays.countByJourAndHeureFinIsNull(today) : null);
     }
 
     /** Espèces théoriques de la caisse ouverte (fond + entrées − sorties en espèces). */

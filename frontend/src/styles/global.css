@@ -75,6 +75,11 @@ a { color: var(--olive-600); }
 .btn-ghost:hover:not(:disabled) { background: var(--olive-100); color: var(--ink); }
 .btn-danger { background: var(--white); color: var(--danger); border-color: #e6c3bc; }
 .btn-danger:hover:not(:disabled) { background: var(--danger-bg); }
+/* Pointage : Play vert, Stop rouge */
+.btn-play { background: #2e7d32; color: #fff; }
+.btn-play:hover:not(:disabled) { background: #1b5e20; }
+.btn-stop { background: #c62828; color: #fff; }
+.btn-stop:hover:not(:disabled) { background: #8e1c1c; }
 .btn-block { width: 100%; }
 .btn-sm { height: 32px; padding: 0 10px; font-size: 13px; }
 

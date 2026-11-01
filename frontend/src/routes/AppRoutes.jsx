@@ -51,7 +51,7 @@ export default function AppRoutes() {
           <Route path="ventes/livraisons" element={<P permission="SALES_VIEW"><SalesDocsPage key="LIVRAISON" type="LIVRAISON" /></P>} />
           <Route path="ventes/factures" element={<P permission="SALES_VIEW"><SalesDocsPage key="FACTURE" type="FACTURE" /></P>} />
           <Route path="ventes/avoirs" element={<P permission="SALES_VIEW"><SalesDocsPage key="AVOIR" type="AVOIR" /></P>} />
-          <Route path="rh" element={<P permission={['HR_VIEW', 'LEAVE_REQUEST', 'LEAVE_VALIDATE']}><HrPage /></P>} />
+          <Route path="rh" element={<P permission="HR_VIEW"><HrPage /></P>} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="finance" element={<P permission={['FINANCE_VIEW', 'CASH_SESSION']}><FinancePage /></P>} />
           <Route path="rapports" element={<P permission="REPORT_VIEW"><ReportsPage /></P>} />

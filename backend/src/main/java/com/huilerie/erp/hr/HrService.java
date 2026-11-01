@@ -1,302 +1,275 @@
 package com.huilerie.erp.hr;
 
 import com.huilerie.erp.audit.AuditService;
+import com.huilerie.erp.common.Money;
 import com.huilerie.erp.common.SecurityUtils;
 import com.huilerie.erp.common.Text;
 import com.huilerie.erp.common.exception.BusinessException;
 import com.huilerie.erp.common.exception.NotFoundException;
 import com.huilerie.erp.common.numbering.DocumentNumberService;
 import com.huilerie.erp.common.response.PageResponse;
-import com.huilerie.erp.users.AppUser;
-import com.huilerie.erp.users.UserRepository;
+import com.huilerie.erp.finance.CashMovementType;
+import com.huilerie.erp.finance.FinanceService;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashSet;
+import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
- * Ressources humaines : employés, contrats, congés et absences.
- * Jours ouvrés de congé = lundi à vendredi, hors jours fériés saisis.
- * Processus : employé → demande → responsable → validation / refus → mise à jour du solde.
+ * Ressources humaines : employés, pointage Play / Stop et paiements.
+ * Une journée pointée vaut le TJM de l'employé au moment du Play ;
+ * reste dû = somme des TJM des journées − somme des paiements (salaire, journées, avances).
  */
 @Service
 public class HrService {
 
-    private final HrServiceRepository services;
-    private final HrPositionRepository positions;
+    private static final ZoneId TUNIS = ZoneId.of("Africa/Tunis");
+    /** Tolérance pour une heure saisie à la main légèrement en avance sur l'horloge du serveur. */
+    private static final Duration FUTURE_TOLERANCE = Duration.ofMinutes(5);
+
     private final EmployeeRepository employees;
-    private final LeaveRequestRepository leaves;
-    private final AbsenceRepository absences;
-    private final PublicHolidayRepository holidays;
-    private final UserRepository users;
+    private final WorkDayRepository workDays;
+    private final EmployeePaymentRepository payments;
+    private final FinanceService finance;
     private final DocumentNumberService numbers;
     private final AuditService audit;
 
-    public HrService(HrServiceRepository services, HrPositionRepository positions, EmployeeRepository employees,
-                     LeaveRequestRepository leaves, AbsenceRepository absences, PublicHolidayRepository holidays,
-                     UserRepository users, DocumentNumberService numbers, AuditService audit) {
-        this.services = services;
-        this.positions = positions;
+    public HrService(EmployeeRepository employees, WorkDayRepository workDays, EmployeePaymentRepository payments,
+                     FinanceService finance, DocumentNumberService numbers, AuditService audit) {
         this.employees = employees;
-        this.leaves = leaves;
-        this.absences = absences;
-        this.holidays = holidays;
-        this.users = users;
+        this.workDays = workDays;
+        this.payments = payments;
+        this.finance = finance;
         this.numbers = numbers;
         this.audit = audit;
     }
 
-    private static PageRequest page(int page, int size) {
-        return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by(Sort.Direction.DESC, "id"));
+    private static PageRequest page(int page, int size, Sort sort) {
+        return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), sort);
     }
 
-    // ---------------------------------------------------------------- services et postes
-    @PreAuthorize("hasAuthority('HR_VIEW')")
-    @Transactional(readOnly = true)
-    public List<HrDto.Ref> listServices() {
-        return services.findAllByOrderByNomAsc().stream().map(s -> new HrDto.Ref(s.getId(), s.getNom(), s.isActif())).toList();
-    }
-
-    @PreAuthorize("hasAuthority('HR_VIEW')")
-    @Transactional(readOnly = true)
-    public List<HrDto.Ref> listPositions() {
-        return positions.findAllByOrderByNomAsc().stream().map(s -> new HrDto.Ref(s.getId(), s.getNom(), s.isActif())).toList();
-    }
-
-    @PreAuthorize("hasAuthority('HR_MANAGE')")
-    @Transactional
-    public HrDto.Ref saveRef(boolean service, Long id, String nom) {
-        String n = nom.trim();
-        HrRef.Base ref;
-        if (service) {
-            if (id == null && services.existsByNomIgnoreCase(n)) throw new BusinessException("Ce service existe déjà.");
-            ref = id == null ? new HrRef.Service() : services.findById(id).orElseThrow(() -> new NotFoundException("Service introuvable."));
-            ref.setNom(n);
-            ref = services.save((HrRef.Service) ref);
-        } else {
-            if (id == null && positions.existsByNomIgnoreCase(n)) throw new BusinessException("Ce poste existe déjà.");
-            ref = id == null ? new HrRef.Position() : positions.findById(id).orElseThrow(() -> new NotFoundException("Poste introuvable."));
-            ref.setNom(n);
-            ref = positions.save((HrRef.Position) ref);
-        }
-        return new HrDto.Ref(ref.getId(), ref.getNom(), ref.isActif());
+    private static LocalDate today() {
+        return LocalDate.now(TUNIS);
     }
 
     // ---------------------------------------------------------------- employés
+
     @PreAuthorize("hasAuthority('HR_VIEW')")
     @Transactional(readOnly = true)
-    public PageResponse<HrDto.EmployeeResponse> searchEmployees(String q, Long serviceId, String statut, String contrat,
-                                                               int p, int size) {
-        return PageResponse.of(employees.search(Text.search(q), serviceId, Text.clean(statut), Text.clean(contrat), page(p, size)),
-                HrDto.EmployeeResponse::from);
+    public PageResponse<HrDto.EmployeeResponse> searchEmployees(String q, Boolean actif, int p, int size) {
+        Page<Employee> found = employees.search(Text.search(q), actif, page(p, size, Sort.by("nom", "prenom")));
+        List<HrDto.EmployeeResponse> rows = summaries(found.getContent());
+        return new PageResponse<>(rows, found.getNumber(), found.getSize(), found.getTotalElements(), found.getTotalPages());
+    }
+
+    @PreAuthorize("hasAuthority('HR_VIEW')")
+    @Transactional(readOnly = true)
+    public HrDto.EmployeeResponse getEmployee(Long id) {
+        return summaries(List.of(employee(id))).get(0);
     }
 
     @PreAuthorize("hasAuthority('HR_MANAGE')")
     @Transactional
     public HrDto.EmployeeResponse saveEmployee(Long id, HrDto.EmployeeRequest r) {
-        if (r.typeContrat().matches("CDD|SAISONNIER|STAGE") && r.dateFinContrat() == null) {
-            throw new BusinessException("Indiquez la date de fin pour un contrat " + r.typeContrat() + ".");
-        }
-        if (r.dateFinContrat() != null && r.dateFinContrat().isBefore(r.dateEmbauche())) {
-            throw new BusinessException("La fin de contrat doit suivre la date d'embauche.");
-        }
-        Employee e;
-        if (id == null) {
-            e = new Employee();
-            e.setMatricule(numbers.nextCode("EMPLOYE", "EMP"));
-        } else {
-            e = employees.findById(id).orElseThrow(() -> new NotFoundException("Employé introuvable."));
-        }
-        e.setNom(r.nom().trim());
-        e.setPrenom(r.prenom().trim());
-        e.setDateNaissance(r.dateNaissance());
-        e.setCin(Text.clean(r.cin()));
-        e.setTelephone(Text.clean(r.telephone()));
-        e.setEmail(Text.clean(r.email()));
-        e.setAdresse(Text.clean(r.adresse()));
-        e.setService(r.serviceId() == null ? null : services.findById(r.serviceId()).orElseThrow(() -> new NotFoundException("Service introuvable.")));
-        e.setPoste(r.posteId() == null ? null : positions.findById(r.posteId()).orElseThrow(() -> new NotFoundException("Poste introuvable.")));
-        e.setDateEmbauche(r.dateEmbauche());
-        e.setTypeContrat(r.typeContrat());
-        e.setDateFinContrat(r.dateFinContrat());
-        e.setStatut(r.statut());
-        e.setSoldeConges(r.soldeConges().setScale(1, RoundingMode.HALF_UP));
-        if (r.userId() == null) {
-            e.setUser(null);
-        } else if (e.getUser() == null || !e.getUser().getId().equals(r.userId())) {
-            if (employees.existsByUserId(r.userId())) {
-                throw new BusinessException("Ce compte utilisateur est déjà lié à un autre employé.");
-            }
-            AppUser u = users.findById(r.userId()).orElseThrow(() -> new NotFoundException("Utilisateur introuvable."));
-            e.setUser(u);
-        }
+        Employee e = id == null ? new Employee(numbers.nextCode("EMPLOYE", "EMP")) : employee(id);
+        e.update(r.nom().trim(), r.prenom().trim(), Text.clean(r.cin()), Text.clean(r.telephone()), Text.clean(r.adresse()),
+                Money.strict(r.tjm(), "TJM"));
         e = employees.save(e);
         audit.log(SecurityUtils.username(), id == null ? "EMPLOYEE_CREATE" : "EMPLOYEE_UPDATE", "Employee",
-                String.valueOf(e.getId()), e.getMatricule());
-        return HrDto.EmployeeResponse.from(e);
+                String.valueOf(e.getId()), e.getMatricule() + " TJM " + e.getTjm().toPlainString());
+        return summaries(List.of(e)).get(0);
     }
 
-    /** Fiche de l'employé lié au compte connecté (pour « Mes congés »). */
-    @PreAuthorize("hasAuthority('LEAVE_REQUEST')")
-    @Transactional(readOnly = true)
-    public HrDto.EmployeeResponse me() {
-        return employees.findByUserUsername(SecurityUtils.username()).map(HrDto.EmployeeResponse::from).orElse(null);
-    }
-
-    // ---------------------------------------------------------------- congés
-
-    /** Jours ouvrés entre deux dates incluses : hors samedi, dimanche et jours fériés. */
-    public BigDecimal workingDays(LocalDate from, LocalDate to) {
-        Set<LocalDate> off = new HashSet<>();
-        holidays.findByJourBetween(from, to).forEach(h -> off.add(h.getJour()));
-        int n = 0;
-        for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            if (d.getDayOfWeek() != DayOfWeek.SATURDAY && d.getDayOfWeek() != DayOfWeek.SUNDAY && !off.contains(d)) {
-                n++;
-            }
-        }
-        return BigDecimal.valueOf(n).setScale(1);
-    }
-
-    @PreAuthorize("hasAuthority('LEAVE_REQUEST') or hasAuthority('HR_VIEW')")
-    @Transactional(readOnly = true)
-    public PageResponse<HrDto.Leave> searchLeaves(Long employeeId, String statut, boolean mine, int p, int size) {
-        Long target = employeeId;
-        if (mine || !SecurityUtils.has("HR_VIEW") && !SecurityUtils.has("LEAVE_VALIDATE")) {
-            Employee me = employees.findByUserUsername(SecurityUtils.username())
-                    .orElseThrow(() -> new BusinessException("Votre compte n'est lié à aucune fiche employé."));
-            target = me.getId();
-        }
-        return PageResponse.of(leaves.search(target, Text.clean(statut), page(p, size)), HrDto.Leave::from);
-    }
-
-    @PreAuthorize("hasAuthority('LEAVE_REQUEST') or hasAuthority('HR_MANAGE')")
+    @PreAuthorize("hasAuthority('HR_MANAGE')")
     @Transactional
-    public HrDto.Leave requestLeave(HrDto.LeaveRequestBody r) {
-        Employee e;
-        if (r.employeeId() != null && SecurityUtils.has("HR_MANAGE")) {
-            e = employees.findById(r.employeeId()).orElseThrow(() -> new NotFoundException("Employé introuvable."));
-        } else {
-            e = employees.findByUserUsername(SecurityUtils.username())
-                    .orElseThrow(() -> new BusinessException("Votre compte n'est lié à aucune fiche employé : contactez les RH."));
+    public HrDto.EmployeeResponse setStatus(Long id, boolean actif) {
+        Employee e = employee(id);
+        if (!actif && workDays.findFirstByEmployeeIdAndHeureFinIsNullOrderByJourDesc(id).isPresent()) {
+            throw new BusinessException("Arrêtez d'abord le pointage en cours de " + e.fullName() + ".");
         }
-        if (!"ACTIF".equals(e.getStatut())) {
-            throw new BusinessException("L'employé n'est pas actif.");
-        }
-        if (r.dateFin().isBefore(r.dateDebut())) {
-            throw new BusinessException("La date de fin doit suivre la date de début.");
-        }
-        BigDecimal days = workingDays(r.dateDebut(), r.dateFin());
-        if (days.signum() == 0) {
-            throw new BusinessException("La période ne contient aucun jour ouvré.");
-        }
-        if (leaves.overlapping(e.getId(), r.dateDebut(), r.dateFin()) > 0) {
-            throw new BusinessException("Cette période chevauche une autre demande en attente ou validée.");
-        }
-        if ("CONGE_ANNUEL".equals(r.type()) && days.compareTo(e.getSoldeConges()) > 0) {
-            throw new BusinessException("Solde insuffisant : " + e.getSoldeConges().toPlainString() + " jour(s) disponible(s) pour "
-                    + days.toPlainString() + " demandé(s).");
-        }
-        LeaveRequest l = leaves.save(new LeaveRequest(e, r.type(), r.dateDebut(), r.dateFin(), days, Text.clean(r.motif()),
-                SecurityUtils.username()));
-        audit.log(SecurityUtils.username(), "LEAVE_REQUEST", "Employee", String.valueOf(e.getId()),
-                r.type() + " " + r.dateDebut() + " → " + r.dateFin());
-        return HrDto.Leave.from(l);
+        e.setActif(actif);
+        audit.log(SecurityUtils.username(), actif ? "EMPLOYEE_ACTIVATE" : "EMPLOYEE_DEACTIVATE", "Employee",
+                String.valueOf(id), e.getMatricule());
+        return summaries(List.of(e)).get(0);
     }
 
-    @PreAuthorize("hasAuthority('LEAVE_VALIDATE')")
+    // ---------------------------------------------------------------- pointage Play / Stop
+
+    /** Play : la journée du jour commence à l'heure actuelle, au TJM actuel de l'employé. */
+    @PreAuthorize("hasAuthority('HR_MANAGE')")
     @Transactional
-    public HrDto.Leave decide(Long id, HrDto.DecisionRequest r) {
-        LeaveRequest l = leaves.findById(id).orElseThrow(() -> new NotFoundException("Demande introuvable."));
-        if (!"EN_ATTENTE".equals(l.getStatut())) {
-            throw new BusinessException("Cette demande a déjà été traitée.");
+    public HrDto.EmployeeResponse start(Long employeeId) {
+        Employee e = employees.lockById(employeeId).orElseThrow(() -> new NotFoundException("Employé introuvable."));
+        if (!e.isActif()) {
+            throw new BusinessException(e.fullName() + " est inactif.");
         }
-        if (l.getEmployee().getUser() != null && l.getEmployee().getUser().getUsername().equals(SecurityUtils.username())) {
-            throw new AccessDeniedException("Vous ne pouvez pas valider votre propre demande.");
+        workDays.findFirstByEmployeeIdAndHeureFinIsNullOrderByJourDesc(employeeId).ifPresent(open -> {
+            throw new BusinessException("Le pointage du " + open.getJour() + " n'est pas arrêté : arrêtez-le ou corrigez-le d'abord.");
+        });
+        LocalDate day = today();
+        if (workDays.existsByEmployeeIdAndJour(employeeId, day)) {
+            throw new BusinessException(e.fullName() + " est déjà pointé aujourd'hui : corrigez les heures si besoin.");
         }
-        if (r.accepter()) {
-            if ("CONGE_ANNUEL".equals(l.getType())) {
-                if (l.getJours().compareTo(l.getEmployee().getSoldeConges()) > 0) {
-                    throw new BusinessException("Le solde de l'employé ne couvre plus cette demande.");
-                }
-                l.getEmployee().debitLeave(l.getJours());
-            }
-            l.decide("VALIDEE", SecurityUtils.username(), null);
-        } else {
-            if (Text.clean(r.motifRefus()) == null) {
-                throw new BusinessException("Indiquez le motif du refus.");
-            }
-            l.decide("REFUSEE", SecurityUtils.username(), r.motifRefus().trim());
-        }
-        audit.log(SecurityUtils.username(), r.accepter() ? "LEAVE_APPROVE" : "LEAVE_REJECT", "LeaveRequest", String.valueOf(id), null);
-        return HrDto.Leave.from(l);
+        workDays.save(new WorkDay(e, day, Instant.now(), null, SecurityUtils.username()));
+        audit.log(SecurityUtils.username(), "WORK_START", "Employee", String.valueOf(employeeId), e.getMatricule() + " " + day);
+        return summaries(List.of(e)).get(0);
     }
 
-    @PreAuthorize("hasAuthority('LEAVE_REQUEST') or hasAuthority('HR_MANAGE')")
+    /** Stop : la journée en cours s'arrête à l'heure actuelle. */
+    @PreAuthorize("hasAuthority('HR_MANAGE')")
     @Transactional
-    public HrDto.Leave cancelLeave(Long id) {
-        LeaveRequest l = leaves.findById(id).orElseThrow(() -> new NotFoundException("Demande introuvable."));
-        boolean own = l.getDemandePar().equals(SecurityUtils.username());
-        if (!own && !SecurityUtils.has("HR_MANAGE")) {
-            throw new AccessDeniedException("Vous ne pouvez annuler que vos propres demandes.");
-        }
-        if (!"EN_ATTENTE".equals(l.getStatut())) {
-            throw new BusinessException("Seule une demande en attente peut être annulée.");
-        }
-        l.decide("ANNULEE", SecurityUtils.username(), null);
-        return HrDto.Leave.from(l);
+    public HrDto.EmployeeResponse stop(Long employeeId) {
+        Employee e = employees.lockById(employeeId).orElseThrow(() -> new NotFoundException("Employé introuvable."));
+        WorkDay w = workDays.findFirstByEmployeeIdAndHeureFinIsNullOrderByJourDesc(employeeId)
+                .orElseThrow(() -> new BusinessException(e.fullName() + " n'a pas de pointage en cours."));
+        Instant now = Instant.now();
+        w.stop(now.isBefore(w.getHeureDebut()) ? w.getHeureDebut() : now);
+        audit.log(SecurityUtils.username(), "WORK_STOP", "Employee", String.valueOf(employeeId), e.getMatricule() + " " + w.getJour());
+        return summaries(List.of(e)).get(0);
     }
 
-    // ---------------------------------------------------------------- absences
     @PreAuthorize("hasAuthority('HR_VIEW')")
     @Transactional(readOnly = true)
-    public PageResponse<HrDto.AbsenceResponse> searchAbsences(Long employeeId, LocalDate from, LocalDate to, int p, int size) {
-        return PageResponse.of(absences.search(employeeId, from, to, page(p, size)), HrDto.AbsenceResponse::from);
+    public PageResponse<HrDto.WorkDayLine> searchWorkDays(Long employeeId, LocalDate from, LocalDate to, int p, int size) {
+        return PageResponse.of(workDays.search(employeeId, from, to,
+                page(p, size, Sort.by(Sort.Direction.DESC, "jour").and(Sort.by("id")))), HrDto.WorkDayLine::from);
+    }
+
+    /** Journée oubliée (pas de Play ce jour-là) : saisie manuelle au TJM actuel. */
+    @PreAuthorize("hasAuthority('HR_MANAGE')")
+    @Transactional
+    public HrDto.WorkDayLine addWorkDay(HrDto.WorkDayRequest r) {
+        if (r.employeeId() == null) {
+            throw new BusinessException("Choisissez l'employé.");
+        }
+        Employee e = employees.lockById(r.employeeId()).orElseThrow(() -> new NotFoundException("Employé introuvable."));
+        LocalDate day = checkTimes(r.heureDebut(), r.heureFin());
+        if (workDays.existsByEmployeeIdAndJour(e.getId(), day)) {
+            throw new BusinessException(e.fullName() + " a déjà une journée le " + day + " : corrigez-la au lieu d'en ajouter une.");
+        }
+        if (r.heureFin() == null && workDays.findFirstByEmployeeIdAndHeureFinIsNullOrderByJourDesc(e.getId()).isPresent()) {
+            throw new BusinessException("Un pointage est déjà en cours pour " + e.fullName() + " : indiquez l'heure de fin.");
+        }
+        WorkDay w = workDays.save(new WorkDay(e, day, r.heureDebut(), r.heureFin(), SecurityUtils.username()));
+        audit.log(SecurityUtils.username(), "WORK_DAY_CREATE", "Employee", String.valueOf(e.getId()), e.getMatricule() + " " + day);
+        return HrDto.WorkDayLine.from(w);
+    }
+
+    /** Correction manuelle des heures (le TJM de la journée ne change pas). */
+    @PreAuthorize("hasAuthority('HR_MANAGE')")
+    @Transactional
+    public HrDto.WorkDayLine updateWorkDay(Long id, HrDto.WorkDayRequest r) {
+        WorkDay w = workDays.findById(id).orElseThrow(() -> new NotFoundException("Journée introuvable."));
+        LocalDate day = checkTimes(r.heureDebut(), r.heureFin());
+        if (workDays.existsByEmployeeIdAndJourAndIdNot(w.getEmployee().getId(), day, id)) {
+            throw new BusinessException("Une autre journée existe déjà le " + day + " pour cet employé.");
+        }
+        if (r.heureFin() == null) {
+            workDays.findFirstByEmployeeIdAndHeureFinIsNullOrderByJourDesc(w.getEmployee().getId())
+                    .filter(open -> !open.getId().equals(id))
+                    .ifPresent(open -> {
+                        throw new BusinessException("Un autre pointage est en cours : indiquez l'heure de fin.");
+                    });
+        }
+        w.correct(day, r.heureDebut(), r.heureFin(), SecurityUtils.username());
+        audit.log(SecurityUtils.username(), "WORK_DAY_UPDATE", "Employee", String.valueOf(w.getEmployee().getId()),
+                w.getEmployee().getMatricule() + " " + day + " " + r.heureDebut() + " → " + r.heureFin());
+        return HrDto.WorkDayLine.from(w);
     }
 
     @PreAuthorize("hasAuthority('HR_MANAGE')")
     @Transactional
-    public HrDto.AbsenceResponse recordAbsence(HrDto.AbsenceRequest r) {
-        Employee e = employees.findById(r.employeeId()).orElseThrow(() -> new NotFoundException("Employé introuvable."));
-        if (absences.existsByEmployeeIdAndJour(e.getId(), r.jour())) {
-            throw new BusinessException("Une absence est déjà enregistrée ce jour-là pour cet employé.");
-        }
-        BigDecimal duree = r.duree().compareTo(BigDecimal.ONE) >= 0 ? new BigDecimal("1.0") : new BigDecimal("0.5");
-        Absence a = absences.save(new Absence(e, r.jour(), duree, Text.clean(r.motif()), r.justifiee(), SecurityUtils.username()));
-        audit.log(SecurityUtils.username(), "ABSENCE_CREATE", "Employee", String.valueOf(e.getId()), r.jour().toString());
-        return HrDto.AbsenceResponse.from(a);
+    public void deleteWorkDay(Long id) {
+        WorkDay w = workDays.findById(id).orElseThrow(() -> new NotFoundException("Journée introuvable."));
+        workDays.delete(w);
+        audit.log(SecurityUtils.username(), "WORK_DAY_DELETE", "Employee", String.valueOf(w.getEmployee().getId()),
+                w.getEmployee().getMatricule() + " " + w.getJour());
     }
 
-    // ---------------------------------------------------------------- jours fériés
-    @PreAuthorize("isAuthenticated()")
+    /** Fin après début, pas dans le futur ; renvoie le jour (fuseau de Tunis) de l'heure de début. */
+    private static LocalDate checkTimes(Instant debut, Instant fin) {
+        Instant limit = Instant.now().plus(FUTURE_TOLERANCE);
+        if (debut.isAfter(limit) || (fin != null && fin.isAfter(limit))) {
+            throw new BusinessException("Les heures ne peuvent pas être dans le futur.");
+        }
+        if (fin != null && fin.isBefore(debut)) {
+            throw new BusinessException("L'heure de fin doit être après l'heure de début.");
+        }
+        return debut.atZone(TUNIS).toLocalDate();
+    }
+
+    // ---------------------------------------------------------------- paiements
+
+    /** Salaire, journées ou avance : sortie de caisse ; le reste dû peut devenir négatif (avance à récupérer). */
+    @PreAuthorize("hasAuthority('HR_MANAGE') or hasAuthority('FINANCE_MANAGE')")
+    @Transactional
+    public HrDto.EmployeeResponse pay(Long employeeId, HrDto.PaymentRequest r) {
+        Employee e = employees.lockById(employeeId).orElseThrow(() -> new NotFoundException("Employé introuvable."));
+        BigDecimal amount = Money.strict(r.montant(), "Montant");
+        EmployeePayment p = payments.save(new EmployeePayment(numbers.nextYearly("PAIE_EMPLOYE", "PAI"), e, r.type(), r.mode(),
+                amount, Text.clean(r.reference()), SecurityUtils.username()));
+        finance.record(CashMovementType.DECAISSEMENT, r.mode(), amount,
+                label(r.type()) + " " + e.fullName() + " (" + p.getNumero() + ")", "PAIE", p.getId());
+        audit.log(SecurityUtils.username(), "EMPLOYEE_PAYMENT", "Employee", String.valueOf(employeeId),
+                p.getNumero() + " " + r.type() + " " + amount.toPlainString() + " DT");
+        return summaries(List.of(e)).get(0);
+    }
+
+    @PreAuthorize("hasAuthority('HR_VIEW') or hasAuthority('FINANCE_VIEW')")
     @Transactional(readOnly = true)
-    public List<HrDto.Holiday> listHolidays() {
-        return holidays.findAllByOrderByJourAsc().stream().map(h -> new HrDto.Holiday(h.getId(), h.getJour(), h.getLibelle())).toList();
+    public PageResponse<HrDto.PaymentLine> searchPayments(Long employeeId, EmployeePayment.Type type, LocalDate from,
+                                                          LocalDate to, int p, int size) {
+        Instant f = from == null ? null : from.atStartOfDay(TUNIS).toInstant();
+        Instant t = to == null ? null : to.plusDays(1).atStartOfDay(TUNIS).toInstant();
+        return PageResponse.of(payments.search(employeeId, type, f, t, page(p, size, Sort.by(Sort.Direction.DESC, "id"))),
+                HrDto.PaymentLine::from);
     }
 
-    @PreAuthorize("hasAuthority('HR_MANAGE')")
-    @Transactional
-    public HrDto.Holiday addHoliday(HrDto.HolidayRequest r) {
-        if (holidays.existsByJour(r.jour())) {
-            throw new BusinessException("Ce jour est déjà férié.");
+    private static String label(EmployeePayment.Type type) {
+        return switch (type) {
+            case SALAIRE -> "Salaire";
+            case TJM -> "Journées";
+            case AVANCE -> "Avance";
+        };
+    }
+
+    // ---------------------------------------------------------------- calcul du reste dû
+
+    private List<HrDto.EmployeeResponse> summaries(List<Employee> list) {
+        if (list.isEmpty()) {
+            return List.of();
         }
-        PublicHoliday h = holidays.save(new PublicHoliday(r.jour(), r.libelle().trim()));
-        return new HrDto.Holiday(h.getId(), h.getJour(), h.getLibelle());
+        List<Long> ids = list.stream().map(Employee::getId).toList();
+        Map<Long, Object[]> earned = new HashMap<>();
+        workDays.earnedBy(ids).forEach(r -> earned.put((Long) r[0], r));
+        Map<Long, BigDecimal> paid = new HashMap<>();
+        payments.paidBy(ids).forEach(r -> paid.put((Long) r[0], Money.ofAny(r[1])));
+        Map<Long, WorkDay> todays = new HashMap<>();
+        workDays.findByEmployeeIdInAndJour(ids, today()).forEach(w -> todays.put(w.getEmployee().getId(), w));
+        return list.stream().map(e -> {
+            Object[] er = earned.get(e.getId());
+            long jours = er == null ? 0 : ((Number) er[1]).longValue();
+            BigDecimal gagne = er == null ? Money.zero() : Money.ofAny(er[2]);
+            BigDecimal paye = paid.getOrDefault(e.getId(), Money.zero());
+            WorkDay w = todays.get(e.getId());
+            return new HrDto.EmployeeResponse(e.getId(), e.getMatricule(), e.getPrenom(), e.getNom(), e.getCin(),
+                    e.getTelephone(), e.getAdresse(), e.getTjm(), e.isActif(), jours, gagne, paye, gagne.subtract(paye),
+                    w == null ? null : HrDto.WorkDayLine.from(w), w != null && w.isRunning());
+        }).toList();
     }
 
-    @PreAuthorize("hasAuthority('HR_MANAGE')")
-    @Transactional
-    public void deleteHoliday(Long id) {
-        holidays.deleteById(id);
+    private Employee employee(Long id) {
+        return employees.findById(id).orElseThrow(() -> new NotFoundException("Employé introuvable."));
     }
 }

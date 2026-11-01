@@ -16,7 +16,7 @@ Application web de gestion de l'huilerie. Version **0.5** — correspondance ave
 - production : trituration des olives de l'huilerie, rendement, acidité et catégorie, sous-produits ;
 - traçabilité des lots en amont et en aval ;
 - ventes et facturation : devis, commandes, livraisons, factures (TVA, timbre, échéance, paiements partiels), avoirs ;
-- RH : employés, contrats, services, postes, congés (jours ouvrés, solde, validation), absences, jours fériés ;
+- RH : employés (TJM, actif / inactif), pointage Play / Stop corrigeable, paiements (salaire, journées, avance) et reste dû ;
 - notifications (cloche), recherche globale (Ctrl+K), déconnexion après inactivité, scripts de sauvegarde.
 
 État détaillé par module : `docs/avancement.md`. Choix techniques : `docs/decisions.md`.
@@ -138,8 +138,8 @@ Tests backend fournis :
 - `SalesDocumentServiceTest` : cycle devis → commande → livraison → facture, stock sorti une seule fois,
   paiements plafonnés, facture directe et avoir avec retour en stock, document validé non modifiable,
   plafond de crédit, validation de facture réservée.
-- `HrServiceTest` : jours ouvrés et fériés, solde débité à la validation, chevauchement et solde insuffisant,
-  refus motivé, contrat saisonnier sans date de fin.
+- `HrServiceTest` : 5 jours × TJM 100 − 400 payés = reste 100, Play / Stop à l'heure actuelle, TJM figé par journée,
+  correction manuelle des heures, pointage oublié, employé inactif, avance supérieure au gagné (reste négatif).
 
 ## 4. Variables d'environnement
 

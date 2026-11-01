@@ -18,7 +18,7 @@ public record DashboardResponse(
         BigDecimal depensesMois, Boolean caisseOuverte, BigDecimal especesEnCaisse,
         Long pressagesEnCours, BigDecimal huileClientsARemettre, BigDecimal pressagesImpayes,
         Long triturationsEnCours, BigDecimal huileProduiteMois, BigDecimal rendementMois,
-        BigDecimal facturesImpayees, BigDecimal facturationMois, Long employesActifs, Long congesEnAttente) {
+        BigDecimal facturesImpayees, BigDecimal facturationMois, Long employesActifs, Long employesAuTravail) {
 
     public record DayTotal(String jour, BigDecimal total) {
     }

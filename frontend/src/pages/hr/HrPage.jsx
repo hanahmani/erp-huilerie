@@ -1,279 +1,410 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, Plus, Trash2, UserRound } from 'lucide-react';
+import { HandCoins, Pencil, Play, Plus, Square, Trash2, UserRound, Clock, Wallet } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePagedList } from '../../hooks/usePagedList';
 import { hrService } from '../../services/salesDocService';
-import { userService } from '../../services/userService';
 import PageHeader from '../../components/common/PageHeader';
 import Tabs from '../../components/common/Tabs';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import Spinner from '../../components/common/Spinner';
-import Modal from '../../components/common/Modal';
 import EmptyState from '../../components/common/EmptyState';
+import Modal from '../../components/common/Modal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import StatusBadge from '../../components/common/StatusBadge';
 import DataTable from '../../components/tables/DataTable';
 import Pagination from '../../components/tables/Pagination';
-import EntityFormModal from '../../components/forms/EntityFormModal';
 import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/tables/Toolbar';
-import { formatDateTime, todayISO } from '../../utils/format';
-import { CONTRACT_TYPES, EMPLOYEE_STATUS, LEAVE_STATUS, LEAVE_STATUS_CLASS, LEAVE_TYPES, toOptions } from '../../utils/labels';
+import EntityFormModal from '../../components/forms/EntityFormModal';
+import { formatDateTime, formatDT } from '../../utils/format';
+import { EMPLOYEE_PAYMENT_TYPES, PAYMENT_MODES, toOptions } from '../../utils/labels';
+import { normalizeDecimal, toMillimes } from '../../utils/money';
 
-const d = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR') : '—');
+// ---------------------------------------------------------------- outils d'affichage
 
-function EmployeesTab({ canManage }) {
-  const list = usePagedList(hrService.employees, { statut: 'ACTIF' });
-  const [refs, setRefs] = useState({ services: [], positions: [], users: [] });
+const pad = (n) => String(n).padStart(2, '0');
+const time = (iso) => (iso ? new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso)) : '—');
+const day = (d) => new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${d}T12:00:00`));
+
+/** Durée lisible : 485 → « 8 h 05 ». */
+function duration(minutes) {
+  if (minutes == null) return '—';
+  return `${Math.floor(minutes / 60)} h ${pad(minutes % 60)}`;
+}
+
+/** ISO → valeur d'un champ datetime-local (heure locale du poste). */
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
+
+/** Reste dû : positif = à payer à l'employé, négatif = avance à récupérer. */
+function Reste({ value }) {
+  const n = Number(value);
+  if (n < 0) return <span className="badge badge-warn" title="Avance non encore couverte par le travail">Avance {formatDT(-n)}</span>;
+  return n > 0 ? <strong>{formatDT(n)}</strong> : <span className="muted">{formatDT(0)}</span>;
+}
+
+/** Minute courante, pour le compteur des journées en cours. */
+function useNow() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t); }, []);
+  return now;
+}
+
+/** Pointage du jour : en cours (compteur), terminé (heures) ou rien. */
+function Today({ e, now }) {
+  const w = e.aujourdhui;
+  if (!w) return <span className="muted">—</span>;
+  if (e.enCours) {
+    const minutes = Math.max(0, Math.floor((now - new Date(w.heureDebut).getTime()) / 60000));
+    return <span className="badge badge-ok"><Clock size={12} /> Depuis {time(w.heureDebut)} · {duration(minutes)}</span>;
+  }
+  return <span>{time(w.heureDebut)} – {time(w.heureFin)} <span className="muted">({duration(w.minutes)})</span></span>;
+}
+
+// ---------------------------------------------------------------- fenêtres
+
+/** Paiement à un employé : salaire, journées ou avance (sortie de caisse). */
+function PayModal({ employee, onClose, onDone }) {
+  const reste = Number(employee.reste);
+  const [form, setForm] = useState({ type: reste > 0 ? 'TJM' : 'AVANCE', mode: 'ESPECES', montant: reste > 0 ? String(reste) : '', reference: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (ev) => setForm({ ...form, [k]: ev.target.value });
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      onDone(await hrService.pay(employee.id, { type: form.type, mode: form.mode, montant: normalizeDecimal(form.montant), reference: form.reference || null }));
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal title={`Paiement — ${employee.prenom} ${employee.nom}`} onClose={onClose}
+           footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
+             <Button onClick={save} loading={saving} disabled={!toMillimes(form.montant)}>Enregistrer le paiement</Button></>)}>
+      <Alert type="error">{error}</Alert>
+      <div className="weigh-summary">
+        <div><span>{employee.jours} jour(s) × TJM</span><strong>{formatDT(employee.gagne)}</strong></div>
+        <div><span>Déjà payé</span><strong>{formatDT(employee.paye)}</strong></div>
+        <div><span>Reste dû</span><strong><Reste value={employee.reste} /></strong></div>
+      </div>
+      <div className="form-grid">
+        <div className="field"><label>Type *</label>
+          <select className="select" value={form.type} onChange={set('type')}>
+            {Object.entries(EMPLOYEE_PAYMENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select></div>
+        <div className="field"><label>Mode *</label>
+          <select className="select" value={form.mode} onChange={set('mode')}>
+            {Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select></div>
+        <div className="field"><label>Montant (DT) *</label><input className="input" inputMode="decimal" autoFocus value={form.montant} onChange={set('montant')} /></div>
+        <div className="field"><label>Référence / note</label><input className="input" maxLength={120} value={form.reference} onChange={set('reference')} placeholder="Ex. semaine du 3 au 8" /></div>
+      </div>
+      <span className="hint">Le montant sort de la caisse. Une avance peut dépasser le reste dû : elle sera déduite des prochaines journées.</span>
+    </Modal>
+  );
+}
+
+/** Ajout ou correction manuelle d'une journée de travail. */
+function WorkDayModal({ workDay, employees, fixedEmployee, onClose, onDone }) {
+  const editing = Boolean(workDay?.id);
+  const [form, setForm] = useState({
+    employeeId: fixedEmployee?.id || workDay?.employeeId || '',
+    debut: toLocalInput(workDay?.heureDebut), fin: toLocalInput(workDay?.heureFin),
+  });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (k) => (ev) => setForm({ ...form, [k]: ev.target.value });
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    const body = { employeeId: Number(form.employeeId), heureDebut: fromLocalInput(form.debut), heureFin: fromLocalInput(form.fin) };
+    try {
+      onDone(await (editing ? hrService.updateWorkDay(workDay.id, body) : hrService.addWorkDay(body)));
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal title={editing ? `Journée du ${day(workDay.jour)} — ${workDay.employe}` : 'Ajouter une journée'} onClose={onClose}
+           footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
+             <Button onClick={save} loading={saving} disabled={!form.employeeId || !form.debut}>Enregistrer</Button></>)}>
+      <Alert type="error">{error}</Alert>
+      <div className="form-grid">
+        {!editing && !fixedEmployee ? (
+          <div className="field wide"><label>Employé *</label>
+            <select className="select" value={form.employeeId} onChange={set('employeeId')}>
+              <option value="">Choisir…</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.prenom} {e.nom} ({e.matricule})</option>)}
+            </select></div>
+        ) : null}
+        <div className="field"><label>Début *</label><input className="input" type="datetime-local" value={form.debut} onChange={set('debut')} /></div>
+        <div className="field"><label>Fin</label><input className="input" type="datetime-local" value={form.fin} onChange={set('fin')} />
+          <span className="hint">Vide = journée encore en cours.</span></div>
+      </div>
+      {editing ? <span className="hint">La journée garde le TJM du jour pointé ({formatDT(workDay.tjm)}).</span>
+        : <span className="hint">Pour un jour oublié : la journée compte au TJM actuel de l'employé.</span>}
+    </Modal>
+  );
+}
+
+const employeeFields = [
+  { name: 'prenom', label: 'Prénom', required: true }, { name: 'nom', label: 'Nom', required: true },
+  { name: 'telephone', label: 'Téléphone' }, { name: 'cin', label: 'CIN' },
+  { name: 'tjm', label: 'TJM — taux journalier (DT)', type: 'number', required: true, hint: 'Montant gagné pour chaque journée pointée.' },
+  { name: 'adresse', label: 'Adresse', wide: true },
+];
+
+// ---------------------------------------------------------------- journées et paiements (tableaux réutilisés)
+
+function WorkDaysTable({ rows, canManage, onEdit, onDelete, showEmployee }) {
+  return (
+    <DataTable rows={rows} empty={<EmptyState icon={Clock} title="Aucune journée" text="Les journées pointées avec Play / Stop apparaissent ici." />}
+               columns={[
+                 ...(showEmployee ? [{ key: 'e', header: 'Employé', render: (w) => <><strong>{w.employe}</strong><div className="muted" style={{ fontSize: 12 }}>{w.matricule}</div></> }] : []),
+                 { key: 'j', header: 'Jour', render: (w) => day(w.jour) },
+                 { key: 'd', header: 'Début', render: (w) => time(w.heureDebut) },
+                 { key: 'f', header: 'Fin', render: (w) => (w.heureFin ? time(w.heureFin) : <span className="badge badge-ok">En cours</span>) },
+                 { key: 'h', header: 'Durée', align: 'right', render: (w) => duration(w.minutes) },
+                 { key: 't', header: 'TJM', align: 'right', render: (w) => formatDT(w.tjm) },
+                 { key: 'u', header: 'Saisi par', render: (w) => <span className="muted">{w.saisiPar}{w.modifiePar ? ` · corrigé par ${w.modifiePar}` : ''}</span> },
+                 ...(canManage ? [{
+                   key: 'a', header: '', align: 'right',
+                   render: (w) => (
+                     <div className="actions" onClick={(ev) => ev.stopPropagation()}>
+                       <Button variant="secondary" size="sm" onClick={() => onEdit(w)}><Pencil size={14} />Heures</Button>
+                       <Button variant="danger" size="sm" onClick={() => onDelete(w)} aria-label="Supprimer la journée"><Trash2 size={14} /></Button>
+                     </div>
+                   ),
+                 }] : []),
+               ]} />
+  );
+}
+
+function PaymentsTable({ rows, showEmployee }) {
+  return (
+    <DataTable rows={rows} empty={<EmptyState icon={Wallet} title="Aucun paiement" text="Salaires, journées et avances payés apparaissent ici." />}
+               columns={[
+                 { key: 'n', header: 'N°', render: (p) => <strong>{p.numero}</strong> },
+                 { key: 'd', header: 'Date', render: (p) => formatDateTime(p.date) },
+                 ...(showEmployee ? [{ key: 'e', header: 'Employé', render: (p) => p.employe }] : []),
+                 { key: 't', header: 'Type', render: (p) => <span className={`badge ${p.type === 'AVANCE' ? 'badge-warn' : ''}`}>{EMPLOYEE_PAYMENT_TYPES[p.type]}</span> },
+                 { key: 'm', header: 'Mode', render: (p) => PAYMENT_MODES[p.mode] },
+                 { key: 'r', header: 'Référence', render: (p) => p.reference || '—' },
+                 { key: 'v', header: 'Montant', align: 'right', render: (p) => <strong>{formatDT(p.montant)}</strong> },
+                 { key: 'u', header: 'Par', render: (p) => <span className="muted">{p.username}</span> },
+               ]} />
+  );
+}
+
+/** Fiche d'un employé : compte, journées et paiements. */
+function EmployeeDetail({ employee, canManage, canPay, onClose, onChanged }) {
+  const [e, setE] = useState(employee);
+  const [days, setDays] = useState(null);
+  const [pays, setPays] = useState(null);
+  const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
-  useEffect(() => {
-    Promise.all([hrService.services(), hrService.positions(), canManage ? userService.list().catch(() => []) : Promise.resolve([])])
-      .then(([services, positions, users]) => setRefs({ services, positions, users })).catch(() => {});
-  }, [canManage]);
-  const fields = [
-    { name: 'prenom', label: 'Prénom', required: true }, { name: 'nom', label: 'Nom', required: true },
-    { name: 'cin', label: 'CIN' }, { name: 'dateNaissance', label: 'Date de naissance', type: 'date' },
-    { name: 'telephone', label: 'Téléphone' }, { name: 'email', label: 'E-mail', type: 'email' },
-    { name: 'adresse', label: 'Adresse', wide: true },
-    { name: 'serviceId', label: 'Service', type: 'select', numeric: true, placeholder: 'Aucun', options: refs.services.map((s) => ({ value: s.id, label: s.nom })) },
-    { name: 'posteId', label: 'Poste', type: 'select', numeric: true, placeholder: 'Aucun', options: refs.positions.map((s) => ({ value: s.id, label: s.nom })) },
-    { name: 'dateEmbauche', label: "Date d'embauche", type: 'date', required: true },
-    { name: 'typeContrat', label: 'Type de contrat', type: 'select', required: true, placeholder: false, options: toOptions(CONTRACT_TYPES) },
-    { name: 'dateFinContrat', label: 'Fin de contrat', type: 'date', hint: 'Obligatoire pour CDD, saisonnier et stage.' },
-    { name: 'statut', label: 'Statut', type: 'select', required: true, placeholder: false, options: toOptions(EMPLOYEE_STATUS) },
-    { name: 'soldeConges', label: 'Solde de congés (jours)', type: 'number', required: true },
-    { name: 'userId', label: 'Compte utilisateur lié', type: 'select', numeric: true, placeholder: 'Aucun', options: refs.users.map((u) => ({ value: u.id, label: `${u.firstName} ${u.lastName} (${u.username})` })),
-      hint: 'Permet à l\'employé de demander ses congés lui-même.' },
-  ];
-  const daysLeft = (iso) => (iso ? Math.ceil((new Date(`${iso}T12:00:00`) - new Date()) / 86400000) : null);
+  const [deleting, setDeleting] = useState(null);
+  const [paying, setPaying] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const [emp, d, p] = await Promise.all([hrService.employee(employee.id), hrService.workDays({ employeeId: employee.id, size: 100 }),
+        hrService.payments({ employeeId: employee.id, size: 100 })]);
+      setE(emp); setDays(d.content); setPays(p.content);
+    } catch (err) { setError(err.message); }
+  }, [employee.id]);
+  useEffect(() => { load(); }, [load]);
+  const changed = () => { load(); onChanged(); };
+
+  if (paying) return <PayModal employee={e} onClose={() => setPaying(false)} onDone={() => { setPaying(false); changed(); }} />;
+  if (editing) return <WorkDayModal workDay={editing.id ? editing : null} fixedEmployee={editing.id ? null : e} onClose={() => setEditing(null)} onDone={() => { setEditing(null); changed(); }} />;
+
+  return (
+    <Modal title={`${e.prenom} ${e.nom} · ${e.matricule}`} onClose={onClose} wide
+           footer={(<>
+             <Button variant="secondary" onClick={onClose}>Fermer</Button>
+             {canManage ? <Button variant="secondary" onClick={() => setEditing({})}><Plus size={16} />Ajouter une journée</Button> : null}
+             {canPay ? <Button onClick={() => setPaying(true)}><HandCoins size={16} />Payer</Button> : null}
+           </>)}>
+      <Alert type="error">{error}</Alert>
+      <div className="weigh-summary">
+        <div><span>TJM</span><strong>{formatDT(e.tjm)}</strong></div>
+        <div><span>Journées</span><strong>{e.jours}</strong></div>
+        <div><span>Gagné</span><strong>{formatDT(e.gagne)}</strong></div>
+        <div><span>Payé</span><strong>{formatDT(e.paye)}</strong></div>
+        <div><span>Reste dû</span><strong><Reste value={e.reste} /></strong></div>
+      </div>
+      <h2 style={{ margin: '16px 0 8px' }}>Journées</h2>
+      {!days ? <Spinner /> : <WorkDaysTable rows={days} canManage={canManage} onEdit={setEditing} onDelete={setDeleting} />}
+      <h2 style={{ margin: '16px 0 8px' }}>Paiements</h2>
+      {!pays ? <Spinner /> : <PaymentsTable rows={pays} />}
+      {deleting ? (
+        <ConfirmDialog title="Supprimer la journée" danger confirmLabel="Supprimer"
+                       message={`La journée du ${day(deleting.jour)} (${formatDT(deleting.tjm)}) ne comptera plus dans le reste dû.`}
+                       onCancel={() => setDeleting(null)}
+                       onConfirm={async () => { try { await hrService.deleteWorkDay(deleting.id); setDeleting(null); changed(); } catch (err) { setError(err.message); setDeleting(null); } }} />
+      ) : null}
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------- onglets
+
+function EmployeesTab({ canManage, canPay }) {
+  const list = usePagedList(hrService.employees, { actif: 'true' }, 50);
+  const now = useNow();
+  const [form, setForm] = useState(null);
+  const [open, setOpen] = useState(null);
+  const [paying, setPaying] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState('');
+
+  const act = async (id, fn) => {
+    setBusy(id);
+    setError('');
+    try { await fn(); list.reload(); } catch (err) { setError(err.message); } finally { setBusy(null); }
+  };
+
   return (
     <div className="panel">
       <Toolbar>
-        <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="Nom, matricule, CIN" />
-        <FilterSelect label="Service" allLabel="Tous les services" value={list.filters.serviceId} options={refs.services.map((s) => ({ value: s.id, label: s.nom }))} onChange={(v) => list.updateFilter('serviceId', v)} />
-        <FilterSelect label="Contrat" allLabel="Tous contrats" value={list.filters.contrat} options={toOptions(CONTRACT_TYPES)} onChange={(v) => list.updateFilter('contrat', v)} />
-        <FilterSelect label="Statut" allLabel="Tous statuts" value={list.filters.statut} options={toOptions(EMPLOYEE_STATUS)} onChange={(v) => list.updateFilter('statut', v)} />
-        {canManage ? <Button size="sm" onClick={() => setEditing({ typeContrat: 'CDI', statut: 'ACTIF', soldeConges: '0', dateEmbauche: todayISO() })}><Plus size={16} />Nouvel employé</Button> : null}
+        <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="Nom, matricule, téléphone, CIN" />
+        <FilterSelect label="Statut" allLabel="Tous" value={list.filters.actif}
+                      options={[{ value: 'true', label: 'Actifs' }, { value: 'false', label: 'Inactifs' }]}
+                      onChange={(v) => list.updateFilter('actif', v)} />
+        {canManage ? <Button onClick={() => setForm({})}><Plus size={18} />Nouvel employé</Button> : null}
       </Toolbar>
-      <Alert type="error">{list.error}</Alert>
+      <Alert type="error">{error || list.error}</Alert>
       {list.loading && !list.data.content.length ? <div className="panel-body"><Spinner /></div> : (
-        <DataTable rows={list.data.content} onRowClick={canManage ? (e) => setEditing(e) : undefined}
-                   empty={<EmptyState icon={UserRound} title="Aucun employé" text="Créez les dossiers du personnel, y compris les saisonniers de la campagne." />}
+        <DataTable rows={list.data.content} onRowClick={(e) => setOpen(e)}
+                   empty={<EmptyState icon={UserRound} title="Aucun employé" text="Ajoutez vos employés avec leur TJM, puis pointez leurs journées avec Play / Stop." />}
                    columns={[
-                     { key: 'm', header: 'Matricule', render: (e) => <span className="muted">{e.matricule}</span> },
-                     { key: 'n', header: 'Nom', render: (e) => <strong>{e.prenom} {e.nom}</strong> },
-                     { key: 's', header: 'Service / poste', render: (e) => [e.service, e.poste].filter(Boolean).join(' · ') || '—' },
-                     { key: 'c', header: 'Contrat', render: (e) => {
-                       const left = daysLeft(e.dateFinContrat);
-                       return <>{CONTRACT_TYPES[e.typeContrat]}{e.dateFinContrat ? <span className={left != null && left <= 30 ? 'badge badge-warn' : 'muted'} style={{ marginLeft: 6 }}>fin {d(e.dateFinContrat)}</span> : null}</>;
-                     } },
-                     { key: 'e', header: 'Embauche', render: (e) => d(e.dateEmbauche) },
-                     { key: 'l', header: 'Solde congés', align: 'right', render: (e) => `${Number(e.soldeConges)} j` },
-                     { key: 'u', header: 'Compte', render: (e) => e.username || '—' },
-                     { key: 't', header: 'Statut', render: (e) => <span className={`badge ${e.statut === 'ACTIF' ? 'badge-ok' : 'badge-off'}`}>{EMPLOYEE_STATUS[e.statut]}</span> },
+                     { key: 'n', header: 'Employé', render: (e) => <><strong>{e.prenom} {e.nom}</strong><div className="muted" style={{ fontSize: 12 }}>{e.matricule}{e.telephone ? ` · ${e.telephone}` : ''}</div></> },
+                     { key: 't', header: 'TJM', align: 'right', render: (e) => formatDT(e.tjm) },
+                     { key: 'p', header: "Aujourd'hui", render: (e) => <Today e={e} now={now} /> },
+                     {
+                       key: 'c', header: 'Pointage',
+                       render: (e) => (!canManage || !e.actif ? null : (
+                         <div className="actions" onClick={(ev) => ev.stopPropagation()}>
+                           {e.enCours
+                             ? <Button variant="stop" size="sm" loading={busy === e.id} onClick={() => act(e.id, () => hrService.stop(e.id))}><Square size={14} fill="currentColor" />Stop</Button>
+                             : !e.aujourdhui
+                               ? <Button variant="play" size="sm" loading={busy === e.id} onClick={() => act(e.id, () => hrService.start(e.id))}><Play size={14} fill="currentColor" />Play</Button>
+                               : null}
+                         </div>
+                       )),
+                     },
+                     { key: 'j', header: 'Jours', align: 'right', render: (e) => e.jours },
+                     { key: 'g', header: 'Gagné', align: 'right', render: (e) => formatDT(e.gagne) },
+                     { key: 'y', header: 'Payé', align: 'right', render: (e) => formatDT(e.paye) },
+                     { key: 'r', header: 'Reste dû', align: 'right', render: (e) => <Reste value={e.reste} /> },
+                     { key: 's', header: 'Statut', render: (e) => <StatusBadge active={e.actif} /> },
+                     ...(canManage || canPay ? [{
+                       key: 'a', header: '', align: 'right',
+                       render: (e) => (
+                         <div className="actions" onClick={(ev) => ev.stopPropagation()}>
+                           {canPay ? <Button variant="secondary" size="sm" onClick={() => setPaying(e)}><HandCoins size={14} />Payer</Button> : null}
+                           {canManage ? <Button variant="secondary" size="sm" onClick={() => setForm(e)} aria-label="Modifier"><Pencil size={14} /></Button> : null}
+                           {canManage ? <Button variant="ghost" size="sm" onClick={() => act(e.id, () => hrService.setStatus(e.id, !e.actif))}>{e.actif ? 'Désactiver' : 'Réactiver'}</Button> : null}
+                         </div>
+                       ),
+                     }] : []),
                    ]} />
       )}
       <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
-      {editing ? (
-        <EntityFormModal title={editing.id ? `${editing.prenom} ${editing.nom} (${editing.matricule})` : 'Nouvel employé'} fields={fields}
-                         initial={{ ...editing, serviceId: editing.serviceId ?? '', posteId: editing.posteId ?? '', userId: editing.userId ?? '', soldeConges: String(editing.soldeConges ?? '0') }}
-                         onClose={() => setEditing(null)} onSubmit={async (p) => { await hrService.saveEmployee(editing.id, p); setEditing(null); list.reload(); }} />
+      {form ? (
+        <EntityFormModal title={form.id ? `${form.prenom} ${form.nom} (${form.matricule})` : 'Nouvel employé'} fields={employeeFields}
+                         initial={form.id ? { ...form, tjm: String(form.tjm) } : {}} onClose={() => setForm(null)}
+                         onSubmit={async (body) => { await hrService.saveEmployee(form.id, body); setForm(null); list.reload(); }} />
       ) : null}
+      {paying ? <PayModal employee={paying} onClose={() => setPaying(null)} onDone={() => { setPaying(null); list.reload(); }} /> : null}
+      {open ? <EmployeeDetail employee={open} canManage={canManage} canPay={canPay} onClose={() => setOpen(null)} onChanged={list.reload} /> : null}
     </div>
   );
 }
 
-function LeavesTab({ canValidate, canManage, isHr }) {
-  const list = usePagedList(hrService.leaves, { statut: canValidate ? 'EN_ATTENTE' : '' });
-  const [me, setMe] = useState(undefined);
+function useEmployeeOptions() {
   const [employees, setEmployees] = useState([]);
-  const [form, setForm] = useState(null);
-  const [days, setDays] = useState(null);
-  const [refusing, setRefusing] = useState(null);
-  const [motif, setMotif] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    hrService.me().then(setMe).catch(() => setMe(null));
-    if (canManage) hrService.employees({ statut: 'ACTIF', size: 100 }).then((p) => setEmployees(p.content)).catch(() => {});
-  }, [canManage]);
-  useEffect(() => {
-    if (form?.dateDebut && form?.dateFin && form.dateFin >= form.dateDebut) hrService.workingDays(form.dateDebut, form.dateFin).then(setDays).catch(() => setDays(null));
-    else setDays(null);
-  }, [form?.dateDebut, form?.dateFin]);
-  const run = async (fn) => {
-    setError('');
-    try { await fn(); list.reload(); hrService.me().then(setMe).catch(() => {}); } catch (e) { setError(e.message); }
-  };
-  return (
-    <>
-      {me ? <Alert type="info">Votre solde de congé annuel : <strong>{Number(me.soldeConges)} jour(s)</strong>.</Alert> : null}
-      {me === null && !isHr ? <Alert type="info">Votre compte n'est lié à aucune fiche employé : demandez aux RH de l'associer.</Alert> : null}
-      <Alert type="error">{error}</Alert>
-      <div className="panel">
-        <Toolbar>
-          <FilterSelect label="Statut" allLabel="Toutes les demandes" value={list.filters.statut} options={toOptions(LEAVE_STATUS)} onChange={(v) => list.updateFilter('statut', v)} />
-          {me || canManage ? <Button size="sm" onClick={() => setForm({ type: 'CONGE_ANNUEL', dateDebut: todayISO(), dateFin: todayISO(), employeeId: '' })}><Plus size={16} />Demande de congé</Button> : null}
-        </Toolbar>
-        {list.loading && !list.data.content.length ? <div className="panel-body"><Spinner /></div> : (
-          <DataTable rows={list.data.content} empty={<EmptyState icon={CalendarDays} title="Aucune demande" text="Les demandes de congé et leur suivi apparaissent ici." />}
-                     columns={[
-                       { key: 'e', header: 'Employé', render: (l) => <><strong>{l.employe}</strong><div className="muted" style={{ fontSize: 12 }}>{l.matricule}</div></> },
-                       { key: 't', header: 'Type', render: (l) => LEAVE_TYPES[l.type] },
-                       { key: 'p', header: 'Période', render: (l) => `${d(l.dateDebut)} → ${d(l.dateFin)}` },
-                       { key: 'j', header: 'Jours ouvrés', align: 'right', render: (l) => Number(l.jours) },
-                       { key: 'm', header: 'Motif', render: (l) => l.motif || '—' },
-                       { key: 's', header: 'Statut', render: (l) => <span className={`badge ${LEAVE_STATUS_CLASS[l.statut]}`} title={l.motifRefus || ''}>{LEAVE_STATUS[l.statut]}</span> },
-                       { key: 'x', header: '', align: 'right', render: (l) => (l.statut !== 'EN_ATTENTE' ? <span className="muted" style={{ fontSize: 12 }}>{l.decidePar ? `${l.decidePar}, ${formatDateTime(l.decideLe)}` : ''}</span> : (
-                         <div className="actions">
-                           {canValidate ? <Button size="sm" onClick={() => run(() => hrService.decide(l.id, true))}>Valider</Button> : null}
-                           {canValidate ? <Button size="sm" variant="danger" onClick={() => { setRefusing(l); setMotif(''); }}>Refuser</Button> : null}
-                           <Button size="sm" variant="secondary" onClick={() => run(() => hrService.cancelLeave(l.id))}>Annuler</Button>
-                         </div>
-                       )) },
-                     ]} />
-        )}
-        <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
-      </div>
-      {form ? (
-        <Modal title="Demande de congé" onClose={() => setForm(null)}
-               footer={(<><Button variant="secondary" onClick={() => setForm(null)}>Annuler</Button>
-                 <Button disabled={!days || (canManage && !me && !form.employeeId)} onClick={() => run(async () => {
-                   await hrService.requestLeave({ ...form, employeeId: form.employeeId ? Number(form.employeeId) : null, motif: form.motif || null });
-                   setForm(null);
-                 })}>Envoyer la demande</Button></>)}>
-          {canManage ? (
-            <div className="field"><label>Employé</label>
-              <select className="select" value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
-                <option value="">{me ? 'Moi-même' : 'Choisir…'}</option>
-                {employees.map((e) => <option key={e.id} value={e.id}>{e.prenom} {e.nom} ({e.matricule}) · solde {Number(e.soldeConges)} j</option>)}
-              </select></div>
-          ) : null}
-          <div className="field"><label>Type</label><select className="select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(LEAVE_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-          <div className="row">
-            <div className="field"><label>Du</label><input type="date" className="input" value={form.dateDebut} onChange={(e) => setForm({ ...form, dateDebut: e.target.value })} /></div>
-            <div className="field"><label>Au (inclus)</label><input type="date" className="input" value={form.dateFin} onChange={(e) => setForm({ ...form, dateFin: e.target.value })} /></div>
-          </div>
-          <p className="hint muted" style={{ marginBottom: 12 }}>{days != null ? `${Number(days)} jour(s) ouvré(s), hors week-ends et jours fériés.` : 'Choisissez une période valide.'}</p>
-          <div className="field"><label>Motif</label><input className="input" value={form.motif || ''} onChange={(e) => setForm({ ...form, motif: e.target.value })} /></div>
-        </Modal>
-      ) : null}
-      {refusing ? (
-        <Modal title="Refuser la demande" onClose={() => setRefusing(null)}
-               footer={(<><Button variant="secondary" onClick={() => setRefusing(null)}>Annuler</Button>
-                 <Button variant="danger" disabled={!motif.trim()} onClick={() => run(async () => { await hrService.decide(refusing.id, false, motif.trim()); setRefusing(null); })}>Refuser</Button></>)}>
-          <div className="field"><label>Motif du refus *</label><input className="input" value={motif} onChange={(e) => setMotif(e.target.value)} autoFocus /></div>
-        </Modal>
-      ) : null}
-    </>
-  );
+  useEffect(() => { hrService.employees({ size: 100 }).then((p) => setEmployees(p.content)).catch(() => {}); }, []);
+  return employees;
 }
 
-function AbsencesTab({ canManage }) {
-  const list = usePagedList(hrService.absences, {});
-  const [employees, setEmployees] = useState([]);
-  const [form, setForm] = useState(null);
-  useEffect(() => { hrService.employees({ statut: 'ACTIF', size: 100 }).then((p) => setEmployees(p.content)).catch(() => {}); }, []);
-  const fields = [
-    { name: 'employeeId', label: 'Employé', type: 'select', numeric: true, required: true, options: employees.map((e) => ({ value: e.id, label: `${e.prenom} ${e.nom}` })) },
-    { name: 'jour', label: 'Jour', type: 'date', required: true },
-    { name: 'duree', label: 'Durée', type: 'select', required: true, placeholder: false, options: [{ value: '1', label: 'Journée' }, { value: '0.5', label: 'Demi-journée' }] },
-    { name: 'motif', label: 'Motif', wide: true },
-    { name: 'justifiee', label: 'Absence justifiée', type: 'checkbox' },
-  ];
+function WorkDaysTab({ canManage }) {
+  const list = usePagedList(hrService.workDays, {});
+  const employees = useEmployeeOptions();
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [error, setError] = useState('');
   return (
     <div className="panel">
       <Toolbar>
+        <FilterSelect label="Employé" allLabel="Tous les employés" value={list.filters.employeeId}
+                      options={employees.map((e) => ({ value: String(e.id), label: `${e.prenom} ${e.nom}` }))}
+                      onChange={(v) => list.updateFilter('employeeId', v)} />
         <DateInput label="Du" value={list.filters.from} onChange={(v) => list.updateFilter('from', v)} />
         <DateInput label="Au" value={list.filters.to} onChange={(v) => list.updateFilter('to', v)} />
-        {canManage ? <Button size="sm" onClick={() => setForm({ jour: todayISO(), duree: '1' })}><Plus size={16} />Saisir une absence</Button> : null}
+        {canManage ? <Button onClick={() => setEditing({})}><Plus size={18} />Ajouter une journée</Button> : null}
       </Toolbar>
-      <DataTable rows={list.data.content} empty={<EmptyState icon={CalendarDays} title="Aucune absence" text="Les absences saisies par les RH apparaissent ici." />}
-                 columns={[
-                   { key: 'e', header: 'Employé', render: (a) => <strong>{a.employe}</strong> },
-                   { key: 'j', header: 'Jour', render: (a) => d(a.jour) },
-                   { key: 'd', header: 'Durée', render: (a) => (Number(a.duree) === 1 ? 'Journée' : 'Demi-journée') },
-                   { key: 'm', header: 'Motif', render: (a) => a.motif || '—' },
-                   { key: 's', header: 'Justifiée', render: (a) => <span className={`badge ${a.justifiee ? 'badge-ok' : 'badge-warn'}`}>{a.justifiee ? 'Oui' : 'Non'}</span> },
-                   { key: 'u', header: 'Saisie par', render: (a) => <span className="muted">{a.saisiPar}</span> },
-                 ]} />
+      <Alert type="error">{error || list.error}</Alert>
+      {list.loading && !list.data.content.length ? <div className="panel-body"><Spinner /></div>
+        : <WorkDaysTable rows={list.data.content} canManage={canManage} onEdit={setEditing} onDelete={setDeleting} showEmployee />}
       <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
-      {form ? <EntityFormModal title="Nouvelle absence" fields={fields} initial={form} onClose={() => setForm(null)}
-                               onSubmit={async (p) => { await hrService.recordAbsence(p); setForm(null); list.reload(); }} /> : null}
+      {editing ? <WorkDayModal workDay={editing.id ? editing : null} employees={employees.filter((e) => e.actif)} onClose={() => setEditing(null)}
+                               onDone={() => { setEditing(null); list.reload(); }} /> : null}
+      {deleting ? (
+        <ConfirmDialog title="Supprimer la journée" danger confirmLabel="Supprimer"
+                       message={`La journée du ${day(deleting.jour)} de ${deleting.employe} ne comptera plus dans son reste dû.`}
+                       onCancel={() => setDeleting(null)}
+                       onConfirm={async () => { try { await hrService.deleteWorkDay(deleting.id); setDeleting(null); list.reload(); } catch (err) { setError(err.message); setDeleting(null); } }} />
+      ) : null}
     </div>
   );
 }
 
-function RefsTab({ canManage }) {
-  const [services, setServices] = useState(null);
-  const [positions, setPositions] = useState(null);
-  const [holidays, setHolidays] = useState([]);
-  const [names, setNames] = useState({ service: '', poste: '', jour: '', libelle: '' });
-  const [error, setError] = useState('');
-  const load = useCallback(() => Promise.all([hrService.services(), hrService.positions(), hrService.holidays()])
-    .then(([s, p, h]) => { setServices(s); setPositions(p); setHolidays(h); }).catch((e) => setError(e.message)), []);
-  useEffect(() => { load(); }, [load]);
-  const run = async (fn) => { setError(''); try { await fn(); setNames({ service: '', poste: '', jour: '', libelle: '' }); load(); } catch (e) { setError(e.message); } };
-  if (!services) return <Spinner />;
-  const Block = ({ title, rows, k, add }) => (
-    <div className="panel"><div className="section-title"><h2>{title}</h2></div>
-      <div className="panel-body">
-        {rows.length ? rows.map((r) => <span key={r.id} className="badge badge-role" style={{ marginBottom: 6 }}>{r.nom}</span>) : <p className="muted">Aucun.</p>}
-        {canManage ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            <input className="input" placeholder="Nouveau…" value={names[k]} onChange={(e) => setNames({ ...names, [k]: e.target.value })} />
-            <Button size="sm" disabled={!names[k].trim()} onClick={() => run(() => add(names[k].trim()))}><Plus size={14} />Ajouter</Button>
-          </div>
-        ) : null}
-      </div></div>
-  );
+function PaymentsTab() {
+  const list = usePagedList(hrService.payments, {});
+  const employees = useEmployeeOptions();
   return (
-    <>
-      <Alert type="error">{error}</Alert>
-      <div className="grid-2">
-        <Block title="Services" rows={services} k="service" add={(n) => hrService.saveService(null, n)} />
-        <Block title="Postes" rows={positions} k="poste" add={(n) => hrService.savePosition(null, n)} />
-      </div>
-      <div className="panel" style={{ marginTop: 16 }}>
-        <div className="section-title"><h2>Jours fériés</h2></div>
-        <div className="panel-body">
-          <p className="muted" style={{ marginBottom: 10 }}>Exclus du calcul des jours de congé. Les fêtes religieuses changent chaque année : saisissez-les à l'avance.</p>
-          <table className="table"><tbody>{holidays.map((h) => (
-            <tr key={h.id}><td>{d(h.jour)}</td><td>{h.libelle}</td>
-              <td className="num">{canManage ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => run(() => hrService.deleteHoliday(h.id))}><Trash2 size={14} /></button> : null}</td></tr>
-          ))}</tbody></table>
-          {canManage ? (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <input type="date" className="input" style={{ width: 180 }} value={names.jour} onChange={(e) => setNames({ ...names, jour: e.target.value })} />
-              <input className="input" placeholder="Libellé" value={names.libelle} onChange={(e) => setNames({ ...names, libelle: e.target.value })} />
-              <Button size="sm" disabled={!names.jour || !names.libelle.trim()} onClick={() => run(() => hrService.addHoliday({ jour: names.jour, libelle: names.libelle.trim() }))}><Plus size={14} />Ajouter</Button>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </>
+    <div className="panel">
+      <Toolbar>
+        <FilterSelect label="Employé" allLabel="Tous les employés" value={list.filters.employeeId}
+                      options={employees.map((e) => ({ value: String(e.id), label: `${e.prenom} ${e.nom}` }))}
+                      onChange={(v) => list.updateFilter('employeeId', v)} />
+        <FilterSelect label="Type" allLabel="Tous les types" value={list.filters.type} options={toOptions(EMPLOYEE_PAYMENT_TYPES)}
+                      onChange={(v) => list.updateFilter('type', v)} />
+        <DateInput label="Du" value={list.filters.from} onChange={(v) => list.updateFilter('from', v)} />
+        <DateInput label="Au" value={list.filters.to} onChange={(v) => list.updateFilter('to', v)} />
+      </Toolbar>
+      <Alert type="error">{list.error}</Alert>
+      {list.loading && !list.data.content.length ? <div className="panel-body"><Spinner /></div> : <PaymentsTable rows={list.data.content} showEmployee />}
+      <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
+    </div>
   );
 }
 
 export default function HrPage() {
   const { can } = useAuth();
-  const isHr = can('HR_VIEW');
   const canManage = can('HR_MANAGE');
-  const canValidate = can('LEAVE_VALIDATE');
-  const tabs = [
-    isHr && { value: 'employees', label: 'Employés' },
-    { value: 'leaves', label: isHr || canValidate ? 'Congés' : 'Mes congés' },
-    isHr && { value: 'absences', label: 'Absences' },
-    isHr && { value: 'refs', label: 'Services, postes et jours fériés' },
-  ].filter(Boolean);
-  const [tab, setTab] = useState(tabs[0].value);
+  const canPay = can(['HR_MANAGE', 'FINANCE_MANAGE']);
+  const [tab, setTab] = useState('employees');
   return (
     <>
-      <PageHeader title={isHr ? 'Ressources humaines' : 'Mes congés'}
-                  description={isHr ? 'Dossiers du personnel, contrats (y compris saisonniers), congés et absences. Accès réservé aux personnes autorisées.'
-                    : 'Demandez un congé et suivez la réponse de votre responsable.'} />
-      {tabs.length > 1 ? <Tabs value={tab} onChange={setTab} tabs={tabs} /> : null}
-      {tab === 'employees' ? <EmployeesTab canManage={canManage} /> : null}
-      {tab === 'leaves' ? <LeavesTab canValidate={canValidate} canManage={canManage} isHr={isHr} /> : null}
-      {tab === 'absences' ? <AbsencesTab canManage={canManage} /> : null}
-      {tab === 'refs' ? <RefsTab canManage={canManage} /> : null}
+      <PageHeader title="Ressources humaines"
+                  description="Employés, pointage Play / Stop et paiements. Reste dû = journées pointées × TJM − salaires, journées et avances payés." />
+      <Tabs value={tab} onChange={setTab}
+            tabs={[{ value: 'employees', label: 'Employés' }, { value: 'days', label: 'Pointages' }, { value: 'payments', label: 'Paiements' }]} />
+      {tab === 'employees' ? <EmployeesTab canManage={canManage} canPay={canPay} /> : null}
+      {tab === 'days' ? <WorkDaysTab canManage={canManage} /> : null}
+      {tab === 'payments' ? <PaymentsTab /> : null}
     </>
   );
 }

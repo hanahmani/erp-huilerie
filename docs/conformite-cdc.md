@@ -21,8 +21,8 @@
 | 16 | Matières premières : réception, pesée, lot, qualité, consommation | ✅ | Achats (olives), Pressage client (pesée), Production |
 | 17 | Lots et traçabilité amont / aval | ✅ | Stock › Lots › Traçabilité |
 | 18 | Contrôle qualité : critères, résultats, validation / rejet, anomalies | ✅ | Contrôle qualité |
-| 19 | RH : employés, postes, services, contrats, historique | ✅ | RH et congés |
-| 20 | Congés et absences : demande, validation, refus, solde, notifications | ✅ | RH et congés ; alertes dans la cloche |
+| 19 | RH : employés, postes, services, contrats, historique | 🟡 | RH : fiche simplifiée (identité, TJM, actif), historique des journées et des paiements ; postes, services et contrats retirés à la demande (V13) |
+| 20 | Congés et absences : demande, validation, refus, solde, notifications | ⬜ | Retirés à la demande (V13) ; remplacés par le pointage Play / Stop |
 | 21 | Finance : recettes, dépenses, comptes, créances, dettes, trésorerie | ✅ | Finance et caisse (caisse = compte unique ; 🟡 pas de comptes bancaires séparés) |
 | 22 | Rapports et exports Excel / PDF / impression | ✅ | Rapports (CSV pour Excel, impression → PDF) ; activités : journal |
 | 23 | Notifications : stock, paiement, validation, production, historique, marquer comme lu | ✅ | Cloche et page Notifications. 🟡 pas d'envoi d'e-mail |

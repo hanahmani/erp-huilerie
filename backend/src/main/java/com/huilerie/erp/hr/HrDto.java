@@ -1,6 +1,10 @@
 package com.huilerie.erp.hr;
 
-import jakarta.validation.constraints.*;
+import com.huilerie.erp.finance.PaymentMode;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -11,77 +15,56 @@ public final class HrDto {
     private HrDto() {
     }
 
-    public record RefRequest(@NotBlank(message = "Le nom est obligatoire.") @Size(max = 100) String nom) {
-    }
-
-    public record Ref(Long id, String nom, boolean actif) {
-    }
-
     public record EmployeeRequest(
-            @NotBlank(message = "Le nom est obligatoire.") @Size(max = 100) String nom,
             @NotBlank(message = "Le prénom est obligatoire.") @Size(max = 100) String prenom,
-            LocalDate dateNaissance, @Size(max = 20) String cin, @Size(max = 50) String telephone,
-            @Email(message = "Adresse e-mail invalide.") @Size(max = 120) String email, @Size(max = 255) String adresse,
-            Long serviceId, Long posteId,
-            @NotNull(message = "La date d'embauche est obligatoire.") LocalDate dateEmbauche,
-            @NotNull @Pattern(regexp = "CDI|CDD|SAISONNIER|STAGE|AUTRE", message = "Type de contrat invalide.") String typeContrat,
-            LocalDate dateFinContrat,
-            @NotNull @Pattern(regexp = "ACTIF|SUSPENDU|SORTI") String statut,
-            @NotNull @DecimalMin(value = "0", message = "Solde positif ou nul.") BigDecimal soldeConges,
-            Long userId) {
+            @NotBlank(message = "Le nom est obligatoire.") @Size(max = 100) String nom,
+            @Size(max = 20) String cin,
+            @Size(max = 50) String telephone,
+            @Size(max = 255) String adresse,
+            @NotNull(message = "Le TJM est obligatoire.")
+            @DecimalMin(value = "0", message = "Le TJM ne peut pas être négatif.") BigDecimal tjm) {
     }
 
-    public record EmployeeResponse(Long id, String matricule, String nom, String prenom, LocalDate dateNaissance, String cin,
-                                   String telephone, String email, String adresse, Long serviceId, String service,
-                                   Long posteId, String poste, LocalDate dateEmbauche, String typeContrat,
-                                   LocalDate dateFinContrat, String statut, BigDecimal soldeConges, Long userId,
-                                   String username) {
-        static EmployeeResponse from(Employee e) {
-            return new EmployeeResponse(e.getId(), e.getMatricule(), e.getNom(), e.getPrenom(), e.getDateNaissance(),
-                    e.getCin(), e.getTelephone(), e.getEmail(), e.getAdresse(),
-                    e.getService() == null ? null : e.getService().getId(), e.getService() == null ? null : e.getService().getNom(),
-                    e.getPoste() == null ? null : e.getPoste().getId(), e.getPoste() == null ? null : e.getPoste().getNom(),
-                    e.getDateEmbauche(), e.getTypeContrat(), e.getDateFinContrat(), e.getStatut(), e.getSoldeConges(),
-                    e.getUser() == null ? null : e.getUser().getId(), e.getUser() == null ? null : e.getUser().getUsername());
+    /**
+     * Fiche avec le compte : journées pointées × TJM figé − paiements = reste dû
+     * (négatif quand les avances dépassent ce qui est gagné). enCours : journée du jour démarrée et non arrêtée.
+     */
+    public record EmployeeResponse(Long id, String matricule, String prenom, String nom, String cin, String telephone,
+                                   String adresse, BigDecimal tjm, boolean actif, long jours, BigDecimal gagne,
+                                   BigDecimal paye, BigDecimal reste, WorkDayLine aujourdhui, boolean enCours) {
+    }
+
+    /** Correction ou saisie manuelle d'une journée ; heureFin vide = journée encore en cours. */
+    public record WorkDayRequest(Long employeeId,
+                                 @NotNull(message = "L'heure de début est obligatoire.") Instant heureDebut,
+                                 Instant heureFin) {
+    }
+
+    public record WorkDayLine(Long id, Long employeeId, String employe, String matricule, LocalDate jour,
+                              Instant heureDebut, Instant heureFin, Long minutes, BigDecimal tjm, String saisiPar,
+                              String modifiePar) {
+        static WorkDayLine from(WorkDay w) {
+            Long minutes = w.getHeureFin() == null ? null
+                    : java.time.Duration.between(w.getHeureDebut(), w.getHeureFin()).toMinutes();
+            return new WorkDayLine(w.getId(), w.getEmployee().getId(), w.getEmployee().fullName(),
+                    w.getEmployee().getMatricule(), w.getJour(), w.getHeureDebut(), w.getHeureFin(), minutes, w.getTjm(),
+                    w.getSaisiPar(), w.getModifiePar());
         }
     }
 
-    public record LeaveRequestBody(Long employeeId,
-                                   @NotNull @Pattern(regexp = "CONGE_ANNUEL|MALADIE|SANS_SOLDE|EXCEPTIONNEL") String type,
-                                   @NotNull(message = "Date de début obligatoire.") LocalDate dateDebut,
-                                   @NotNull(message = "Date de fin obligatoire.") LocalDate dateFin,
-                                   @Size(max = 255) String motif) {
+    public record PaymentRequest(@NotNull(message = "Le type est obligatoire.") EmployeePayment.Type type,
+                                 @NotNull(message = "Le mode est obligatoire.") PaymentMode mode,
+                                 @NotNull @DecimalMin(value = "0.001", message = "Le montant doit être positif.") BigDecimal montant,
+                                 @Size(max = 120) String reference) {
     }
 
-    public record DecisionRequest(boolean accepter, @Size(max = 255) String motifRefus) {
-    }
-
-    public record Leave(Long id, Long employeeId, String employe, String matricule, String type, LocalDate dateDebut,
-                        LocalDate dateFin, BigDecimal jours, String motif, String statut, String demandePar,
-                        Instant demandeLe, String decidePar, Instant decideLe, String motifRefus, BigDecimal soldeActuel) {
-        static Leave from(LeaveRequest l) {
-            return new Leave(l.getId(), l.getEmployee().getId(), l.getEmployee().fullName(), l.getEmployee().getMatricule(),
-                    l.getType(), l.getDateDebut(), l.getDateFin(), l.getJours(), l.getMotif(), l.getStatut(), l.getDemandePar(),
-                    l.getDemandeLe(), l.getDecidePar(), l.getDecideLe(), l.getMotifRefus(), l.getEmployee().getSoldeConges());
+    public record PaymentLine(Long id, String numero, Long employeeId, String employe, String matricule,
+                              EmployeePayment.Type type, PaymentMode mode, BigDecimal montant, String reference,
+                              Instant date, String username) {
+        static PaymentLine from(EmployeePayment p) {
+            return new PaymentLine(p.getId(), p.getNumero(), p.getEmployee().getId(), p.getEmployee().fullName(),
+                    p.getEmployee().getMatricule(), p.getType(), p.getMode(), p.getMontant(), p.getReference(),
+                    p.getDate(), p.getUsername());
         }
-    }
-
-    public record AbsenceRequest(@NotNull Long employeeId, @NotNull LocalDate jour,
-                                 @NotNull @DecimalMin("0.5") @DecimalMax("1") BigDecimal duree,
-                                 @Size(max = 255) String motif, boolean justifiee) {
-    }
-
-    public record AbsenceResponse(Long id, Long employeeId, String employe, LocalDate jour, BigDecimal duree, String motif,
-                                  boolean justifiee, String saisiPar) {
-        static AbsenceResponse from(Absence a) {
-            return new AbsenceResponse(a.getId(), a.getEmployee().getId(), a.getEmployee().fullName(), a.getJour(),
-                    a.getDuree(), a.getMotif(), a.isJustifiee(), a.getSaisiPar());
-        }
-    }
-
-    public record HolidayRequest(@NotNull LocalDate jour, @NotBlank @Size(max = 100) String libelle) {
-    }
-
-    public record Holiday(Long id, LocalDate jour, String libelle) {
     }
 }

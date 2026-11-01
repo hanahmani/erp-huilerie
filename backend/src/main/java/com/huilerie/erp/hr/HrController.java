@@ -1,14 +1,13 @@
 package com.huilerie.erp.hr;
 
+import com.huilerie.erp.catalog.dto.StatusRequest;
 import com.huilerie.erp.common.response.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/hr")
@@ -20,92 +19,74 @@ public class HrController {
         this.service = service;
     }
 
-    @GetMapping("/services")
-    public List<HrDto.Ref> services() { return service.listServices(); }
-
-    @PostMapping("/services")
-    public HrDto.Ref addService(@Valid @RequestBody HrDto.RefRequest r) { return service.saveRef(true, null, r.nom()); }
-
-    @PutMapping("/services/{id}")
-    public HrDto.Ref updateService(@PathVariable Long id, @Valid @RequestBody HrDto.RefRequest r) { return service.saveRef(true, id, r.nom()); }
-
-    @GetMapping("/positions")
-    public List<HrDto.Ref> positions() { return service.listPositions(); }
-
-    @PostMapping("/positions")
-    public HrDto.Ref addPosition(@Valid @RequestBody HrDto.RefRequest r) { return service.saveRef(false, null, r.nom()); }
-
-    @PutMapping("/positions/{id}")
-    public HrDto.Ref updatePosition(@PathVariable Long id, @Valid @RequestBody HrDto.RefRequest r) { return service.saveRef(false, id, r.nom()); }
-
+    // ---- employés
     @GetMapping("/employees")
     public PageResponse<HrDto.EmployeeResponse> employees(@RequestParam(required = false) String q,
-                                                          @RequestParam(required = false) Long serviceId,
-                                                          @RequestParam(required = false) String statut,
-                                                          @RequestParam(required = false) String contrat,
-                                                          @RequestParam(defaultValue = "0") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
-        return service.searchEmployees(q, serviceId, statut, contrat, page, size);
+                                                         @RequestParam(required = false) Boolean actif,
+                                                         @RequestParam(defaultValue = "0") int page,
+                                                         @RequestParam(defaultValue = "50") int size) {
+        return service.searchEmployees(q, actif, page, size);
     }
+
+    @GetMapping("/employees/{id}")
+    public HrDto.EmployeeResponse employee(@PathVariable Long id) { return service.getEmployee(id); }
 
     @PostMapping("/employees")
     @ResponseStatus(HttpStatus.CREATED)
     public HrDto.EmployeeResponse createEmployee(@Valid @RequestBody HrDto.EmployeeRequest r) { return service.saveEmployee(null, r); }
 
     @PutMapping("/employees/{id}")
-    public HrDto.EmployeeResponse updateEmployee(@PathVariable Long id, @Valid @RequestBody HrDto.EmployeeRequest r) { return service.saveEmployee(id, r); }
-
-    @GetMapping("/me")
-    public ResponseEntity<HrDto.EmployeeResponse> me() {
-        HrDto.EmployeeResponse e = service.me();
-        return e == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(e);
+    public HrDto.EmployeeResponse updateEmployee(@PathVariable Long id, @Valid @RequestBody HrDto.EmployeeRequest r) {
+        return service.saveEmployee(id, r);
     }
 
-    @GetMapping("/leaves")
-    public PageResponse<HrDto.Leave> leaves(@RequestParam(required = false) Long employeeId,
-                                            @RequestParam(required = false) String statut,
-                                            @RequestParam(defaultValue = "false") boolean mine,
-                                            @RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "20") int size) {
-        return service.searchLeaves(employeeId, statut, mine, page, size);
+    @PatchMapping("/employees/{id}/status")
+    public HrDto.EmployeeResponse status(@PathVariable Long id, @Valid @RequestBody StatusRequest r) {
+        return service.setStatus(id, r.actif());
     }
 
-    @PostMapping("/leaves")
+    // ---- pointage
+    @PostMapping("/employees/{id}/start")
+    public HrDto.EmployeeResponse start(@PathVariable Long id) { return service.start(id); }
+
+    @PostMapping("/employees/{id}/stop")
+    public HrDto.EmployeeResponse stop(@PathVariable Long id) { return service.stop(id); }
+
+    @GetMapping("/work-days")
+    public PageResponse<HrDto.WorkDayLine> workDays(@RequestParam(required = false) Long employeeId,
+                                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                   @RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "30") int size) {
+        return service.searchWorkDays(employeeId, from, to, page, size);
+    }
+
+    @PostMapping("/work-days")
     @ResponseStatus(HttpStatus.CREATED)
-    public HrDto.Leave request(@Valid @RequestBody HrDto.LeaveRequestBody r) { return service.requestLeave(r); }
+    public HrDto.WorkDayLine addWorkDay(@Valid @RequestBody HrDto.WorkDayRequest r) { return service.addWorkDay(r); }
 
-    @PostMapping("/leaves/{id}/decision")
-    public HrDto.Leave decide(@PathVariable Long id, @Valid @RequestBody HrDto.DecisionRequest r) { return service.decide(id, r); }
-
-    @PostMapping("/leaves/{id}/cancel")
-    public HrDto.Leave cancel(@PathVariable Long id) { return service.cancelLeave(id); }
-
-    @GetMapping("/leaves/working-days")
-    public java.math.BigDecimal workingDays(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return service.workingDays(from, to);
+    @PutMapping("/work-days/{id}")
+    public HrDto.WorkDayLine updateWorkDay(@PathVariable Long id, @Valid @RequestBody HrDto.WorkDayRequest r) {
+        return service.updateWorkDay(id, r);
     }
 
-    @GetMapping("/absences")
-    public PageResponse<HrDto.AbsenceResponse> absences(@RequestParam(required = false) Long employeeId,
-                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-                                                        @RequestParam(defaultValue = "0") int page,
-                                                        @RequestParam(defaultValue = "20") int size) {
-        return service.searchAbsences(employeeId, from, to, page, size);
-    }
-
-    @PostMapping("/absences")
-    @ResponseStatus(HttpStatus.CREATED)
-    public HrDto.AbsenceResponse absence(@Valid @RequestBody HrDto.AbsenceRequest r) { return service.recordAbsence(r); }
-
-    @GetMapping("/holidays")
-    public List<HrDto.Holiday> holidays() { return service.listHolidays(); }
-
-    @PostMapping("/holidays")
-    public HrDto.Holiday addHoliday(@Valid @RequestBody HrDto.HolidayRequest r) { return service.addHoliday(r); }
-
-    @DeleteMapping("/holidays/{id}")
+    @DeleteMapping("/work-days/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteHoliday(@PathVariable Long id) { service.deleteHoliday(id); }
+    public void deleteWorkDay(@PathVariable Long id) { service.deleteWorkDay(id); }
+
+    // ---- paiements
+    @PostMapping("/employees/{id}/payments")
+    public HrDto.EmployeeResponse pay(@PathVariable Long id, @Valid @RequestBody HrDto.PaymentRequest r) {
+        return service.pay(id, r);
+    }
+
+    @GetMapping("/payments")
+    public PageResponse<HrDto.PaymentLine> payments(@RequestParam(required = false) Long employeeId,
+                                                   @RequestParam(required = false) EmployeePayment.Type type,
+                                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                                   @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+                                                   @RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "30") int size) {
+        return service.searchPayments(employeeId, type, from, to, page, size);
+    }
 }

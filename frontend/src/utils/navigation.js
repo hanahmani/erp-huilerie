@@ -54,7 +54,7 @@ export const NAVIGATION = [
     items: [
       { key: 'finance', label: 'Finance et caisse', path: '/finance', icon: Wallet, permission: ['FINANCE_VIEW', 'CASH_SESSION'] },
       { key: 'reports', label: 'Rapports', path: '/rapports', icon: BarChart3, permission: 'REPORT_VIEW' },
-      { key: 'hr', label: 'RH et congés', path: '/rh', icon: UserRound, permission: ['HR_VIEW', 'LEAVE_REQUEST', 'LEAVE_VALIDATE'] },
+      { key: 'hr', label: 'RH et pointage', path: '/rh', icon: UserRound, permission: 'HR_VIEW' },
     ],
   },
   {
@@ -82,7 +82,7 @@ export const MODULES = {
   salesHistory: { title: 'Historique des ventes', phase: 5, description: 'Toutes les ventes validées, avec réimpression du ticket.', planned: ['Filtres par date, ticket, client, caissier', 'Consultation et réimpression', 'Annulation autorisée et tracée'] },
   finance: { title: 'Finance', phase: 6, description: 'Caisse, dépenses, créances et dettes.', planned: ['Caisse et résumé journalier', 'Paiements et paiements partiels', 'Dépenses', 'Dettes fournisseurs et créances clients'] },
   users: { title: 'Utilisateurs', description: 'Comptes des employés, rôles et accès.' },
-  hr: { title: 'RH et congés', description: 'Employés, contrats, congés et absences.' },
+  hr: { title: 'RH et pointage', description: 'Employés, pointage Play / Stop et paiements.' },
   salesdocs: { title: 'Ventes et facturation', description: 'Devis, commandes, livraisons, factures et avoirs.' },
   reports: { title: 'Rapports', description: 'Ventes, achats, stock valorisé et trésorerie, exportables.' },
   roles: { title: 'Rôles', description: 'Qui peut faire quoi, module par module.' },

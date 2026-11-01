@@ -108,6 +108,15 @@ Tous les rôles existants reçoivent `LEAVE_REQUEST`.
 | `/{id}/pay` | SALESDOC_MANAGE ou FINANCE_MANAGE |
 | `/{id}/credit-note` | INVOICE_VALIDATE |
 | `/api/quality/*` | QUALITY_VIEW / QUALITY_MANAGE |
-| `/api/hr/employees`, `/absences`, `/services`, `/positions` | HR_VIEW / HR_MANAGE |
-| `/api/hr/leaves` | LEAVE_REQUEST (ses demandes), HR_VIEW (toutes), LEAVE_VALIDATE (décision) |
 | `/api/notifications`, `/api/search` | connecté (résultats filtrés selon les permissions) |
+
+## Refonte RH (V13)
+
+`LEAVE_REQUEST` et `LEAVE_VALIDATE` sont supprimées. Le rôle Employé ne garde que `DASHBOARD_VIEW`.
+
+| Route | Permission |
+|---|---|
+| GET `/api/hr/employees`, `/{id}`, `/work-days` | HR_VIEW |
+| POST, PUT, PATCH `/api/hr/employees…`, `/{id}/start`, `/{id}/stop`, `/work-days…` | HR_MANAGE |
+| POST `/api/hr/employees/{id}/payments` | HR_MANAGE ou FINANCE_MANAGE |
+| GET `/api/hr/payments` | HR_VIEW ou FINANCE_VIEW |

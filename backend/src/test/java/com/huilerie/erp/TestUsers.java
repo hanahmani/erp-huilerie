@@ -39,7 +39,7 @@ public class TestUsers {
         jdbc.update("UPDATE sales_documents SET source_id = NULL");
         for (String table : new String[]{"notification_reads", "sales_document_payments", "sales_document_lines",
                 "sales_documents",
-                "absences", "leave_requests", "public_holidays", "employees", "hr_services", "hr_positions",
+                "employee_payments", "work_days", "employees",
                 "company_settings", "pressing_seller_payments", "pressing_payments", "pressing_returns", "pressings",
                 "storage_tanks",
                 "production_byproducts", "production_inputs", "production_orders",

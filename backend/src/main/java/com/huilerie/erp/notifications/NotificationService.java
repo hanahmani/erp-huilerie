@@ -2,8 +2,7 @@ package com.huilerie.erp.notifications;
 
 import com.huilerie.erp.common.SecurityUtils;
 import com.huilerie.erp.common.exception.NotFoundException;
-import com.huilerie.erp.hr.EmployeeRepository;
-import com.huilerie.erp.hr.LeaveRequestRepository;
+import com.huilerie.erp.hr.WorkDayRepository;
 import com.huilerie.erp.inventory.LotStatus;
 import com.huilerie.erp.inventory.StockLotRepository;
 import com.huilerie.erp.inventory.StockService;
@@ -43,12 +42,11 @@ public class NotificationService {
     private final SalesDocumentRepository invoices;
     private final PressingRepository pressings;
     private final PurchaseRepository purchases;
-    private final LeaveRequestRepository leaves;
-    private final EmployeeRepository employees;
+    private final WorkDayRepository workDays;
 
     public NotificationService(NotificationReadRepository reads, UserRepository users, StockService stock,
                                StockLotRepository lots, SalesDocumentRepository invoices, PressingRepository pressings,
-                               PurchaseRepository purchases, LeaveRequestRepository leaves, EmployeeRepository employees) {
+                               PurchaseRepository purchases, WorkDayRepository workDays) {
         this.reads = reads;
         this.users = users;
         this.stock = stock;
@@ -56,8 +54,7 @@ public class NotificationService {
         this.invoices = invoices;
         this.pressings = pressings;
         this.purchases = purchases;
-        this.leaves = leaves;
-        this.employees = employees;
+        this.workDays = workDays;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -107,17 +104,10 @@ public class NotificationService {
                         drafts + " brouillon(s) de commande fournisseur", "/achats");
             }
         }
-        if (SecurityUtils.has("LEAVE_VALIDATE")) {
-            long pending = leaves.countByStatut("EN_ATTENTE");
-            if (pending > 0) {
-                add(out, read, "CONGES:" + pending + ":" + today, "VALIDATION", "INFO", "Demandes de congé",
-                        pending + " demande(s) en attente de décision", "/rh");
-            }
-        }
         if (SecurityUtils.has("HR_VIEW")) {
-            employees.contractsEndingBefore(today.plusDays(30)).forEach(e -> add(out, read,
-                    "CONTRAT:" + e.getId() + ":" + e.getDateFinContrat(), "RH", "AVERTISSEMENT", "Fin de contrat",
-                    e.fullName() + " (" + e.getTypeContrat() + ") le " + e.getDateFinContrat(), "/rh"));
+            workDays.findByHeureFinIsNullAndJourBeforeOrderByJourAsc(today).forEach(w -> add(out, read,
+                    "POINTAGE:" + w.getId(), "RH", "AVERTISSEMENT", "Pointage non arrêté",
+                    w.getEmployee().fullName() + " : journée du " + w.getJour() + " sans heure de fin", "/rh"));
         }
         return out;
     }
