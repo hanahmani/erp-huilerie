@@ -12,8 +12,6 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
 
     boolean existsByReferenceIgnoreCase(String reference);
 
-    boolean existsByReferenceIgnoreCaseAndIdNot(String reference, Long id);
-
     boolean existsByCodeBarres(String codeBarres);
 
     boolean existsByCodeBarresAndIdNot(String codeBarres, Long id);

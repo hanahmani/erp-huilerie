@@ -18,7 +18,8 @@ export default function CatalogPage() {
   }, []);
 
   const fields = (article) => [
-    { name: 'reference', label: 'Référence', required: true, hint: 'Unique. Ex. HEV-1L' },
+    // Référence attribuée par le serveur à la création (HVR-0001…) : affichée seulement en modification.
+    ...(article.id ? [{ name: 'reference', label: 'Référence', disabled: true, hint: 'Attribuée automatiquement, non modifiable.' }] : []),
     { name: 'nom', label: 'Désignation', required: true },
     { name: 'type', label: 'Type', type: 'select', options: toOptions(ARTICLE_TYPES), required: true },
     {

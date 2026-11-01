@@ -9,6 +9,7 @@ import com.huilerie.erp.common.SecurityUtils;
 import com.huilerie.erp.common.Text;
 import com.huilerie.erp.common.exception.BusinessException;
 import com.huilerie.erp.common.exception.NotFoundException;
+import com.huilerie.erp.common.numbering.DocumentNumberService;
 import com.huilerie.erp.common.response.PageResponse;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -25,13 +26,15 @@ public class CatalogService {
     private final CategoryRepository categories;
     private final ArticleRepository articles;
     private final AuditService audit;
+    private final DocumentNumberService numbers;
 
     public CatalogService(UnitRepository units, CategoryRepository categories, ArticleRepository articles,
-                          AuditService audit) {
+                          AuditService audit, DocumentNumberService numbers) {
         this.units = units;
         this.categories = categories;
         this.articles = articles;
         this.audit = audit;
+        this.numbers = numbers;
     }
 
     // ------------------------------------------------------------------ unités
@@ -119,12 +122,7 @@ public class CatalogService {
     @PreAuthorize("hasAuthority('CATALOG_MANAGE')")
     @Transactional
     public ArticleDto.Response saveArticle(Long id, ArticleDto.Request r) {
-        String reference = r.reference().trim().toUpperCase();
         String barcode = Text.clean(r.codeBarres());
-        if (id == null ? articles.existsByReferenceIgnoreCase(reference)
-                : articles.existsByReferenceIgnoreCaseAndIdNot(reference, id)) {
-            throw new BusinessException("Un article porte déjà cette référence.");
-        }
         if (barcode != null && (id == null ? articles.existsByCodeBarres(barcode)
                 : articles.existsByCodeBarresAndIdNot(barcode, id))) {
             throw new BusinessException("Ce code-barres est déjà attribué à un autre article.");
@@ -142,7 +140,10 @@ public class CatalogService {
         if (id != null && a.isSuiviLot() != r.suiviLot()) {
             throw new BusinessException("Le suivi par lot ne peut pas être modifié après la création de l'article.");
         }
-        a.setReference(reference);
+        if (id == null) {
+            a.setReference(nextReference(r.type()));
+        }
+        String reference = a.getReference();
         a.setNom(r.nom().trim());
         a.setDescription(Text.clean(r.description()));
         a.setType(r.type());
@@ -174,6 +175,18 @@ public class CatalogService {
     }
 
     // ------------------------------------------------------------------ utilitaires
+
+    /**
+     * Référence automatique : préfixe du type + numéro sur 4 chiffres (HVR-0001, OLV-0001…), un compteur par type.
+     * Une référence déjà prise (article saisi à la main avant l'automatisme) est sautée.
+     */
+    private String nextReference(ArticleType type) {
+        String reference;
+        do {
+            reference = type.prefix() + "-" + numbers.nextPlain("ARTICLE_" + type.name(), 4);
+        } while (articles.existsByReferenceIgnoreCase(reference));
+        return reference;
+    }
 
     public Article article(Long id) {
         return articles.findById(id).orElseThrow(() -> new NotFoundException("Article introuvable."));

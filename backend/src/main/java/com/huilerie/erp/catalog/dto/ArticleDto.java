@@ -11,8 +11,8 @@ public final class ArticleDto {
     private ArticleDto() {
     }
 
+    /** La référence n'est pas saisie : elle est attribuée à la création (préfixe du type + numéro). */
     public record Request(
-            @NotBlank(message = "La référence est obligatoire.") @Size(max = 50) String reference,
             @NotBlank(message = "Le nom est obligatoire.") @Size(max = 150) String nom,
             @Size(max = 500) String description,
             @NotNull(message = "Le type est obligatoire.") ArticleType type,
