@@ -158,7 +158,6 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   <h2 style={{ marginBottom: 12 }}>Fin du pressage</h2>
                   <div className="form-grid">
                     <div className="field"><label>Huile obtenue ({p.unite}) *</label><input className="input" inputMode="decimal" autoFocus {...f('huile')} /></div>
-                    <div className="field"><label>Pertes (kg)</label><input className="input" inputMode="decimal" {...f('pertes')} /></div>
                     {achat ? (
                       <div className="field wide"><label>Puits / silo de stockage *</label>
                         <select className="select" {...f('tankId')}>
@@ -170,7 +169,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
                     <Button loading={busy} disabled={!toMillimes(form.huile) || (achat && !form.tankId)} onClick={() => run(() => pressingService.finish(p.id, {
-                      huileObtenue: normalizeDecimal(form.huile), pertesKg: form.pertes ? normalizeDecimal(form.pertes) : null,
+                      huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
                       tankId: achat ? Number(form.tankId) : null,
                     }))}>{achat ? "Verser l'huile dans le puits" : "Enregistrer l'huile du client"}</Button></div>
                 </>
