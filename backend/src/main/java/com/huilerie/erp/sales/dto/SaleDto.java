@@ -113,7 +113,7 @@ public final class SaleDto {
 
     /** Article proposé en caisse, avec le stock réellement vendable. */
     public record SellableArticle(Long id, String reference, String nom, String codeBarres, String unite,
-                                  String categorie, BigDecimal prixVente, BigDecimal contenance, boolean suiviLot,
+                                  String categorie, BigDecimal prixVente, boolean suiviLot,
                                   BigDecimal disponible, List<SellableLot> lots) {
     }
 

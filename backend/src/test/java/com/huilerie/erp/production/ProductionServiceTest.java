@@ -41,9 +41,9 @@ class ProductionServiceTest {
     @BeforeEach
     void setUp() {
         testUsers.reset();
-        olives = fx.articleOf("OLV", ArticleType.OLIVES, "kg", true, null);
-        huile = fx.articleOf("EVV", ArticleType.HUILE_VRAC, "L", true, null);
-        grignons = fx.articleOf("GRG", ArticleType.SOUS_PRODUIT, "kg", false, null);
+        olives = fx.articleOf("OLV", ArticleType.OLIVES, "kg", true);
+        huile = fx.articleOf("EVV", ArticleType.HUILE_VRAC, "L", true);
+        grignons = fx.articleOf("GRG", ArticleType.SOUS_PRODUIT, "kg", false);
         lotOlives = fx.lot(olives, "OL-1", LotOwner.ENTREPRISE, null);
         fx.receive(olives, lotOlives, "1000");
     }

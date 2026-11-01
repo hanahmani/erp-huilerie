@@ -64,7 +64,7 @@ public class SalesFixtures {
     }
 
     /** Article de type quelconque (olives, emballage, bouteille…), créé uniquement pour les tests. */
-    public Article articleOf(String ref, ArticleType type, String unitCode, boolean lotTracked, String contenance) {
+    public Article articleOf(String ref, ArticleType type, String unitCode, boolean lotTracked) {
         Unit u = units.findAll().stream().filter(x -> x.getCode().equals(unitCode)).findFirst()
                 .orElseGet(() -> units.save(new Unit(unitCode, unitCode)));
         Article a = new Article();
@@ -73,7 +73,6 @@ public class SalesFixtures {
         a.setType(type);
         a.setUnite(u);
         a.setSuiviLot(lotTracked);
-        a.setContenance(contenance == null ? null : new BigDecimal(contenance));
         return articles.save(a);
     }
 

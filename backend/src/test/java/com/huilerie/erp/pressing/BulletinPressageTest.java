@@ -43,7 +43,7 @@ class BulletinPressageTest {
         client = fx.client("Salah", null);
         client.setAdresse("Route de Tunis km 4, Sfax");
         client = clients.save(client);
-        huileClient = fx.articleOf("HCLI", ArticleType.HUILE_VRAC, "L", true, null);
+        huileClient = fx.articleOf("HCLI", ArticleType.HUILE_VRAC, "L", true);
     }
 
     private PressingDto.Detail receive(String brut, String tare, String bl, String transporteur, String vehicule,

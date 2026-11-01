@@ -92,7 +92,7 @@ public class SaleService {
                     .toList();
             return new SaleDto.SellableArticle(a.getId(), a.getReference(), a.getNom(), a.getCodeBarres(),
                     a.getUnite().getCode(), a.getCategorie() == null ? null : a.getCategorie().getNom(),
-                    a.getPrixVente(), a.getContenance(), a.isSuiviLot(), dispo, lotLines);
+                    a.getPrixVente(), a.isSuiviLot(), dispo, lotLines);
         }).toList();
     }
 

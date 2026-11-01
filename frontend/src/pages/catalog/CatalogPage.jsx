@@ -30,7 +30,6 @@ export default function CatalogPage() {
       name: 'uniteId', label: 'Unité de vente et de stock', type: 'select', numeric: true, required: true,
       options: units.filter((u) => u.actif || u.id === article.uniteId).map((u) => ({ value: u.id, label: `${u.libelle} (${u.code})` })),
     },
-    { name: 'contenance', label: 'Contenance en litres', type: 'number', hint: 'Ex. 5 pour un bidon de 5 L. Vide si non concerné.' },
     { name: 'prixAchat', label: "Prix d'achat (DT)", type: 'number' },
     { name: 'prixVente', label: 'Prix de vente (DT)', type: 'number', hint: 'Obligatoire si vendable.' },
     { name: 'seuilMin', label: 'Seuil d\'alerte de stock', type: 'number', hint: 'Dans l\'unité de l\'article.' },

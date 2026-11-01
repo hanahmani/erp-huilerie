@@ -37,9 +37,6 @@ public class Article {
     @JoinColumn(name = "unite_id", nullable = false)
     private Unit unite;
 
-    @Column(precision = 12, scale = 3)
-    private BigDecimal contenance;
-
     @Column(name = "prix_achat", precision = 12, scale = 3)
     private BigDecimal prixAchat;
 
@@ -98,8 +95,6 @@ public class Article {
     public void setCategorie(Category v) { categorie = v; }
     public Unit getUnite() { return unite; }
     public void setUnite(Unit v) { unite = v; }
-    public BigDecimal getContenance() { return contenance; }
-    public void setContenance(BigDecimal v) { contenance = v; }
     public BigDecimal getPrixAchat() { return prixAchat; }
     public void setPrixAchat(BigDecimal v) { prixAchat = v; }
     public BigDecimal getPrixVente() { return prixVente; }

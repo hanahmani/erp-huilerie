@@ -149,7 +149,6 @@ public class CatalogService {
         a.setType(r.type());
         a.setCategorie(cat);
         a.setUnite(unit);
-        a.setContenance(Money.strict(r.contenance(), "Contenance"));
         a.setPrixAchat(Money.strict(r.prixAchat(), "Prix d'achat"));
         a.setPrixVente(Money.strict(r.prixVente(), "Prix de vente"));
         a.setSeuilMin(Money.strict(r.seuilMin(), "Seuil minimal"));

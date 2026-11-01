@@ -41,7 +41,7 @@ class PressingServiceTest {
     void setUp() {
         testUsers.reset();
         client = fx.client("Mohamed", null);
-        huileClient = fx.articleOf("HCLI", ArticleType.HUILE_VRAC, "L", true, null);
+        huileClient = fx.articleOf("HCLI", ArticleType.HUILE_VRAC, "L", true);
     }
 
     private PressingDto.Detail receive() {
