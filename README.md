@@ -61,6 +61,7 @@ l'administrateur n'est créé qu'une seule fois, quand la table des utilisateurs
 | http://localhost:8080            | ERP (Nginx sert React et relaie `/api`)     |
 | http://127.0.0.1:8090/api        | API directe (tests manuels)                 |
 | 127.0.0.1:3307                   | MySQL pour MySQL Workbench                  |
+| http://127.0.0.1:8081            | phpMyAdmin (utilisateur `huilerie_app`, mot de passe `MYSQL_PASSWORD`) |
 | http://127.0.0.1:8090/actuator/health | État du backend et de la base          |
 
 Commandes utiles :
@@ -158,7 +159,7 @@ Tests backend fournis :
 | `ADMIN_INITIAL_USERNAME`  | 1er démarrage | Identifiant du premier administrateur                  |
 | `ADMIN_INITIAL_PASSWORD`  | 1er démarrage | Mot de passe provisoire, à retirer ensuite             |
 | `CORS_ALLOWED_ORIGINS`    | non         | Origines autorisées si le frontend est sur un autre domaine |
-| `APP_PORT`, `BACKEND_PORT`, `MYSQL_PORT` | non | Ports exposés par Docker                       |
+| `APP_PORT`, `BACKEND_PORT`, `MYSQL_PORT`, `PMA_PORT` | non | Ports exposés par Docker (phpMyAdmin : 8081) |
 
 Les fichiers `.env` ne sont jamais versionnés (voir `.gitignore`).
 

@@ -64,5 +64,20 @@ services:
     ports:
       - "${APP_PORT:-8080}:80"                  # l'ERP : http://localhost:8080
 
+  phpmyadmin:
+    image: phpmyadmin:5.2.1
+    container_name: huilerie-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql                           # connexion avec huilerie_app / MYSQL_PASSWORD (pas de connexion automatique)
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M                         # import de sauvegardes .sql
+      TZ: Africa/Tunis
+    ports:
+      - "127.0.0.1:${PMA_PORT:-8081}:80"        # accessible seulement depuis la machine (tunnel SSH en production)
+
 volumes:
   mysql_data:
