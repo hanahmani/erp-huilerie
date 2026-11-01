@@ -223,6 +223,19 @@
 .ticket-A4 .ticket-lines th, .ticket-A4 .ticket-lines td { padding: 6px 4px; border-bottom: 1px solid #ccc; }
 .ticket-A4 .ticket-totals { width: 50%; margin-left: auto; }
 
+/* Bulletin de pressage : blocs, champs vides en pointillés, signatures */
+.bulletin-date { text-align: center; margin-bottom: 6px; }
+.bulletin-block { border-top: 1px dashed #000; padding: 4px 0; }
+.bulletin-block h3 { font-size: 1em; font-weight: 700; text-transform: uppercase; margin: 2px 0 4px; }
+.bulletin-field { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; min-height: 1.6em; }
+.bulletin-field > span:last-child { text-align: right; }
+.bulletin-blank { flex: 1; border-bottom: 1px dotted #000; min-width: 30%; height: 1em; }
+.bulletin-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px dashed #000; margin-top: 8px; padding-top: 6px; }
+.bulletin-signatures div { min-height: 22mm; border: 1px solid #000; padding: 3px; font-size: .9em; }
+.ticket-A4 .bulletin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12mm; }
+.ticket-A4 .bulletin-block { padding: 6px 0; }
+.ticket-A4 .bulletin-signatures div { min-height: 30mm; }
+
 .print-root { display: none; }
 @media print {
   body.printing-ticket #root { display: none !important; }

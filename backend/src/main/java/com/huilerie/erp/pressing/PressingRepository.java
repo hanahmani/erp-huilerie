@@ -22,7 +22,8 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
     @Query("""
             select p from Pressing p join p.client c
             where (:q is null or lower(p.numero) like concat('%', :q, '%') or lower(c.nom) like concat('%', :q, '%')
-                   or c.telephone like concat('%', :q, '%'))
+                   or c.telephone like concat('%', :q, '%') or p.numeroBulletin like concat('%', :q, '%')
+                   or lower(p.vehicule) like concat('%', :q, '%'))
               and (:statut is null or p.statut = :statut)
               and (:clientId is null or c.id = :clientId)
               and (:from is null or p.dateReception >= :from)

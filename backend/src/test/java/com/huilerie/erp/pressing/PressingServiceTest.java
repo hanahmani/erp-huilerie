@@ -46,7 +46,7 @@ class PressingServiceTest {
 
     private PressingDto.Detail receive() {
         return service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), "Chemlali", "Sfax",
-                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), new BigDecimal("0.300"), null));
+                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), new BigDecimal("0.300"), null, null, null, null, null));
     }
 
     @Test
@@ -92,7 +92,7 @@ class PressingServiceTest {
     @Test
     void tareSuperieureAuBrutRefusee() {
         assertThatThrownBy(() -> service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
-                Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null)))
+                Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class);
     }
 

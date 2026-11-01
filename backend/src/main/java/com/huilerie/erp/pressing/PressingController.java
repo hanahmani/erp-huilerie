@@ -41,6 +41,11 @@ public class PressingController {
         return service.receive(r);
     }
 
+    @PutMapping("/{id}/transport")
+    public PressingDto.Detail updateTransport(@PathVariable Long id, @Valid @RequestBody PressingDto.TransportRequest r) {
+        return service.updateTransport(id, r);
+    }
+
     @PostMapping("/{id}/start")
     public PressingDto.Detail start(@PathVariable Long id) {
         return service.start(id);

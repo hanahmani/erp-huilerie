@@ -27,7 +27,8 @@ export default function PressingPage() {
   const exportAll = async () => {
     const page = await fetcher({ ...list.filters, page: 0, size: 100 });
     exportCsv('pressages', [
-      { header: 'N°', value: (p) => p.numero }, { header: 'Date', value: (p) => formatDateTime(p.dateReception) },
+      { header: 'N°', value: (p) => p.numero }, { header: 'Bulletin', value: (p) => p.numeroBulletin },
+      { header: 'Date', value: (p) => formatDateTime(p.dateReception) },
       { header: 'Client', value: (p) => p.clientNom }, { header: 'Poids net (kg)', value: (p) => Number(p.poidsNet) },
       { header: 'Huile obtenue', value: (p) => (p.huileObtenue == null ? '' : Number(p.huileObtenue)) },
       { header: 'Rendement', value: (p) => (p.rendement == null ? '' : Number(p.rendement)) },
@@ -48,7 +49,7 @@ export default function PressingPage() {
       <Alert type="error">{list.error}</Alert>
       <div className="panel">
         <Toolbar>
-          <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="N°, client, téléphone" />
+          <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="N°, bulletin, client, téléphone, véhicule" />
           <FilterSelect label="Statut" allLabel="Tous les statuts" value={list.filters.statut} options={toOptions(PRESSING_STATUS)}
                         onChange={(v) => list.updateFilter('statut', v)} />
           <DateInput label="Du" value={list.filters.fromDate} onChange={(v) => list.updateFilter('fromDate', v)} />
@@ -59,6 +60,7 @@ export default function PressingPage() {
                      empty={<EmptyState icon={Droplets} title="Aucun pressage" text="Enregistrez la réception et la pesée des olives d'un client." />}
                      columns={[
                        { key: 'n', header: 'N°', render: (p) => <strong>{p.numero}</strong> },
+                       { key: 'b', header: 'Bulletin', render: (p) => p.numeroBulletin },
                        { key: 'd', header: 'Reçu le', render: (p) => formatDateTime(p.dateReception) },
                        { key: 'c', header: 'Client', render: (p) => p.clientNom },
                        { key: 'k', header: 'Poids net', align: 'right', render: (p) => formatQty(p.poidsNet, 'kg') },
@@ -71,8 +73,8 @@ export default function PressingPage() {
         )}
         <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
       </div>
-      {receiving ? <ReceptionModal onClose={() => setReceiving(false)} onDone={(p) => { setReceiving(false); list.reload(); setOpen({ id: p.id, initial: p }); }} /> : null}
-      {open ? <PressingDetailModal id={open.id} initial={open.initial} onClose={() => setOpen(null)} onChanged={list.reload} /> : null}
+      {receiving ? <ReceptionModal onClose={() => setReceiving(false)} onDone={(p) => { setReceiving(false); list.reload(); setOpen({ id: p.id, initial: p, print: 'bulletin' }); }} /> : null}
+      {open ? <PressingDetailModal id={open.id} initial={open.initial} initialPrint={open.print} onClose={() => setOpen(null)} onChanged={list.reload} /> : null}
     </>
   );
 }

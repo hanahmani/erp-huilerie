@@ -1,0 +1,106 @@
+package com.huilerie.erp.pressing;
+
+import com.huilerie.erp.SalesFixtures;
+import com.huilerie.erp.TestUsers;
+import com.huilerie.erp.catalog.Article;
+import com.huilerie.erp.catalog.ArticleType;
+import com.huilerie.erp.clients.Client;
+import com.huilerie.erp.clients.ClientRepository;
+import com.huilerie.erp.common.exception.BusinessException;
+import com.huilerie.erp.pressing.dto.PressingDto;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** Bulletin de pressage : numérotation, transport, adresse, correction avant pressage. */
+@SpringBootTest
+@ActiveProfiles("test")
+@WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE"})
+class BulletinPressageTest {
+
+    @Autowired PressingService service;
+    @Autowired SalesFixtures fx;
+    @Autowired TestUsers testUsers;
+    @Autowired ClientRepository clients;
+    @Autowired JdbcTemplate jdbc;
+
+    Client client;
+    Article huileClient;
+
+    @BeforeEach
+    void setUp() {
+        testUsers.reset();
+        client = fx.client("Salah", null);
+        client.setAdresse("Route de Tunis km 4, Sfax");
+        client = clients.save(client);
+        huileClient = fx.articleOf("HCLI", ArticleType.HUILE_VRAC, "L", true, null);
+    }
+
+    private PressingDto.Detail receive(String brut, String tare, String bl, String transporteur, String vehicule,
+                                       String adresse) {
+        return service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), "Chemlali", "Sfax",
+                Pressing.OliveState.SAINES, new BigDecimal(brut), new BigDecimal(tare), new BigDecimal("0.200"), null,
+                bl, transporteur, vehicule, adresse));
+    }
+
+    @Test
+    void numerotationContinueEtSansTrou() {
+        assertThat(receive("500", "0", null, null, null, null).numeroBulletin()).isEqualTo("000001");
+        assertThatThrownBy(() -> receive("10", "10", null, null, null, null)).isInstanceOf(BusinessException.class);
+        assertThat(receive("300", "0", null, null, null, null).numeroBulletin()).isEqualTo("000002");
+        assertThat(receive("200", "0", null, null, null, null).numeroBulletin()).isEqualTo("000003");
+    }
+
+    @Test
+    void numeroDeBulletinUnique() {
+        receive("500", "0", null, null, null, null);
+        PressingDto.Detail second = receive("300", "0", null, null, null, null);
+        assertThatThrownBy(() -> jdbc.update("UPDATE pressings SET numero_bulletin = '000001' WHERE id = ?", second.id()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void adressePreRemplieDepuisLeClientEtVehiculeEnMajuscules() {
+        PressingDto.Detail p = receive("500", "20", "  BL-778 ", "Transport Jaziri", " 123 tu  4567 ", "  ");
+        assertThat(p.adresse()).isEqualTo("Route de Tunis km 4, Sfax");
+        assertThat(p.blNumero()).isEqualTo("BL-778");
+        assertThat(p.transporteur()).isEqualTo("Transport Jaziri");
+        assertThat(p.vehicule()).isEqualTo("123 TU 4567");
+
+        PressingDto.Detail autre = receive("400", "0", null, null, null, "Henchir El Mahrouk, Agareb");
+        assertThat(autre.adresse()).isEqualTo("Henchir El Mahrouk, Agareb");
+    }
+
+    @Test
+    void correctionDuBulletinSeulementAuStatutRecu() {
+        PressingDto.Detail p = receive("500", "0", null, null, null, null);
+        PressingDto.Detail corrige = service.updateTransport(p.id(),
+                new PressingDto.TransportRequest("BL-12", "Hédi", "45 tu 999", "Agareb"));
+        assertThat(corrige.vehicule()).isEqualTo("45 TU 999");
+        assertThat(corrige.numeroBulletin()).isEqualTo(p.numeroBulletin());
+
+        service.start(p.id());
+        assertThatThrownBy(() -> service.updateTransport(p.id(), new PressingDto.TransportRequest(null, null, null, null)))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("ne peut plus être modifié");
+    }
+
+    @Test
+    void rechercheParBulletinEtVehicule() {
+        receive("500", "0", null, null, "77 TU 1234", null);
+        receive("300", "0", null, null, null, null);
+        assertThat(service.search("000002", null, null, null, null, 0, 20).content())
+                .extracting(PressingDto.Summary::numeroBulletin).containsExactly("000002");
+        assertThat(service.search("77 tu", null, null, null, null, 0, 20).content())
+                .extracting(PressingDto.Summary::vehicule).containsExactly("77 TU 1234");
+    }
+}

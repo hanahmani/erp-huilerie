@@ -39,9 +39,16 @@ export function DocHeader({ settings }) {
   );
 }
 
-/** Aperçu + impression d'un bon ; render(format, settings) renvoie le contenu du document. */
-export default function DocPrintDialog({ title, render, onClose }) {
-  const [format, setFormat] = useState(() => localStorage.getItem('huilerie.ticketFormat') || '80');
+/**
+ * Aperçu + impression d'un bon ; render(format, settings) renvoie le contenu du document.
+ * formats : valeurs autorisées (par défaut tous les formats de ticket).
+ */
+export default function DocPrintDialog({ title, render, onClose, formats }) {
+  const choices = formats ? TICKET_FORMATS.filter((f) => formats.includes(f.value)) : TICKET_FORMATS;
+  const [format, setFormat] = useState(() => {
+    const saved = localStorage.getItem('huilerie.ticketFormat') || '80';
+    return choices.some((f) => f.value === saved) ? saved : choices[0].value;
+  });
   const [settings, setSettings] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => { settingsService.get().then(setSettings).catch((e) => setError(e.message)); }, []);
@@ -60,7 +67,7 @@ export default function DocPrintDialog({ title, render, onClose }) {
         <div className="field">
           <label>Format d'impression</label>
           <select className="select" value={format} onChange={(e) => setFormat(e.target.value)}>
-            {TICKET_FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+            {choices.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
         </div>
         <div className="ticket-preview">{render(format, settings)}</div>

@@ -37,6 +37,8 @@ import java.time.Instant;
 public class PressingService {
 
     public static final String DOC_TYPE = "PRESSAGE";
+    /** Séquence permanente des bulletins de pressage (000001, 000002…). */
+    public static final String BULLETIN_SEQUENCE = "BULLETIN_PRESSAGE";
 
     private final PressingRepository pressings;
     private final ClientRepository clients;
@@ -108,12 +110,37 @@ public class PressingService {
         }
         BigDecimal net = brut.subtract(tare);
         BigDecimal montant = net.multiply(tarif).setScale(Money.SCALE, RoundingMode.HALF_UP);
-        Pressing p = pressings.save(new Pressing(numbers.nextYearly("PRESSAGE", "PRS"), client, article,
-                Text.clean(r.variete()), Text.clean(r.provenance()), r.etatOlives(), brut, tare, tarif, montant,
-                Text.clean(r.notes()), SecurityUtils.username()));
+        Pressing p = new Pressing(numbers.nextYearly("PRESSAGE", "PRS"), numbers.nextPlain(BULLETIN_SEQUENCE, 6),
+                client, article, Text.clean(r.variete()), Text.clean(r.provenance()), r.etatOlives(), brut, tare, tarif,
+                montant, Text.clean(r.notes()), SecurityUtils.username());
+        String adresse = Text.clean(r.adresse());
+        p.setTransport(Text.clean(r.blNumero()), Text.clean(r.transporteur()), vehicle(r.vehicule()),
+                adresse != null ? adresse : Text.clean(client.getAdresse()));
+        p = pressings.save(p);
         audit.log(SecurityUtils.username(), "PRESSING_RECEIVE", "Pressing", String.valueOf(p.getId()),
-                p.getNumero() + " " + net.toPlainString() + " kg net");
+                p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString() + " kg net");
         return PressingDto.Detail.from(p);
+    }
+
+    /** Correction du bulletin (bon de livraison, transporteur, véhicule, adresse) avant le pressage. */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public PressingDto.Detail updateTransport(Long id, PressingDto.TransportRequest r) {
+        Pressing p = lock(id);
+        if (p.getStatut() != Pressing.Status.RECU) {
+            throw new BusinessException("Le bulletin ne peut plus être modifié : le pressage a déjà commencé.");
+        }
+        p.setTransport(Text.clean(r.blNumero()), Text.clean(r.transporteur()), vehicle(r.vehicule()),
+                Text.clean(r.adresse()));
+        audit.log(SecurityUtils.username(), "PRESSING_UPDATE", "Pressing", String.valueOf(id),
+                "Bulletin " + p.getNumeroBulletin());
+        return PressingDto.Detail.from(p);
+    }
+
+    /** Immatriculation en majuscules, espaces superflus retirés. */
+    private static String vehicle(String raw) {
+        String v = Text.clean(raw);
+        return v == null ? null : v.replaceAll("\\s+", " ").toUpperCase();
     }
 
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")

@@ -13,7 +13,10 @@ public final class PressingDto {
     private PressingDto() {
     }
 
-    /** Bon de pesée. tarifKg et articleId : facultatifs, sinon valeurs des paramètres. */
+    /**
+     * Bulletin de pressage / bon de pesée. tarifKg et articleId : facultatifs, sinon valeurs des paramètres.
+     * adresse vide : adresse du client.
+     */
     public record ReceiveRequest(
             @NotNull(message = "Le client est obligatoire.") Long clientId,
             Long articleId,
@@ -23,7 +26,19 @@ public final class PressingDto {
             @NotNull @DecimalMin(value = "0.001", message = "Le poids brut doit être positif.") BigDecimal poidsBrut,
             @NotNull @DecimalMin(value = "0", message = "La tare ne peut pas être négative.") BigDecimal tare,
             @DecimalMin(value = "0", message = "Le tarif ne peut pas être négatif.") BigDecimal tarifKg,
-            @Size(max = 255) String notes) {
+            @Size(max = 255) String notes,
+            @Size(max = 50, message = "N° de bon de livraison : 50 caractères au maximum.") String blNumero,
+            @Size(max = 120, message = "Transporteur : 120 caractères au maximum.") String transporteur,
+            @Size(max = 30, message = "N° de véhicule : 30 caractères au maximum.") String vehicule,
+            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
+    }
+
+    /** Correction des informations de transport du bulletin (statut RECU uniquement). */
+    public record TransportRequest(
+            @Size(max = 50, message = "N° de bon de livraison : 50 caractères au maximum.") String blNumero,
+            @Size(max = 120, message = "Transporteur : 120 caractères au maximum.") String transporteur,
+            @Size(max = 30, message = "N° de véhicule : 30 caractères au maximum.") String vehicule,
+            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
     }
 
     public record FinishRequest(
@@ -57,7 +72,8 @@ public final class PressingDto {
                          BigDecimal montant, BigDecimal montantPaye, BigDecimal reste,
                          BigDecimal huileObtenue, BigDecimal huileRemise, BigDecimal huileARemettre, BigDecimal pertesKg,
                          BigDecimal rendement, Instant dateDebut, Instant dateFin, String notes, String recuPar,
-                         String motifAnnulation, List<ReturnLine> remises, List<PaymentLine> paiements) {
+                         String motifAnnulation, List<ReturnLine> remises, List<PaymentLine> paiements,
+                         String numeroBulletin, String blNumero, String transporteur, String vehicule, String adresse) {
 
         public static Detail from(Pressing p) {
             return new Detail(p.getId(), p.getNumero(), p.getStatut(), p.getClient().getId(), p.getClient().getNom(),
@@ -70,16 +86,18 @@ public final class PressingDto {
                     p.getRemises().stream().map(r -> new ReturnLine(r.getNumero(), r.getDate(), r.getQuantite(),
                             r.getRemisA(), r.getUsername())).toList(),
                     p.getPaiements().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
-                            x.getMontant(), x.getReference(), x.getUsername())).toList());
+                            x.getMontant(), x.getReference(), x.getUsername())).toList(),
+                    p.getNumeroBulletin(), p.getBlNumero(), p.getTransporteur(), p.getVehicule(), p.getAdresse());
         }
     }
 
     public record Summary(Long id, String numero, Pressing.Status statut, String clientNom, Instant dateReception,
                           BigDecimal poidsNet, BigDecimal huileObtenue, BigDecimal huileARemettre, BigDecimal rendement,
-                          BigDecimal montant, BigDecimal reste) {
+                          BigDecimal montant, BigDecimal reste, String numeroBulletin, String vehicule) {
         public static Summary from(Pressing p) {
             return new Summary(p.getId(), p.getNumero(), p.getStatut(), p.getClient().getNom(), p.getDateReception(),
-                    p.getPoidsNet(), p.getHuileObtenue(), p.huileARemettre(), p.rendement(), p.getMontant(), p.reste());
+                    p.getPoidsNet(), p.getHuileObtenue(), p.huileARemettre(), p.rendement(), p.getMontant(), p.reste(),
+                    p.getNumeroBulletin(), p.getVehicule());
         }
     }
 }

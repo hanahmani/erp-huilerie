@@ -59,8 +59,10 @@ public class SearchService {
                     .forEach(r -> out.add(new Hit("Achat", (String) r[0], (String) r[1], "/achats")));
         }
         if (SecurityUtils.has("PRESSING_VIEW")) {
-            rows("select p.numero, c.nom, p.statut from Pressing p join p.client c where lower(p.numero) like :q or lower(c.nom) like :q", q)
-                    .forEach(r -> out.add(new Hit("Pressage", (String) r[0], r[1] + " · " + r[2], "/pressage")));
+            rows("select p.numero, c.nom, p.statut, p.numeroBulletin, p.vehicule from Pressing p join p.client c "
+                    + "where lower(p.numero) like :q or lower(c.nom) like :q or p.numeroBulletin like :q or lower(p.vehicule) like :q", q)
+                    .forEach(r -> out.add(new Hit("Pressage", (String) r[0], "Bulletin " + r[3] + " · " + r[1] + " · " + r[2]
+                            + (r[4] == null ? "" : " · " + r[4]), "/pressage")));
         }
         if (SecurityUtils.has("PRODUCTION_VIEW")) {
             rows("select o.numero, o.ligne, o.statut from ProductionOrder o where lower(o.numero) like :q", q)

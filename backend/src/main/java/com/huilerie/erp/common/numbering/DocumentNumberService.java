@@ -35,6 +35,16 @@ public class DocumentNumberService {
         return String.format("%s-%06d", prefix, take(type, 0));
     }
 
+    /** Numéro permanent sans préfixe, complété par des zéros, ex. 000042 pour 6 chiffres. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public String nextPlain(String type, int digits) {
+        String numero = String.format("%0" + digits + "d", take(type, 0));
+        if (numero.length() > digits) {
+            throw new IllegalStateException("Numérotation " + type + " épuisée (" + digits + " chiffres).");
+        }
+        return numero;
+    }
+
     private long take(String type, int year) {
         DocumentSequence seq = repository.findByTypeAndAnnee(type, year).orElse(null);
         if (seq == null) {

@@ -34,6 +34,10 @@ public class Pressing {
     @Column(nullable = false, unique = true, length = 30)
     private String numero;
 
+    /** Numéro du bulletin de pressage (000001…), attribué à la réception et jamais modifié. */
+    @Column(name = "numero_bulletin", nullable = false, unique = true, length = 6, updatable = false)
+    private String numeroBulletin;
+
     @ManyToOne(optional = false)
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
@@ -59,6 +63,20 @@ public class Pressing {
 
     @Column(length = 120)
     private String provenance;
+
+    /** N° du bon de livraison apporté par le client. */
+    @Column(name = "bl_numero", length = 50)
+    private String blNumero;
+
+    @Column(length = 120)
+    private String transporteur;
+
+    /** Immatriculation du véhicule, en majuscules. */
+    @Column(length = 30)
+    private String vehicule;
+
+    /** Adresse de provenance (par défaut celle du client). */
+    private String adresse;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.VARCHAR)
@@ -117,9 +135,11 @@ public class Pressing {
     protected Pressing() {
     }
 
-    Pressing(String numero, Client client, Article article, String variete, String provenance, OliveState etat,
-             BigDecimal brut, BigDecimal tare, BigDecimal tarifKg, BigDecimal montant, String notes, String recuPar) {
+    Pressing(String numero, String numeroBulletin, Client client, Article article, String variete, String provenance,
+             OliveState etat, BigDecimal brut, BigDecimal tare, BigDecimal tarifKg, BigDecimal montant, String notes,
+             String recuPar) {
         this.numero = numero;
+        this.numeroBulletin = numeroBulletin;
         this.client = client;
         this.article = article;
         this.variete = variete;
@@ -133,6 +153,14 @@ public class Pressing {
         this.notes = notes;
         this.recuPar = recuPar;
         this.dateReception = Instant.now();
+    }
+
+    /** Informations de transport du bulletin ; modifiables tant que les olives sont seulement reçues. */
+    void setTransport(String blNumero, String transporteur, String vehicule, String adresse) {
+        this.blNumero = blNumero;
+        this.transporteur = transporteur;
+        this.vehicule = vehicule;
+        this.adresse = adresse;
     }
 
     void start() {
@@ -188,6 +216,11 @@ public class Pressing {
 
     public Long getId() { return id; }
     public String getNumero() { return numero; }
+    public String getNumeroBulletin() { return numeroBulletin; }
+    public String getBlNumero() { return blNumero; }
+    public String getTransporteur() { return transporteur; }
+    public String getVehicule() { return vehicule; }
+    public String getAdresse() { return adresse; }
     public Client getClient() { return client; }
     public Article getArticle() { return article; }
     public StockLot getLot() { return lot; }

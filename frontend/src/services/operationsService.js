@@ -4,6 +4,7 @@ export const pressingService = {
   list: (params) => api.get(`/pressings${toQuery(params)}`),
   get: (id) => api.get(`/pressings/${id}`),
   receive: (body) => api.post('/pressings', body),
+  updateTransport: (id, body) => api.put(`/pressings/${id}/transport`, body),
   start: (id) => api.post(`/pressings/${id}/start`),
   finish: (id, body) => api.post(`/pressings/${id}/finish`, body),
   returnOil: (id, body) => api.post(`/pressings/${id}/return`, body),

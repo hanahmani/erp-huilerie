@@ -13,7 +13,9 @@ import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 
 /** Réception et pesée des olives d'un client. */
 export default function ReceptionModal({ onClose, onDone }) {
-  const [form, setForm] = useState({ clientId: '', articleId: '', variete: '', provenance: '', etatOlives: 'SAINES', poidsBrut: '', tare: '0', tarifKg: '', notes: '' });
+  const [form, setForm] = useState({ clientId: '', articleId: '', variete: '', provenance: '', etatOlives: 'SAINES', poidsBrut: '', tare: '0', tarifKg: '', notes: '',
+    blNumero: '', transporteur: '', vehicule: '', adresse: '' });
+  const [clientAdresse, setClientAdresse] = useState('');   // adresse proposée par la fiche client
   const [settings, setSettings] = useState(null);
   const [oilArticles, setOilArticles] = useState([]);
   const [error, setError] = useState('');
@@ -30,6 +32,12 @@ export default function ReceptionModal({ onClose, onDone }) {
   const fetchClients = useCallback((q) => clientService.list({ q, actif: true, size: 30 }), []);
   const toClient = useCallback((c) => ({ value: c.id, label: `${c.nom} (${c.code})${c.telephone ? ` · ${c.telephone}` : ''}` }), []);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  // L'adresse suit le client choisi tant qu'elle n'a pas été modifiée à la main.
+  const chooseClient = (id, client) => {
+    const proposed = client?.adresse || '';
+    setForm((f) => ({ ...f, clientId: id, adresse: !f.adresse || f.adresse === clientAdresse ? proposed : f.adresse }));
+    setClientAdresse(proposed);
+  };
 
   const netM = toMillimes(form.poidsBrut) - toMillimes(form.tare);
   const montantM = Math.round((netM * toMillimes(form.tarifKg)) / 1000);
@@ -43,6 +51,8 @@ export default function ReceptionModal({ onClose, onDone }) {
         clientId: Number(form.clientId), articleId: Number(form.articleId), variete: form.variete || null,
         provenance: form.provenance || null, etatOlives: form.etatOlives, poidsBrut: normalizeDecimal(form.poidsBrut),
         tare: normalizeDecimal(form.tare) || '0', tarifKg: normalizeDecimal(form.tarifKg), notes: form.notes || null,
+        blNumero: form.blNumero || null, transporteur: form.transporteur || null, vehicule: form.vehicule || null,
+        adresse: form.adresse || null,
       }));
     } catch (e) {
       setError(e.message);
@@ -57,7 +67,7 @@ export default function ReceptionModal({ onClose, onDone }) {
       <Alert type="error">{error}</Alert>
       {settings && (!settings.pressageArticleId || settings.tarifPressageKg == null)
         ? <Alert type="info">Astuce : définissez le tarif au kilo et l'article « huile des clients » dans Paramètres pour les préremplir.</Alert> : null}
-      <RemoteSelect label="Client" required value={form.clientId} onChange={(id) => setForm({ ...form, clientId: id })}
+      <RemoteSelect label="Client" required value={form.clientId} onChange={chooseClient}
                     fetcher={fetchClients} toOption={toClient} hint="Le client doit exister dans Clients (agriculteur ou particulier)." />
       <div className="form-grid">
         <div className="field"><label>Article huile des clients *</label>
@@ -76,6 +86,12 @@ export default function ReceptionModal({ onClose, onDone }) {
         <div className="field"><label>Tare (kg)</label><input className="input" inputMode="decimal" value={form.tare} onChange={set('tare')} hint="Caisses, sacs" /></div>
         <div className="field"><label>Tarif du service (DT / kg) *</label><input className="input" inputMode="decimal" value={form.tarifKg} onChange={set('tarifKg')} /></div>
         <div className="field"><label>Observations</label><input className="input" value={form.notes} onChange={set('notes')} /></div>
+        <div className="field"><label>N° bon de livraison</label><input className="input" maxLength={50} value={form.blNumero} onChange={set('blNumero')} /></div>
+        <div className="field"><label>Transporteur</label><input className="input" maxLength={120} value={form.transporteur} onChange={set('transporteur')} /></div>
+        <div className="field"><label>N° véhicule</label><input className="input" maxLength={30} value={form.vehicule} onChange={set('vehicule')}
+                                                              style={{ textTransform: 'uppercase' }} placeholder="Ex. 123 TU 4567" /></div>
+        <div className="field"><label>Adresse</label><input className="input" maxLength={255} value={form.adresse} onChange={set('adresse')} />
+          <span className="hint">Reprise de la fiche client ; modifiable.</span></div>
       </div>
       <div className="weigh-summary">
         <div><span>Poids net</span><strong>{netM > 0 ? formatQty(fromMillimes(netM), 'kg') : '—'}</strong></div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, CheckCircle2, HandCoins, Play, Printer, Undo2 } from 'lucide-react';
+import { Ban, CheckCircle2, HandCoins, Pencil, Play, Printer, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -11,15 +11,19 @@ import { formatDateTime, formatDT, formatQty } from '../../utils/format';
 import { OLIVE_STATES, PAYMENT_MODES, PRESSING_STATUS, PRESSING_STATUS_CLASS } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
+import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
 
-export default function PressingDetailModal({ id, initial, onClose, onChanged }) {
+const PRINT_TITLES = { bulletin: 'Bulletin de pressage', reception: 'Bon de pesée', return: "Bon de remise d'huile" };
+
+/** initialPrint : document à imprimer dès l'ouverture (ex. 'bulletin' juste après la réception). */
+export default function PressingDetailModal({ id, initial, initialPrint, onClose, onChanged }) {
   const { can } = useAuth();
   const manage = can('PRESSING_MANAGE');
   const canPay = can(['PRESSING_MANAGE', 'SALES_CREATE']);
   const [p, setP] = useState(initial || null);
   const [panel, setPanel] = useState(null);
   const [form, setForm] = useState({});
-  const [print, setPrint] = useState(null);
+  const [print, setPrint] = useState(initialPrint || null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -34,17 +38,23 @@ export default function PressingDetailModal({ id, initial, onClose, onChanged })
   const f = (k) => ({ value: form[k] ?? '', onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
 
   if (print && p) {
-    return <DocPrintDialog title={print === 'reception' ? 'Bon de pesée' : "Bon de remise d'huile"} onClose={() => setPrint(null)}
-                           render={(format, settings) => (print === 'reception'
-                             ? <ReceptionTicket p={p} settings={settings} format={format} />
-                             : <ReturnTicket p={p} settings={settings} format={format} />)} />;
+    return <DocPrintDialog title={PRINT_TITLES[print]} onClose={() => setPrint(null)}
+                           formats={print === 'bulletin' ? BULLETIN_FORMATS : undefined}
+                           render={(format, settings) => {
+                             if (print === 'bulletin') return <BulletinPressage p={p} settings={settings} format={format} />;
+                             return print === 'reception'
+                               ? <ReceptionTicket p={p} settings={settings} format={format} />
+                               : <ReturnTicket p={p} settings={settings} format={format} />;
+                           }} />;
   }
 
   return (
-    <Modal title={p ? `Pressage ${p.numero}` : 'Pressage'} onClose={onClose} wide
+    <Modal title={p ? `Pressage ${p.numero} · bulletin n° ${p.numeroBulletin}` : 'Pressage'} onClose={onClose} wide
            footer={p ? (
              <>
+               <Button variant="secondary" onClick={() => setPrint('bulletin')}><Printer size={16} />Imprimer le bulletin</Button>
                <Button variant="secondary" onClick={() => setPrint('reception')}><Printer size={16} />Bon de pesée</Button>
+               {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
                {manage && ['RECU', 'EN_COURS'].includes(p.statut) && !Number(p.montantPaye) ? <Button variant="danger" onClick={() => open('cancel')}><Ban size={16} />Annuler</Button> : null}
                {canPay && p.statut !== 'ANNULE' && Number(p.reste) > 0 ? <Button variant="secondary" onClick={() => open('pay', { mode: 'ESPECES', montant: String(p.reste) })}><HandCoins size={16} />Encaisser</Button> : null}
@@ -66,6 +76,10 @@ export default function PressingDetailModal({ id, initial, onClose, onChanged })
               <dt>Variété</dt><dd>{p.variete || '—'}{p.provenance ? ` · ${p.provenance}` : ''}</dd>
               <dt>État</dt><dd>{OLIVE_STATES[p.etatOlives]}</dd>
               <dt>Pesée</dt><dd>{formatQty(p.poidsBrut, 'kg')} − {formatQty(p.tare, 'kg')} = <strong>{formatQty(p.poidsNet, 'kg')}</strong></dd>
+              <dt>Bulletin</dt><dd><strong>N° {p.numeroBulletin}</strong></dd>
+              <dt>Adresse</dt><dd>{p.adresse || '—'}</dd>
+              <dt>Bon de livraison</dt><dd>{p.blNumero || '—'}</dd>
+              <dt>Transport</dt><dd>{p.transporteur || '—'}{p.vehicule ? ` · ${p.vehicule}` : ''}</dd>
             </dl>
             <dl className="kv">
               <dt>Service</dt><dd>{formatDT(p.montant)} <span className="muted">({formatDT(p.tarifKg)}/kg)</span></dd>
@@ -92,6 +106,22 @@ export default function PressingDetailModal({ id, initial, onClose, onChanged })
 
           {panel ? (
             <div className="panel" style={{ padding: 16, marginTop: 16 }}>
+              {panel === 'transport' ? (
+                <>
+                  <h2 style={{ marginBottom: 12 }}>Corriger le bulletin n° {p.numeroBulletin}</h2>
+                  <div className="form-grid">
+                    <div className="field"><label>N° bon de livraison</label><input className="input" maxLength={50} autoFocus {...f('blNumero')} /></div>
+                    <div className="field"><label>Transporteur</label><input className="input" maxLength={120} {...f('transporteur')} /></div>
+                    <div className="field"><label>N° véhicule</label><input className="input" maxLength={30} style={{ textTransform: 'uppercase' }} {...f('vehicule')} /></div>
+                    <div className="field"><label>Adresse</label><input className="input" maxLength={255} {...f('adresse')} /></div>
+                  </div>
+                  <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
+                    <Button loading={busy} onClick={() => run(() => pressingService.updateTransport(p.id, {
+                      blNumero: form.blNumero || null, transporteur: form.transporteur || null,
+                      vehicule: form.vehicule || null, adresse: form.adresse || null,
+                    }))}>Enregistrer</Button></div>
+                </>
+              ) : null}
               {panel === 'finish' ? (
                 <>
                   <h2 style={{ marginBottom: 12 }}>Fin du pressage</h2>
