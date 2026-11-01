@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, ShoppingBasket, Factory, Droplets, Package, Boxes, ReceiptText,
-  Wallet, Users, Truck, BookOpen, ShieldCheck, Settings, BarChart3, KeyRound, History, FileText, ClipboardCheck, UserRound,
+  Wallet, Users, Truck, BookOpen, ShieldCheck, Settings, BarChart3, KeyRound, History, FileText, UserRound,
 } from 'lucide-react';
 
 /**
@@ -38,7 +38,6 @@ export const NAVIGATION = [
       { key: 'pressing', label: 'Pressage client', path: '/pressage', icon: Droplets, permission: 'PRESSING_VIEW' },
       { key: 'production', label: 'Production', path: '/production', icon: Factory, permission: 'PRODUCTION_VIEW' },
       { key: 'packaging', label: 'Conditionnement', path: '/conditionnement', icon: Package, permission: 'PACKAGING_VIEW' },
-      { key: 'quality', label: 'Contrôle qualité', path: '/qualite', icon: ClipboardCheck, permission: 'QUALITY_VIEW' },
       { key: 'purchases', label: 'Achats', path: '/achats', icon: ShoppingBasket, permission: 'PURCHASE_VIEW' },
     ],
   },
@@ -85,7 +84,6 @@ export const MODULES = {
   salesHistory: { title: 'Historique des ventes', phase: 5, description: 'Toutes les ventes validées, avec réimpression du ticket.', planned: ['Filtres par date, ticket, client, caissier', 'Consultation et réimpression', 'Annulation autorisée et tracée'] },
   finance: { title: 'Finance', phase: 6, description: 'Caisse, dépenses, créances et dettes.', planned: ['Caisse et résumé journalier', 'Paiements et paiements partiels', 'Dépenses', 'Dettes fournisseurs et créances clients'] },
   users: { title: 'Utilisateurs', description: 'Comptes des employés, rôles et accès.' },
-  quality: { title: 'Contrôle qualité', description: 'Analyses des lots, conformité et anomalies.' },
   hr: { title: 'RH et congés', description: 'Employés, contrats, congés et absences.' },
   salesdocs: { title: 'Ventes et facturation', description: 'Devis, commandes, livraisons, factures et avoirs.' },
   reports: { title: 'Rapports', description: 'Ventes, achats, stock valorisé et trésorerie, exportables.' },

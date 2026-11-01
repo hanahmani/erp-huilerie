@@ -11,7 +11,6 @@ import com.huilerie.erp.pressing.Pressing;
 import com.huilerie.erp.pressing.PressingRepository;
 import com.huilerie.erp.purchases.PurchaseRepository;
 import com.huilerie.erp.purchases.PurchaseStatus;
-import com.huilerie.erp.quality.QualityAnomalyRepository;
 import com.huilerie.erp.salesdocs.SalesDocumentRepository;
 import com.huilerie.erp.users.AppUser;
 import com.huilerie.erp.users.UserRepository;
@@ -46,12 +45,10 @@ public class NotificationService {
     private final PurchaseRepository purchases;
     private final LeaveRequestRepository leaves;
     private final EmployeeRepository employees;
-    private final QualityAnomalyRepository anomalies;
 
     public NotificationService(NotificationReadRepository reads, UserRepository users, StockService stock,
                                StockLotRepository lots, SalesDocumentRepository invoices, PressingRepository pressings,
-                               PurchaseRepository purchases, LeaveRequestRepository leaves, EmployeeRepository employees,
-                               QualityAnomalyRepository anomalies) {
+                               PurchaseRepository purchases, LeaveRequestRepository leaves, EmployeeRepository employees) {
         this.reads = reads;
         this.users = users;
         this.stock = stock;
@@ -61,7 +58,6 @@ public class NotificationService {
         this.purchases = purchases;
         this.leaves = leaves;
         this.employees = employees;
-        this.anomalies = anomalies;
     }
 
     @PreAuthorize("isAuthenticated()")
@@ -81,8 +77,8 @@ public class NotificationService {
                     "/stock"));
             long blocked = lots.countByStatut(LotStatus.BLOQUE);
             if (blocked > 0) {
-                add(out, read, "LOTS_BLOQUES:" + blocked + ":" + today, "QUALITE", "INFO", "Lots bloqués",
-                        blocked + " lot(s) en attente de décision qualité", "/stock");
+                add(out, read, "LOTS_BLOQUES:" + blocked + ":" + today, "STOCK", "INFO", "Lots bloqués",
+                        blocked + " lot(s) bloqué(s) : à vérifier dans Stock › Lots", "/stock");
             }
         }
         if (SecurityUtils.has("SALES_VIEW")) {
@@ -122,11 +118,6 @@ public class NotificationService {
             employees.contractsEndingBefore(today.plusDays(30)).forEach(e -> add(out, read,
                     "CONTRAT:" + e.getId() + ":" + e.getDateFinContrat(), "RH", "AVERTISSEMENT", "Fin de contrat",
                     e.fullName() + " (" + e.getTypeContrat() + ") le " + e.getDateFinContrat(), "/rh"));
-        }
-        if (SecurityUtils.has("QUALITY_VIEW")) {
-            anomalies.findByStatutNotOrderByIdDesc("CLOTUREE").stream().limit(10).forEach(a -> add(out, read,
-                    "ANOMALIE:" + a.getId() + ":" + a.getStatut(), "QUALITE", "CRITIQUE".equals(a.getGravite()) ? "ALERTE" : "AVERTISSEMENT",
-                    "Anomalie " + a.getGravite().toLowerCase(), a.getNumero() + " : " + a.getDescription(), "/qualite"));
         }
         return out;
     }

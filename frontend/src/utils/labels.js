@@ -72,5 +72,3 @@ export const EMPLOYEE_STATUS = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', SORTI: 'S
 export const LEAVE_TYPES = { CONGE_ANNUEL: 'Congé annuel', MALADIE: 'Maladie', SANS_SOLDE: 'Sans solde', EXCEPTIONNEL: 'Exceptionnel' };
 export const LEAVE_STATUS = { EN_ATTENTE: 'En attente', VALIDEE: 'Validée', REFUSEE: 'Refusée', ANNULEE: 'Annulée' };
 export const LEAVE_STATUS_CLASS = { EN_ATTENTE: 'badge-warn', VALIDEE: 'badge-ok', REFUSEE: 'badge-off', ANNULEE: '' };
-export const GRAVITES = { MINEURE: 'Mineure', MAJEURE: 'Majeure', CRITIQUE: 'Critique' };
-export const ANOMALY_STATUS = { OUVERTE: 'Ouverte', EN_COURS: 'En cours', CLOTUREE: 'Clôturée' };

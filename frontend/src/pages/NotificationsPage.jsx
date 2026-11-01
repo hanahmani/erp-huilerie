@@ -7,7 +7,7 @@ import Spinner from '../components/common/Spinner';
 import EmptyState from '../components/common/EmptyState';
 import { notificationService } from '../services/salesDocService';
 
-const TYPES = { STOCK: 'Stock', PAIEMENT: 'Paiements', VALIDATION: 'Validations', PRODUCTION: 'Production', RH: 'RH', QUALITE: 'Qualité' };
+const TYPES = { STOCK: 'Stock', PAIEMENT: 'Paiements', VALIDATION: 'Validations', PRODUCTION: 'Production', RH: 'RH' };
 
 export default function NotificationsPage() {
   const [items, setItems] = useState(null);

@@ -100,7 +100,7 @@ export default function ProductionDetailModal({ id, onClose, onChanged }) {
                 <div className="field"><label>Numéro du lot d'huile</label>
                   <input className="input" value={finish.lot} placeholder={o.numero} onChange={(e) => setFinish({ ...finish, lot: e.target.value })} /></div>
                 <label className="check check-field wide"><input type="checkbox" checked={finish.bloquer} onChange={(e) => setFinish({ ...finish, bloquer: e.target.checked })} />
-                  <span>Bloquer le lot jusqu'à l'analyse qualité<small>Il ne pourra être vendu ou conditionné qu'après déblocage dans Stock › Lots.</small></span></label>
+                  <span>Bloquer le lot en attente d'analyse<small>Il ne pourra être vendu ou conditionné qu'après déblocage dans Stock › Lots.</small></span></label>
               </div>
               <div className="field"><label>Sous-produits (grignons, margines…)</label>
                 {finish.sous.map((s, i) => (

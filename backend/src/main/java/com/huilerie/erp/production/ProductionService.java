@@ -139,7 +139,7 @@ public class ProductionService {
         }
         StockLot lot = lots.save(new StockLot(oil, numero, LotOwner.ENTREPRISE, null));
         if (r.bloquerLot()) {
-            lot.block("En attente d'analyse qualité (" + o.getNumero() + ")");
+            lot.block("En attente d'analyse (" + o.getNumero() + ")");
         }
         stock.apply(oil, lot, MovementType.PRODUCTION_SORTIE, huile, "Trituration " + o.getNumero(), DOC_TYPE, o.getId());
         if (r.sousProduits() != null) {

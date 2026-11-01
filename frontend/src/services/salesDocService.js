@@ -11,17 +11,6 @@ export const salesDocService = {
   cancel: (id, motif) => api.post(`/sales-documents/${id}/cancel`, { motif }),
 };
 
-export const qualityService = {
-  criteria: () => api.get('/quality/criteria'),
-  saveCriterion: (id, body) => (id ? api.put(`/quality/criteria/${id}`, body) : api.post('/quality/criteria', body)),
-  criterionStatus: (id, actif) => api.patch(`/quality/criteria/${id}/status`, { actif }),
-  controls: (params) => api.get(`/quality/controls${toQuery(params)}`),
-  record: (body) => api.post('/quality/controls', body),
-  anomalies: (params) => api.get(`/quality/anomalies${toQuery(params)}`),
-  createAnomaly: (body) => api.post('/quality/anomalies', body),
-  updateAnomaly: (id, body) => api.put(`/quality/anomalies/${id}`, body),
-};
-
 export const hrService = {
   services: () => api.get('/hr/services'),
   saveService: (id, nom) => (id ? api.put(`/hr/services/${id}`, { nom }) : api.post('/hr/services', { nom })),

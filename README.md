@@ -17,7 +17,6 @@ Application web de gestion de l'huilerie. Version **0.5** — correspondance ave
 - conditionnement : vrac → bouteilles et bidons, emballages consommés ;
 - traçabilité des lots en amont et en aval ;
 - ventes et facturation : devis, commandes, livraisons, factures (TVA, timbre, échéance, paiements partiels), avoirs ;
-- contrôle qualité : critères, contrôles, blocage des lots non conformes, anomalies ;
 - RH : employés, contrats, services, postes, congés (jours ouvrés, solde, validation), absences, jours fériés ;
 - notifications (cloche), recherche globale (Ctrl+K), déconnexion après inactivité, scripts de sauvegarde.
 
@@ -142,7 +141,6 @@ Tests backend fournis :
   plafond de crédit, validation de facture réservée.
 - `HrServiceTest` : jours ouvrés et fériés, solde débité à la validation, chevauchement et solde insuffisant,
   refus motivé, contrat saisonnier sans date de fin.
-- `QualityServiceTest` : non-conformité qui bloque le lot et ouvre une anomalie, conformité qui débloque.
 - `PackagingServiceTest` : volume de vrac, emballages, produits finis, annulation compensée, vrac insuffisant,
   huile d'un client refusée, contenance obligatoire.
 

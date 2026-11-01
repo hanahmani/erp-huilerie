@@ -38,7 +38,7 @@ public class TestUsers {
     public void reset() {
         jdbc.update("UPDATE sales_documents SET source_id = NULL");
         for (String table : new String[]{"notification_reads", "sales_document_payments", "sales_document_lines",
-                "sales_documents", "quality_results", "quality_anomalies", "quality_controls", "quality_criteria",
+                "sales_documents",
                 "absences", "leave_requests", "public_holidays", "employees", "hr_services", "hr_positions",
                 "company_settings", "pressing_seller_payments", "pressing_payments", "pressing_returns", "pressings",
                 "storage_tanks",
