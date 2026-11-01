@@ -193,12 +193,6 @@ function ProductionReport({ r }) {
           { header: 'Huile (L)', num: true, render: (x) => formatQty(x.montant2), csv: (x) => n(x.montant2) },
           { header: 'L/100 kg', num: true, render: (x) => Number(x.quantite).toFixed(2), csv: (x) => n(x.quantite) },
         ]} />
-        <ReportTable title="Conditionnement par produit" file="conditionnement" rows={r.conditionnement} cols={[
-          { header: 'Produit', render: (x) => x.libelle, csv: (x) => x.libelle },
-          { header: 'Opérations', num: true, render: (x) => x.nombre, csv: (x) => x.nombre },
-          { header: 'Quantité', num: true, render: (x) => formatQty(x.quantite), csv: (x) => n(x.quantite) },
-          { header: 'Vrac utilisé (L)', num: true, render: (x) => formatQty(x.montant), csv: (x) => n(x.montant) },
-        ]} />
       </div>
     </>
   );

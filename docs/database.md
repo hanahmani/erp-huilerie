@@ -17,6 +17,7 @@ MySQL 8.4, encodage `utf8mb4`, schéma géré exclusivement par Flyway
 | V6.1    | `db/vendor/mysql/V6_1__…append_only.sql` | MySQL : paiements et lignes de réception non modifiables |
 | V8      | `V8__ventes_facturation_qualite_rh.sql` | documents commerciaux et paiements, qualité (critères, contrôles, anomalies), RH (services, postes, employés, congés, absences, jours fériés), lecture des notifications, champs clients/fournisseurs/articles, IP d'audit, timbre et inactivité, rôles et permissions |
 | V7      | `V7__pressage_production_conditionnement.sql` | pressages, remises d'huile, paiements de pressage, ordres de production, entrées et sous-produits, conditionnements et emballages consommés, paramètres du pressage |
+| V12     | `V12__suppression_conditionnement.sql` | suppression du conditionnement : tables `packaging_*`, permissions `PACKAGING_*`, compteur `CONDITIONNEMENT` |
 
 Règle : une migration appliquée n'est **jamais modifiée**. Toute évolution passe par un nouveau
 fichier `V3__...sql`, `V4__...sql`, sans supprimer de données existantes.

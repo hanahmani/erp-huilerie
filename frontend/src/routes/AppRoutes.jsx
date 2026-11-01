@@ -13,7 +13,6 @@ import PurchasesPage from '../pages/purchases/PurchasesPage';
 import ProductionPage from '../pages/production/ProductionPage';
 import PressingPage from '../pages/pressing/PressingPage';
 import StockPage from '../pages/stock/StockPage';
-import PackagingPage from '../pages/packaging/PackagingPage';
 import QuickSalePage from '../pages/sales/QuickSalePage';
 import SalesHistoryPage from '../pages/sales/SalesHistoryPage';
 import FinancePage from '../pages/finance/FinancePage';
@@ -45,7 +44,6 @@ export default function AppRoutes() {
           <Route path="production" element={<P permission="PRODUCTION_VIEW"><ProductionPage /></P>} />
           <Route path="pressage" element={<P permission="PRESSING_VIEW"><PressingPage /></P>} />
           <Route path="stock" element={<P permission="STOCK_VIEW"><StockPage /></P>} />
-          <Route path="conditionnement" element={<P permission="PACKAGING_VIEW"><PackagingPage /></P>} />
           <Route path="ventes/rapide" element={<P permission="SALES_CREATE"><QuickSalePage /></P>} />
           <Route path="ventes/historique" element={<P permission="SALES_VIEW"><SalesHistoryPage /></P>} />
           <Route path="ventes/devis" element={<P permission="SALES_VIEW"><SalesDocsPage key="DEVIS" type="DEVIS" /></P>} />

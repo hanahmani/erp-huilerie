@@ -19,8 +19,8 @@ import java.util.List;
 
 /**
  * Répond à la question : « d'où vient ce lot et où a-t-il été utilisé ou vendu ? »
- * Amont : réception d'achat, pressage, trituration (lots d'olives), conditionnement (lot de vrac).
- * Aval : trituration, conditionnement, ventes, remises au client.
+ * Amont : réception d'achat, pressage, trituration (lots d'olives).
+ * Aval : trituration, ventes, remises au client.
  */
 @Service
 public class TraceabilityService {
@@ -70,12 +70,6 @@ public class TraceabilityService {
             up.add(new Link("Trituration", (String) r[0], (Instant) r[1], "Olives " + r[5] + ", kg",
                     (BigDecimal) r[4], (Long) r[2], (String) r[3]));
         }
-        for (Object[] r : rows("""
-                select o.numero, o.createdAt, s.id, s.numero, o.volumeUtilise from PackagingOrder o join o.sourceLot s
-                where o.produitLot.id = :id and o.statut = 'VALIDE'""", lotId)) {
-            up.add(new Link("Conditionnement", (String) r[0], (Instant) r[1], "Huile en vrac utilisée", (BigDecimal) r[4],
-                    (Long) r[2], (String) r[3]));
-        }
 
         // ---- aval
         for (Object[] r : rows("""
@@ -83,12 +77,6 @@ public class TraceabilityService {
                 left join o.huileLot h where i.lot.id = :id
                 and o.statut <> com.huilerie.erp.production.ProductionOrder.Status.ANNULE""", lotId)) {
             down.add(new Link("Trituration", (String) r[0], (Instant) r[1], "Olives consommées, kg", (BigDecimal) r[4],
-                    (Long) r[2], (String) r[3]));
-        }
-        for (Object[] r : rows("""
-                select o.numero, o.createdAt, pl.id, pl.numero, o.quantiteProduite, p.nom from PackagingOrder o
-                join o.produit p left join o.produitLot pl where o.sourceLot.id = :id and o.statut = 'VALIDE'""", lotId)) {
-            down.add(new Link("Conditionnement", (String) r[0], (Instant) r[1], r[5] + " produits", (BigDecimal) r[4],
                     (Long) r[2], (String) r[3]));
         }
         for (Object[] r : rows("""

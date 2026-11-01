@@ -17,6 +17,7 @@ public enum MovementType {
     PRESSAGE_ACHAT(1, false),
     CONSOMMATION_PRODUCTION(-1, false),
     PRODUCTION_SORTIE(1, false),
+    // Module Conditionnement supprimé (V12) : conservés pour lire les mouvements déjà enregistrés.
     CONDITIONNEMENT_SORTIE(-1, false),
     CONDITIONNEMENT_ENTREE(1, false),
     ANNULATION_PLUS(1, false),

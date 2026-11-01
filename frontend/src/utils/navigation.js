@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, ShoppingBasket, Factory, Droplets, Package, Boxes, ReceiptText,
+  LayoutDashboard, ShoppingBasket, Factory, Droplets, Boxes, ReceiptText,
   Wallet, Users, Truck, BookOpen, ShieldCheck, Settings, BarChart3, KeyRound, History, FileText, UserRound,
 } from 'lucide-react';
 
@@ -37,7 +37,6 @@ export const NAVIGATION = [
       },
       { key: 'pressing', label: 'Pressage client', path: '/pressage', icon: Droplets, permission: 'PRESSING_VIEW' },
       { key: 'production', label: 'Production', path: '/production', icon: Factory, permission: 'PRODUCTION_VIEW' },
-      { key: 'packaging', label: 'Conditionnement', path: '/conditionnement', icon: Package, permission: 'PACKAGING_VIEW' },
       { key: 'purchases', label: 'Achats', path: '/achats', icon: ShoppingBasket, permission: 'PURCHASE_VIEW' },
     ],
   },
@@ -79,7 +78,6 @@ export const MODULES = {
   purchases: { title: 'Achats', phase: 3, description: 'Achats d\'olives (kg) et d\'huile (L) auprès des fournisseurs.', planned: ['Nouvel achat', 'Réception des marchandises', 'Factures et règlements'] },
   production: { title: 'Production', phase: 3, description: 'Transformation des olives de l\'huilerie en huile de l\'entreprise.', planned: ['Lots d\'olives', 'Fabrication', 'Rendement et pertes'] },
   pressing: { title: 'Pressage client', phase: 4, description: 'Olives apportées par les clients. Leur huile reste leur propriété et n\'entre jamais dans le stock de vente.', planned: ['Réception et pesée', 'Suivi du pressage', 'Remise de l\'huile', 'Tickets de réception et de remise'] },
-  packaging: { title: 'Conditionnement', phase: 5, description: 'Mise en bouteilles et en bidons à partir de l\'huile en vrac.', planned: ['Ordres de conditionnement', 'Consommables utilisés', 'Produits finis en stock'] },
   salesQuick: { title: 'Vente rapide', phase: 5, description: 'Encaisser un client en quelques secondes et imprimer son ticket.', planned: ['Panier avec calcul automatique', 'Espèces, carte, virement', 'Contrôle du stock avant validation', 'Ticket 80 mm, 58 mm ou A4'] },
   salesHistory: { title: 'Historique des ventes', phase: 5, description: 'Toutes les ventes validées, avec réimpression du ticket.', planned: ['Filtres par date, ticket, client, caissier', 'Consultation et réimpression', 'Annulation autorisée et tracée'] },
   finance: { title: 'Finance', phase: 6, description: 'Caisse, dépenses, créances et dettes.', planned: ['Caisse et résumé journalier', 'Paiements et paiements partiels', 'Dépenses', 'Dettes fournisseurs et créances clients'] },

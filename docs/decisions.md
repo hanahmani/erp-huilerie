@@ -46,9 +46,8 @@
 22. **Production** : seules les olives de l'huilerie (lots `ENTREPRISE`) sont triturées ici. Les olives sortent du
     stock au démarrage ; l'huile et les sous-produits entrent à la fin. Rendement = litres pour 100 kg d'olives.
     Le classement par acidité (≤ 0,8 / ≤ 2 / ≤ 3,3 %) est indicatif ; le lot peut rester bloqué jusqu'à l'analyse.
-23. **Conditionnement** : volume de vrac = quantité × contenance de l'article fini. Le produit fini suivi par lot
-    reprend le numéro du lot de vrac. Annulation par mouvements `ANNULATION_PLUS/MOINS`, refusée si les produits
-    ont déjà été vendus (stock insuffisant).
+23. **Conditionnement** : module supprimé (migration V12). Les mouvements de stock `CONDITIONNEMENT_*` déjà
+    enregistrés restent lisibles dans le journal de stock.
 24. **Documents commerciaux** : une seule table pour devis, commandes, livraisons, factures et avoirs. Numéro attribué
     à la validation. Le stock sort à la validation du bon de livraison, ou de la facture quand elle n'est pas issue d'une
     livraison (jamais deux fois). Une facture validée ne s'annule que par un avoir total (remboursement et retour en stock facultatifs).

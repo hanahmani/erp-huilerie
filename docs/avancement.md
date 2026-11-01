@@ -20,12 +20,11 @@ Le README précise ce qui a réellement été compilé et exécuté.
 | — | Pressage client | ✅ | Réception et pesée (brut, tare, net, variété, état), tarif au kg, suivi du pressage, huile en lot CLIENT, encaissement, remises partielles, bons de pesée et de remise 80/58/A4. |
 | 15 | Production (trituration) | ✅ | Planification, consommation des lots d'olives au démarrage, huile en lot, sous-produits, pertes, rendement, acidité et catégorie, lot bloqué en attente d'analyse. 🟡 Pas de bilan matière bloquant. |
 | 16 | Matières premières | ✅ | Olives achetées (réception d'achat avec lot), stock par lot, consommation en production. 🟡 Pas d'alerte de délai d'attente avant trituration. |
-| 17 | Lots et traçabilité | ✅ | Amont (achat, pressage, trituration, conditionnement) et aval (trituration, conditionnement, ventes, remises), navigation de lot en lot, historique des mouvements. |
+| 17 | Lots et traçabilité | ✅ | Amont (achat, pressage, trituration) et aval (trituration, ventes, remises), navigation de lot en lot, historique des mouvements. |
 | 18 | Contrôle qualité | ✅ | Critères paramétrables, contrôles multi-critères, décision automatique (blocage / déblocage), anomalies et actions correctives. |
-| — | Conditionnement | ✅ | Vrac → bouteilles/bidons (contenance), emballages consommés, lot hérité, annulation par mouvements inverses. |
 | 19–20 | RH, congés | ✅ | Employés, services, postes, contrats et fins de contrat, lien compte utilisateur, demandes de congé (jours ouvrés, jours fériés, chevauchement, solde), validation / refus, absences. |
 | 21 | Finance | ✅ | Journal de caisse, sessions de caisse avec écarts, dépenses par catégorie, créances, dettes. |
-| 22 | Rapports | ✅ | Ventes, achats, stock valorisé, trésorerie, dépenses, production et pressage (rendement par variété, par catégorie), conditionnement ; export CSV, impression. ⬜ Rapport utilisateurs. |
+| 22 | Rapports | ✅ | Ventes, achats, stock valorisé, trésorerie, dépenses, production et pressage (rendement par variété, par catégorie) ; export CSV, impression. ⬜ Rapport utilisateurs. |
 | 23 | Notifications | ✅ | Cloche et page dédiée, alertes par permission, marquer comme lu. ⬜ e-mail. |
 | 24 | Recherche globale | ✅ | Ctrl+K : clients, fournisseurs, articles, lots, tickets, documents, achats, pressages, production, employés. |
 | 25 | Paramétrage | ✅ | Huilerie, unités, catégories, taxes, catégories de dépenses, crédit. Devise fixe DT. |

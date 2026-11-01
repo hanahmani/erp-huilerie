@@ -13,7 +13,7 @@ const MODULES = [
   ['USER', 'Utilisateurs'], ['ROLE', 'Rôles'], ['AUDIT', 'Journal'], ['SETTINGS', 'Paramètres'], ['DASHBOARD', 'Tableau de bord'],
   ['CLIENT', 'Clients'], ['SUPPLIER', 'Fournisseurs'], ['CATALOG', 'Catalogue'], ['STOCK', 'Stock'], ['PURCHASE', 'Achats'],
   ['SALES', 'Ventes'], ['CASH', 'Caisse'], ['FINANCE', 'Finance'], ['REPORT', 'Rapports'], ['PRODUCTION', 'Production'],
-  ['PRESSING', 'Pressage'], ['PACKAGING', 'Conditionnement'],
+  ['PRESSING', 'Pressage'],
 ];
 const moduleOf = (code) => MODULES.find(([p]) => code.startsWith(`${p}_`))?.[1] ?? 'Autres';
 

@@ -38,10 +38,10 @@ public final class ReportDto {
                           BigDecimal creancesClients, BigDecimal dettesFournisseurs) {
     }
 
-    /** Production, pressage et conditionnement de la période. Rendement en litres pour 100 kg. */
+    /** Production et pressage de la période. Rendement en litres pour 100 kg. */
     public record Production(LocalDate from, LocalDate to, long nbTriturations, BigDecimal olivesKg, BigDecimal huileLitres,
                              BigDecimal rendementMoyen, List<Row> parCategorie, long nbPressages, BigDecimal pressageKg,
                              BigDecimal pressageHuile, BigDecimal pressageRendement, BigDecimal pressageChiffre,
-                             List<Row> rendementParVariete, List<Row> conditionnement) {
+                             List<Row> rendementParVariete) {
     }
 }

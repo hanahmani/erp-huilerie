@@ -22,12 +22,6 @@ export const productionService = {
   cancel: (id, motif) => api.post(`/production/${id}/cancel`, { motif }),
 };
 
-export const packagingService = {
-  list: (params) => api.get(`/packaging${toQuery(params)}`),
-  create: (body) => api.post('/packaging', body),
-  cancel: (id, motif) => api.post(`/packaging/${id}/cancel`, { motif }),
-};
-
 export const traceService = {
   lot: (id) => api.get(`/traceability/lots/${id}`),
 };

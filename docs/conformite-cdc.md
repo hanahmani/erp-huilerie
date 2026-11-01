@@ -17,7 +17,7 @@
 | 12 | Ventes : devis → commande → livraison → facturation, retours | ✅ | Ventes et facturation ; retour par avoir avec réintégration ; caisse rapide |
 | 13 | Facturation : brouillon, validation, annulation, TVA, remise, HT/TVA/TTC, impression, PDF, impayés | ✅ | Factures (timbre fiscal, montant en lettres, impression A4 → PDF), avoirs |
 | 14 | Paiements : partiels, impayés, par client / fournisseur, période | ✅ | Factures, Achats, Finance › Créances / Dettes, Journal de caisse |
-| 15 | Production : ordres, consommations, produits finis, sous-produits, pertes, lots | ✅ | Production (trituration), Conditionnement |
+| 15 | Production : ordres, consommations, produits finis, sous-produits, pertes, lots | ✅ | Production (trituration) |
 | 16 | Matières premières : réception, pesée, lot, qualité, consommation | ✅ | Achats (olives), Pressage client (pesée), Production |
 | 17 | Lots et traçabilité amont / aval | ✅ | Stock › Lots › Traçabilité |
 | 18 | Contrôle qualité : critères, résultats, validation / rejet, anomalies | ✅ | Contrôle qualité |

@@ -41,15 +41,12 @@ public class ReportService {
     private final StockService stock;
     private com.huilerie.erp.production.ProductionOrderRepository productions;
     private com.huilerie.erp.pressing.PressingRepository pressings;
-    private com.huilerie.erp.packaging.PackagingOrderRepository packagings;
 
     @org.springframework.beans.factory.annotation.Autowired
     void setOperations(com.huilerie.erp.production.ProductionOrderRepository productions,
-                       com.huilerie.erp.pressing.PressingRepository pressings,
-                       com.huilerie.erp.packaging.PackagingOrderRepository packagings) {
+                       com.huilerie.erp.pressing.PressingRepository pressings) {
         this.productions = productions;
         this.pressings = pressings;
-        this.packagings = packagings;
     }
 
     public ReportService(SaleRepository sales, PurchaseRepository purchases, CashMovementRepository cash,
@@ -227,10 +224,8 @@ public class ReportService {
         List<ReportDto.Row> varieties = pressings.yieldByVariety(start(from), end(to)).stream()
                 .map(r -> new ReportDto.Row((String) r[0], "L/100 kg", rendement(dec(r[3]), dec(r[2])), num(r[1]), dec(r[2]), dec(r[3])))
                 .toList();
-        List<ReportDto.Row> pack = packagings.byProduct(start(from), end(to)).stream()
-                .map(r -> new ReportDto.Row((String) r[0], null, dec(r[2]), num(r[1]), dec(r[3]), null)).toList();
 
         return new ReportDto.Production(from, to, num(prod[0]), olives, huile, rendement(huile, olives), cats,
-                num(pr[0]), pKg, pOil, rendement(pOil, pKg), dec(pr[3]), varieties, pack);
+                num(pr[0]), pKg, pOil, rendement(pOil, pKg), dec(pr[3]), varieties);
     }
 }

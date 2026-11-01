@@ -14,7 +14,6 @@ Application web de gestion de l'huilerie. Version **0.5** — correspondance ave
 - administration : utilisateurs complets, rôles personnalisés avec matrice de permissions, journal d'activité, taxes ;
 - pressage client : pesée, suivi, huile du client stockée à part, encaissement, remise, bons imprimables ;
 - production : trituration des olives de l'huilerie, rendement, acidité et catégorie, sous-produits ;
-- conditionnement : vrac → bouteilles et bidons, emballages consommés ;
 - traçabilité des lots en amont et en aval ;
 - ventes et facturation : devis, commandes, livraisons, factures (TVA, timbre, échéance, paiements partiels), avoirs ;
 - RH : employés, contrats, services, postes, congés (jours ouvrés, solde, validation), absences, jours fériés ;
@@ -141,8 +140,6 @@ Tests backend fournis :
   plafond de crédit, validation de facture réservée.
 - `HrServiceTest` : jours ouvrés et fériés, solde débité à la validation, chevauchement et solde insuffisant,
   refus motivé, contrat saisonnier sans date de fin.
-- `PackagingServiceTest` : volume de vrac, emballages, produits finis, annulation compensée, vrac insuffisant,
-  huile d'un client refusée, contenance obligatoire.
 
 ## 4. Variables d'environnement
 
@@ -189,7 +186,6 @@ Les fichiers `.env` ne sont jamais versionnés (voir `.gitignore`).
     (article en vrac suivi par lot), puis enregistrer les réceptions d'olives.
 11. **Production** : créer les articles Olives (suivis par lot), Huile en vrac (suivie par lot) et les sous-produits,
     acheter et réceptionner des olives, puis planifier une trituration.
-12. **Conditionnement** : articles « Huile conditionnée » avec leur contenance en litres et articles « Emballage ».
 
 ## 7. Sauvegarde
 
@@ -203,7 +199,7 @@ Voir `docs/sauvegarde.md` : `./scripts/sauvegarde.sh` (à planifier chaque nuit)
 | 2     | Paramètres de l'huilerie, clients, fournisseurs, catalogue, stock (lots, mouvements, inventaire) |
 | 3     | Achats, réceptions, production et rendement                              |
 | 4     | Pressage client avec stock séparé appartenant aux clients                |
-| 5     | Conditionnement, vente rapide, historique et tickets 80 mm / 58 mm / A4 |
+| 5     | Vente rapide, historique et tickets 80 mm / 58 mm / A4                  |
 | 6     | Finance, caisse, dettes, tableau de bord calculé                        |
 
 Voir `docs/` pour l'architecture, la base de données et les permissions.
