@@ -14,7 +14,7 @@ import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/ta
 import ReceptionModal from './ReceptionModal';
 import PressingDetailModal from './PressingDetailModal';
 import { dayRange, formatDateTime, formatDT, formatQty } from '../../utils/format';
-import { PRESSING_STATUS, PRESSING_STATUS_CLASS, toOptions } from '../../utils/labels';
+import { PRESSING_MODES, PRESSING_STATUS, pressingStatusClass, pressingStatusLabel, toOptions } from '../../utils/labels';
 import { exportCsv } from '../../utils/exportCsv';
 
 export default function PressingPage() {
@@ -29,17 +29,19 @@ export default function PressingPage() {
     exportCsv('pressages', [
       { header: 'N°', value: (p) => p.numero }, { header: 'Bulletin', value: (p) => p.numeroBulletin },
       { header: 'Date', value: (p) => formatDateTime(p.dateReception) },
-      { header: 'Client', value: (p) => p.clientNom }, { header: 'Poids net (kg)', value: (p) => Number(p.poidsNet) },
+      { header: 'Opération', value: (p) => PRESSING_MODES[p.mode] }, { header: 'Client / vendeur', value: (p) => p.clientNom }, { header: 'Poids net (kg)', value: (p) => Number(p.poidsNet) },
       { header: 'Huile obtenue', value: (p) => (p.huileObtenue == null ? '' : Number(p.huileObtenue)) },
       { header: 'Rendement', value: (p) => (p.rendement == null ? '' : Number(p.rendement)) },
       { header: 'À remettre', value: (p) => Number(p.huileARemettre) }, { header: 'Montant', value: (p) => Number(p.montant) },
-      { header: 'Reste à payer', value: (p) => Number(p.reste) }, { header: 'Statut', value: (p) => PRESSING_STATUS[p.statut] },
+      { header: 'Reste à payer', value: (p) => Number(p.reste) }, { header: 'Achat', value: (p) => (p.montantAchat == null ? '' : Number(p.montantAchat)) },
+      { header: 'Reste dû au vendeur', value: (p) => Number(p.resteVendeur) }, { header: 'Puits', value: (p) => p.tankCode || '' },
+      { header: 'Statut', value: (p) => pressingStatusLabel(p) },
     ], page.content);
   };
 
   return (
     <>
-      <PageHeader title="Pressage client" description="Olives apportées par les clients. Leur huile reste leur propriété : elle est stockée à part et ne peut jamais être vendue."
+      <PageHeader title="Pressage client" description="Bulletins de pressage : olives pressées pour le client (son huile reste sa propriété) ou achetées par l'huilerie (l'huile va dans un puits et se vend en caisse)."
                   actions={(
                     <>
                       <Button variant="secondary" onClick={exportAll}><Download size={18} />Exporter</Button>
@@ -62,13 +64,16 @@ export default function PressingPage() {
                        { key: 'n', header: 'N°', render: (p) => <strong>{p.numero}</strong> },
                        { key: 'b', header: 'Bulletin', render: (p) => p.numeroBulletin },
                        { key: 'd', header: 'Reçu le', render: (p) => formatDateTime(p.dateReception) },
-                       { key: 'c', header: 'Client', render: (p) => p.clientNom },
+                       { key: 'o', header: 'Opération', render: (p) => (p.mode === 'ACHAT' ? <span className="badge badge-role">Achat</span> : 'Service') },
+                       { key: 'c', header: 'Client / vendeur', render: (p) => p.clientNom },
                        { key: 'k', header: 'Poids net', align: 'right', render: (p) => formatQty(p.poidsNet, 'kg') },
                        { key: 'h', header: 'Huile', align: 'right', render: (p) => (p.huileObtenue != null ? formatQty(p.huileObtenue) : '—') },
                        { key: 'y', header: 'Rendement', align: 'right', render: (p) => (p.rendement != null ? `${Number(p.rendement).toFixed(1)} L/100 kg` : '—') },
-                       { key: 'r', header: 'À remettre', align: 'right', render: (p) => (Number(p.huileARemettre) ? <strong>{formatQty(p.huileARemettre)}</strong> : '—') },
-                       { key: 'm', header: 'Reste à payer', align: 'right', render: (p) => (Number(p.reste) ? formatDT(p.reste) : '—') },
-                       { key: 's', header: 'Statut', render: (p) => <span className={`badge ${PRESSING_STATUS_CLASS[p.statut]}`}>{PRESSING_STATUS[p.statut]}</span> },
+                       { key: 'r', header: 'À remettre / puits', align: 'right', render: (p) => (p.mode === 'ACHAT' ? (p.tankCode || '—') : Number(p.huileARemettre) ? <strong>{formatQty(p.huileARemettre)}</strong> : '—') },
+                       { key: 'm', header: 'Reste à payer', align: 'right', render: (p) => (p.mode === 'ACHAT'
+                         ? (Number(p.resteVendeur) ? <span title="Dû au vendeur">{formatDT(p.resteVendeur)} <small className="muted">vendeur</small></span> : '—')
+                         : Number(p.reste) ? formatDT(p.reste) : '—') },
+                       { key: 's', header: 'Statut', render: (p) => <span className={`badge ${pressingStatusClass(p)}`}>{pressingStatusLabel(p)}</span> },
                      ]} />
         )}
         <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />

@@ -57,9 +57,11 @@ public class TraceabilityService {
             up.add(new Link("Réception d'achat", (String) r[0], (Instant) r[1], "Fournisseur " + r[2], (BigDecimal) r[3], null, null));
         }
         for (Object[] r : rows("""
-                select p.numero, p.dateReception, c.nom, p.poidsNet, p.variete from Pressing p join p.client c
-                where p.lot.id = :id""", lotId)) {
-            up.add(new Link("Pressage client", (String) r[0], (Instant) r[1],
+                select p.numero, p.dateReception, c.nom, p.poidsNet, p.variete, p.mode, p.numeroBulletin from Pressing p
+                join p.client c where p.lot.id = :id
+                and p.statut <> com.huilerie.erp.pressing.Pressing.Status.ANNULE""", lotId)) {
+            boolean achat = r[5] == com.huilerie.erp.pressing.Pressing.Mode.ACHAT;
+            up.add(new Link(achat ? "Achat d'olives (bulletin " + r[6] + ")" : "Pressage client", (String) r[0], (Instant) r[1],
                     "Olives de " + r[2] + (r[4] == null ? "" : " (" + r[4] + ")") + ", kg net", (BigDecimal) r[3], null, null));
         }
         for (Object[] r : rows("""

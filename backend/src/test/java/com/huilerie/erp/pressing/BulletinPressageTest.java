@@ -50,7 +50,7 @@ class BulletinPressageTest {
                                        String adresse) {
         return service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), "Chemlali", "Sfax",
                 Pressing.OliveState.SAINES, new BigDecimal(brut), new BigDecimal(tare), new BigDecimal("0.200"), null,
-                bl, transporteur, vehicule, adresse));
+                bl, transporteur, vehicule, adresse, null, null));
     }
 
     @Test

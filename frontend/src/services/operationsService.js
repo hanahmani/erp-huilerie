@@ -9,6 +9,7 @@ export const pressingService = {
   finish: (id, body) => api.post(`/pressings/${id}/finish`, body),
   returnOil: (id, body) => api.post(`/pressings/${id}/return`, body),
   pay: (id, body) => api.post(`/pressings/${id}/pay`, body),
+  paySeller: (id, body) => api.post(`/pressings/${id}/pay-seller`, body),
   cancel: (id, motif) => api.post(`/pressings/${id}/cancel`, { motif }),
 };
 

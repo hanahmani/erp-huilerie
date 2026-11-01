@@ -14,6 +14,7 @@ public enum MovementType {
     INVENTAIRE_MOINS(-1, false),
     PRESSAGE_ENTREE(1, false),
     PRESSAGE_REMISE(-1, false),
+    PRESSAGE_ACHAT(1, false),
     CONSOMMATION_PRODUCTION(-1, false),
     PRODUCTION_SORTIE(1, false),
     CONDITIONNEMENT_SORTIE(-1, false),

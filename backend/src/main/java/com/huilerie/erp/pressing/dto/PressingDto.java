@@ -14,7 +14,9 @@ public final class PressingDto {
     }
 
     /**
-     * Bulletin de pressage / bon de pesée. tarifKg et articleId : facultatifs, sinon valeurs des paramètres.
+     * Bulletin de pressage / bon de pesée. mode vide : SERVICE.
+     * SERVICE : tarifKg et articleId facultatifs, sinon valeurs des paramètres.
+     * ACHAT : prixOlivesKg obligatoire ; articleId et tarifKg ignorés (l'huile ira dans un puits).
      * adresse vide : adresse du client.
      */
     public record ReceiveRequest(
@@ -30,7 +32,9 @@ public final class PressingDto {
             @Size(max = 50, message = "N° de bon de livraison : 50 caractères au maximum.") String blNumero,
             @Size(max = 120, message = "Transporteur : 120 caractères au maximum.") String transporteur,
             @Size(max = 30, message = "N° de véhicule : 30 caractères au maximum.") String vehicule,
-            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
+            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse,
+            Pressing.Mode mode,
+            @DecimalMin(value = "0", message = "Le prix d'achat ne peut pas être négatif.") BigDecimal prixOlivesKg) {
     }
 
     /** Correction des informations de transport du bulletin (statut RECU uniquement). */
@@ -41,9 +45,11 @@ public final class PressingDto {
             @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
     }
 
+    /** tankId : obligatoire pour un achat d'olives (puits où l'huile est versée), ignoré sinon. */
     public record FinishRequest(
             @NotNull @DecimalMin(value = "0.001", message = "La quantité d'huile doit être positive.") BigDecimal huileObtenue,
-            @DecimalMin(value = "0", message = "Les pertes ne peuvent pas être négatives.") BigDecimal pertesKg) {
+            @DecimalMin(value = "0", message = "Les pertes ne peuvent pas être négatives.") BigDecimal pertesKg,
+            Long tankId) {
     }
 
     public record ReturnRequest(
@@ -73,12 +79,18 @@ public final class PressingDto {
                          BigDecimal huileObtenue, BigDecimal huileRemise, BigDecimal huileARemettre, BigDecimal pertesKg,
                          BigDecimal rendement, Instant dateDebut, Instant dateFin, String notes, String recuPar,
                          String motifAnnulation, List<ReturnLine> remises, List<PaymentLine> paiements,
-                         String numeroBulletin, String blNumero, String transporteur, String vehicule, String adresse) {
+                         String numeroBulletin, String blNumero, String transporteur, String vehicule, String adresse,
+                         Pressing.Mode mode, BigDecimal prixOlivesKg, BigDecimal montantAchat, BigDecimal montantRegle,
+                         BigDecimal resteVendeur, Long tankId, String tankCode, String tankNom,
+                         List<PaymentLine> reglementsVendeur) {
 
         public static Detail from(Pressing p) {
+            var a = p.getArticle();
+            var t = p.getTank();
             return new Detail(p.getId(), p.getNumero(), p.getStatut(), p.getClient().getId(), p.getClient().getNom(),
-                    p.getClient().getCode(), p.getClient().getTelephone(), p.getArticle().getId(), p.getArticle().getNom(),
-                    p.getArticle().getUnite().getCode(), p.getLot() == null ? null : p.getLot().getNumero(),
+                    p.getClient().getCode(), p.getClient().getTelephone(), a == null ? null : a.getId(),
+                    a == null ? null : a.getNom(), a == null ? null : a.getUnite().getCode(),
+                    p.getLot() == null ? null : p.getLot().getNumero(),
                     p.getDateReception(), p.getVariete(), p.getProvenance(), p.getEtatOlives(), p.getPoidsBrut(),
                     p.getTare(), p.getPoidsNet(), p.getTarifKg(), p.getMontant(), p.getMontantPaye(), p.reste(),
                     p.getHuileObtenue(), p.getHuileRemise(), p.huileARemettre(), p.getPertesKg(), p.rendement(),
@@ -87,17 +99,23 @@ public final class PressingDto {
                             r.getRemisA(), r.getUsername())).toList(),
                     p.getPaiements().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
                             x.getMontant(), x.getReference(), x.getUsername())).toList(),
-                    p.getNumeroBulletin(), p.getBlNumero(), p.getTransporteur(), p.getVehicule(), p.getAdresse());
+                    p.getNumeroBulletin(), p.getBlNumero(), p.getTransporteur(), p.getVehicule(), p.getAdresse(),
+                    p.getMode(), p.getPrixOlivesKg(), p.getMontantAchat(), p.getMontantRegle(), p.resteVendeur(),
+                    t == null ? null : t.getId(), t == null ? null : t.getCode(), t == null ? null : t.getNom(),
+                    p.getReglementsVendeur().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
+                            x.getMontant(), x.getReference(), x.getUsername())).toList());
         }
     }
 
     public record Summary(Long id, String numero, Pressing.Status statut, String clientNom, Instant dateReception,
                           BigDecimal poidsNet, BigDecimal huileObtenue, BigDecimal huileARemettre, BigDecimal rendement,
-                          BigDecimal montant, BigDecimal reste, String numeroBulletin, String vehicule) {
+                          BigDecimal montant, BigDecimal reste, String numeroBulletin, String vehicule,
+                          Pressing.Mode mode, BigDecimal montantAchat, BigDecimal resteVendeur, String tankCode) {
         public static Summary from(Pressing p) {
             return new Summary(p.getId(), p.getNumero(), p.getStatut(), p.getClient().getNom(), p.getDateReception(),
                     p.getPoidsNet(), p.getHuileObtenue(), p.huileARemettre(), p.rendement(), p.getMontant(), p.reste(),
-                    p.getNumeroBulletin(), p.getVehicule());
+                    p.getNumeroBulletin(), p.getVehicule(), p.getMode(), p.getMontantAchat(), p.resteVendeur(),
+                    p.getTank() == null ? null : p.getTank().getCode());
         }
     }
 }

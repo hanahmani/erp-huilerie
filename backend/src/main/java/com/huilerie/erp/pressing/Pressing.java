@@ -4,6 +4,7 @@ import com.huilerie.erp.catalog.Article;
 import com.huilerie.erp.clients.Client;
 import com.huilerie.erp.finance.PaymentMode;
 import com.huilerie.erp.inventory.StockLot;
+import com.huilerie.erp.inventory.StorageTank;
 import jakarta.persistence.*;
 import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -15,9 +16,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Pressage à façon : le client apporte ses olives, l'huilerie les presse et lui remet son huile.
- * Cycle : RECU → EN_COURS → TERMINE → REMIS ; ANNULE possible avant la fin du pressage.
- * L'huile obtenue est placée dans un lot dont le propriétaire est le client : elle n'est jamais vendable.
+ * Bulletin de pressage. Deux opérations :
+ * <ul>
+ *   <li>SERVICE (pressage à façon) : l'huile est placée dans un lot dont le propriétaire est le client,
+ *       jamais vendable ; cycle RECU → EN_COURS → TERMINE → REMIS.</li>
+ *   <li>ACHAT : l'huilerie achète les olives au kg ; l'huile obtenue entre dans un puits (lot ENTREPRISE vendable) ;
+ *       cycle RECU → EN_COURS → TERMINE ; le vendeur est payé librement jusqu'au montant d'achat.</li>
+ * </ul>
+ * ANNULE possible avant la fin du pressage, tant que rien n'a été payé.
  */
 @Entity
 @Table(name = "pressings")
@@ -26,6 +32,9 @@ public class Pressing {
     public enum Status { RECU, EN_COURS, TERMINE, REMIS, ANNULE }
 
     public enum OliveState { SAINES, TOMBEES, ABIMEES }
+
+    /** SERVICE : le client reprend son huile. ACHAT : l'huilerie achète les olives. */
+    public enum Mode { SERVICE, ACHAT }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,9 +51,32 @@ public class Pressing {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "article_id", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20, updatable = false)
+    private Mode mode = Mode.SERVICE;
+
+    /** Huile des clients (SERVICE) ou huile du puits (ACHAT, connue à la fin du pressage). */
+    @ManyToOne
+    @JoinColumn(name = "article_id")
     private Article article;
+
+    /** ACHAT : puits où l'huile a été versée. */
+    @ManyToOne
+    @JoinColumn(name = "tank_id")
+    private StorageTank tank;
+
+    /** ACHAT : prix payé au vendeur par kg d'olives net. */
+    @Column(name = "prix_olives_kg", precision = 12, scale = 3)
+    private BigDecimal prixOlivesKg;
+
+    /** ACHAT : poids net × prix au kg, dû au vendeur. */
+    @Column(name = "montant_achat", precision = 12, scale = 3)
+    private BigDecimal montantAchat;
+
+    /** ACHAT : total déjà payé au vendeur. */
+    @Column(name = "montant_regle", nullable = false, precision = 12, scale = 3)
+    private BigDecimal montantRegle = BigDecimal.ZERO.setScale(3);
 
     @ManyToOne
     @JoinColumn(name = "lot_id")
@@ -132,6 +164,10 @@ public class Pressing {
     @OrderBy("id")
     private List<Payment> paiements = new ArrayList<>();
 
+    @OneToMany(mappedBy = "pressing", cascade = CascadeType.ALL)
+    @OrderBy("id")
+    private List<SellerPayment> reglementsVendeur = new ArrayList<>();
+
     protected Pressing() {
     }
 
@@ -153,6 +189,36 @@ public class Pressing {
         this.notes = notes;
         this.recuPar = recuPar;
         this.dateReception = Instant.now();
+    }
+
+    /** Achat d'olives : pas de frais de pressage, montant dû au vendeur. */
+    void markPurchase(BigDecimal prixKg, BigDecimal montantAchat) {
+        this.mode = Mode.ACHAT;
+        this.prixOlivesKg = prixKg;
+        this.montantAchat = montantAchat;
+    }
+
+    /** Fin d'un pressage acheté : l'huile est dans le puits, aucune remise au vendeur. */
+    void finishPurchase(StorageTank tank, BigDecimal huile, BigDecimal pertes) {
+        this.tank = tank;
+        this.article = tank.getArticle();
+        finish(tank.getLot(), huile, pertes);
+    }
+
+    SellerPayment addSellerPayment(String numero, PaymentMode mode, BigDecimal amount, String reference, String user) {
+        SellerPayment p = new SellerPayment(this, numero, mode, amount, reference, user);
+        reglementsVendeur.add(p);
+        montantRegle = montantRegle.add(amount);
+        return p;
+    }
+
+    public boolean isPurchase() {
+        return mode == Mode.ACHAT;
+    }
+
+    /** ACHAT : reste à payer au vendeur. */
+    public BigDecimal resteVendeur() {
+        return montantAchat == null ? BigDecimal.ZERO.setScale(3) : montantAchat.subtract(montantRegle);
     }
 
     /** Informations de transport du bulletin ; modifiables tant que les olives sont seulement reçues. */
@@ -203,7 +269,7 @@ public class Pressing {
     }
 
     public BigDecimal huileARemettre() {
-        return huileObtenue == null ? BigDecimal.ZERO.setScale(3) : huileObtenue.subtract(huileRemise);
+        return huileObtenue == null || isPurchase() ? BigDecimal.ZERO.setScale(3) : huileObtenue.subtract(huileRemise);
     }
 
     /** Litres d'huile pour 100 kg d'olives (indicateur, pas une garantie). */
@@ -221,6 +287,12 @@ public class Pressing {
     public String getTransporteur() { return transporteur; }
     public String getVehicule() { return vehicule; }
     public String getAdresse() { return adresse; }
+    public Mode getMode() { return mode; }
+    public StorageTank getTank() { return tank; }
+    public BigDecimal getPrixOlivesKg() { return prixOlivesKg; }
+    public BigDecimal getMontantAchat() { return montantAchat; }
+    public BigDecimal getMontantRegle() { return montantRegle; }
+    public List<SellerPayment> getReglementsVendeur() { return reglementsVendeur; }
     public Client getClient() { return client; }
     public Article getArticle() { return article; }
     public StockLot getLot() { return lot; }
@@ -329,6 +401,60 @@ public class Pressing {
         }
 
         Payment(Pressing pressing, String numero, PaymentMode mode, BigDecimal montant, String reference, String username) {
+            this.pressing = pressing;
+            this.numero = numero;
+            this.mode = mode;
+            this.montant = montant;
+            this.reference = reference;
+            this.username = username;
+            this.date = Instant.now();
+        }
+
+        public String getNumero() { return numero; }
+        public PaymentMode getMode() { return mode; }
+        public BigDecimal getMontant() { return montant; }
+        public String getReference() { return reference; }
+        public Instant getDate() { return date; }
+        public String getUsername() { return username; }
+    }
+
+    /** Paiement au vendeur des olives (sortie de caisse). */
+    @Entity(name = "PressingSellerPayment")
+    @Immutable
+    @Table(name = "pressing_seller_payments")
+    public static class SellerPayment {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        @ManyToOne(optional = false)
+        @JoinColumn(name = "pressing_id", nullable = false)
+        private Pressing pressing;
+
+        @Column(nullable = false, unique = true, length = 30)
+        private String numero;
+
+        @Enumerated(EnumType.STRING)
+        @JdbcTypeCode(SqlTypes.VARCHAR)
+        @Column(nullable = false, length = 20)
+        private PaymentMode mode;
+
+        @Column(nullable = false, precision = 12, scale = 3)
+        private BigDecimal montant;
+
+        @Column(length = 80)
+        private String reference;
+
+        @Column(name = "date_paie", nullable = false)
+        private Instant date;
+
+        @Column(nullable = false, length = 64)
+        private String username;
+
+        protected SellerPayment() {
+        }
+
+        SellerPayment(Pressing pressing, String numero, PaymentMode mode, BigDecimal montant, String reference, String username) {
             this.pressing = pressing;
             this.numero = numero;
             this.mode = mode;

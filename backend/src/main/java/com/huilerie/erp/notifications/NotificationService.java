@@ -91,7 +91,7 @@ public class NotificationService {
                             + f.reste().toPlainString() + " DT depuis le " + f.getEcheance(), "/ventes/factures"));
         }
         if (SecurityUtils.has("PRESSING_VIEW")) {
-            long toReturn = pressings.countByStatutIn(List.of(Pressing.Status.TERMINE));
+            long toReturn = pressings.countByStatutInAndMode(List.of(Pressing.Status.TERMINE), Pressing.Mode.SERVICE);
             if (toReturn > 0) {
                 add(out, read, "PRESSAGE_A_REMETTRE:" + toReturn + ":" + today, "PRODUCTION", "INFO", "Huile des clients à remettre",
                         toReturn + " pressage(s) terminé(s) en attente de remise", "/pressage");

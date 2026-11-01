@@ -29,9 +29,11 @@ import java.math.RoundingMode;
 import java.time.Instant;
 
 /**
- * Service de pressage pour les clients.
- * Règle centrale : l'huile obtenue entre dans un lot appartenant au client (jamais vendable) et n'en sort
- * que par une remise au client. Le service est facturé au kilo d'olives net et doit être payé avant la remise.
+ * Bulletin de pressage.
+ * SERVICE : l'huile obtenue entre dans un lot appartenant au client (jamais vendable) et n'en sort que par une
+ * remise au client ; le service est facturé au kilo d'olives net et doit être payé avant la remise.
+ * ACHAT : l'huilerie achète les olives au kilo net ; l'huile obtenue est versée dans un puits (vendable en caisse)
+ * et le vendeur est payé, en une ou plusieurs fois, jusqu'au montant d'achat.
  */
 @Service
 public class PressingService {
@@ -49,10 +51,12 @@ public class PressingService {
     private final SettingsService settings;
     private final DocumentNumberService numbers;
     private final AuditService audit;
+    private final TankService tanks;
 
     public PressingService(PressingRepository pressings, ClientRepository clients, ArticleRepository articles,
                            StockLotRepository lots, StockService stock, FinanceService finance, SettingsService settings,
-                           DocumentNumberService numbers, AuditService audit) {
+                           DocumentNumberService numbers, AuditService audit, TankService tanks) {
+        this.tanks = tanks;
         this.pressings = pressings;
         this.clients = clients;
         this.articles = articles;
@@ -78,7 +82,7 @@ public class PressingService {
         return PressingDto.Detail.from(pressings.findById(id).orElseThrow(() -> new NotFoundException("Pressage introuvable.")));
     }
 
-    /** Réception et pesée des olives du client (bon de pesée). */
+    /** Réception et pesée des olives (bulletin de pressage), en service ou en achat. */
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
     @Transactional
     public PressingDto.Detail receive(PressingDto.ReceiveRequest r) {
@@ -86,39 +90,54 @@ public class PressingService {
         if (!client.isActif()) {
             throw new BusinessException("Ce client est désactivé.");
         }
-        CompanySettings cfg = settings.find().orElse(null);
-        Article article;
-        if (r.articleId() != null) {
-            article = articles.findById(r.articleId()).orElseThrow(() -> new NotFoundException("Article introuvable."));
-        } else if (cfg != null && cfg.getPressageArticle() != null) {
-            article = cfg.getPressageArticle();
-        } else {
-            throw new BusinessException("Choisissez l'article « huile des clients » (ou définissez-le dans Paramètres).");
-        }
-        if (!article.isSuiviLot()) {
-            throw new BusinessException("L'article de l'huile des clients doit être suivi par lot.");
-        }
-        BigDecimal tarif = r.tarifKg() != null ? Money.strict(r.tarifKg(), "Tarif")
-                : cfg == null || cfg.getTarifPressageKg() == null ? null : cfg.getTarifPressageKg();
-        if (tarif == null) {
-            throw new BusinessException("Indiquez le tarif du pressage au kilo (ou définissez-le dans Paramètres).");
-        }
+        boolean purchase = r.mode() == Pressing.Mode.ACHAT;
         BigDecimal brut = Money.strict(r.poidsBrut(), "Poids brut");
         BigDecimal tare = Money.strict(r.tare(), "Tare");
         if (tare.compareTo(brut) >= 0) {
             throw new BusinessException("La tare doit être inférieure au poids brut.");
         }
         BigDecimal net = brut.subtract(tare);
+
+        Article article = null;
+        BigDecimal tarif = Money.zero();
+        BigDecimal prixAchat = null;
+        if (purchase) {
+            if (r.prixOlivesKg() == null) {
+                throw new BusinessException("Indiquez le prix d'achat des olives au kilo.");
+            }
+            prixAchat = Money.strict(r.prixOlivesKg(), "Prix d'achat");
+        } else {
+            CompanySettings cfg = settings.find().orElse(null);
+            if (r.articleId() != null) {
+                article = articles.findById(r.articleId()).orElseThrow(() -> new NotFoundException("Article introuvable."));
+            } else if (cfg != null && cfg.getPressageArticle() != null) {
+                article = cfg.getPressageArticle();
+            } else {
+                throw new BusinessException("Choisissez l'article « huile des clients » (ou définissez-le dans Paramètres).");
+            }
+            if (!article.isSuiviLot()) {
+                throw new BusinessException("L'article de l'huile des clients doit être suivi par lot.");
+            }
+            tarif = r.tarifKg() != null ? Money.strict(r.tarifKg(), "Tarif")
+                    : cfg == null || cfg.getTarifPressageKg() == null ? null : cfg.getTarifPressageKg();
+            if (tarif == null) {
+                throw new BusinessException("Indiquez le tarif du pressage au kilo (ou définissez-le dans Paramètres).");
+            }
+        }
         BigDecimal montant = net.multiply(tarif).setScale(Money.SCALE, RoundingMode.HALF_UP);
         Pressing p = new Pressing(numbers.nextYearly("PRESSAGE", "PRS"), numbers.nextPlain(BULLETIN_SEQUENCE, 6),
                 client, article, Text.clean(r.variete()), Text.clean(r.provenance()), r.etatOlives(), brut, tare, tarif,
                 montant, Text.clean(r.notes()), SecurityUtils.username());
+        if (purchase) {
+            p.markPurchase(prixAchat, net.multiply(prixAchat).setScale(Money.SCALE, RoundingMode.HALF_UP));
+        }
         String adresse = Text.clean(r.adresse());
         p.setTransport(Text.clean(r.blNumero()), Text.clean(r.transporteur()), vehicle(r.vehicule()),
                 adresse != null ? adresse : Text.clean(client.getAdresse()));
         p = pressings.save(p);
-        audit.log(SecurityUtils.username(), "PRESSING_RECEIVE", "Pressing", String.valueOf(p.getId()),
-                p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString() + " kg net");
+        audit.log(SecurityUtils.username(), purchase ? "PRESSING_PURCHASE" : "PRESSING_RECEIVE", "Pressing",
+                String.valueOf(p.getId()), p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString()
+                        + " kg net" + (purchase ? ", achat " + p.getMontantAchat().toPlainString() + " DT" : ""));
         return PressingDto.Detail.from(p);
     }
 
@@ -165,6 +184,18 @@ public class PressingService {
         }
         BigDecimal huile = Money.strict(r.huileObtenue(), "Huile obtenue");
         BigDecimal pertes = Money.strict(r.pertesKg(), "Pertes");
+        if (p.isPurchase()) {
+            if (r.tankId() == null) {
+                throw new BusinessException("Choisissez le puits ou le silo où l'huile est stockée.");
+            }
+            StorageTank tank = tanks.fill(r.tankId(), huile, MovementType.PRESSAGE_ACHAT,
+                    "Achat olives " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
+            p.finishPurchase(tank, huile, pertes);
+            audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
+                    p.getNumero() + " : " + huile.toPlainString() + " " + tank.getArticle().getUnite().getCode()
+                            + " dans " + tank.getCode());
+            return PressingDto.Detail.from(p);
+        }
         if (lots.existsByArticleIdAndNumeroIgnoreCase(p.getArticle().getId(), p.getNumero())) {
             throw new BusinessException("Un lot porte déjà le numéro " + p.getNumero() + ".");
         }
@@ -182,6 +213,9 @@ public class PressingService {
     @Transactional
     public PressingDto.Detail returnOil(Long id, PressingDto.ReturnRequest r) {
         Pressing p = lock(id);
+        if (p.isPurchase()) {
+            throw new BusinessException("Olives achetées : l'huile appartient à l'huilerie, elle n'est pas remise au vendeur.");
+        }
         if (p.getStatut() != Pressing.Status.TERMINE) {
             throw new BusinessException("L'huile ne peut être remise qu'après la fin du pressage.");
         }
@@ -208,6 +242,9 @@ public class PressingService {
     @Transactional
     public PressingDto.Detail pay(Long id, PressingDto.PaymentRequest r) {
         Pressing p = lock(id);
+        if (p.isPurchase()) {
+            throw new BusinessException("Olives achetées : aucun frais de pressage à encaisser. Utilisez « Payer le vendeur ».");
+        }
         if (p.getStatut() == Pressing.Status.ANNULE) {
             throw new BusinessException("Ce pressage est annulé.");
         }
@@ -225,6 +262,32 @@ public class PressingService {
         return PressingDto.Detail.from(p);
     }
 
+    /** Paiement au vendeur des olives achetées : sortie de caisse, plafonnée au reste dû. */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE') or hasAuthority('FINANCE_MANAGE')")
+    @Transactional
+    public PressingDto.Detail paySeller(Long id, PressingDto.PaymentRequest r) {
+        Pressing p = lock(id);
+        if (!p.isPurchase()) {
+            throw new BusinessException("Ce bulletin n'est pas un achat d'olives.");
+        }
+        if (p.getStatut() == Pressing.Status.ANNULE) {
+            throw new BusinessException("Ce pressage est annulé.");
+        }
+        BigDecimal amount = Money.strict(r.montant(), "Montant");
+        if (amount.compareTo(p.resteVendeur()) > 0) {
+            throw new BusinessException("Le paiement dépasse le reste dû au vendeur (" + p.resteVendeur().toPlainString() + " DT).");
+        }
+        p.getReglementsVendeur().size();
+        String numero = numbers.nextYearly("PAIEMENT_OLIVES", "PAO");
+        p.addSellerPayment(numero, r.mode(), amount, Text.clean(r.reference()), SecurityUtils.username());
+        pressings.saveAndFlush(p);
+        finance.record(CashMovementType.DECAISSEMENT, r.mode(), amount,
+                "Achat olives " + p.getNumero() + " (" + p.getClient().getNom() + ")", "ACHAT_OLIVES", p.getId());
+        audit.log(SecurityUtils.username(), "OLIVE_PURCHASE_PAYMENT", "Pressing", String.valueOf(id),
+                numero + " " + amount.toPlainString() + " DT");
+        return PressingDto.Detail.from(p);
+    }
+
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
     @Transactional
     public PressingDto.Detail cancel(Long id, String motif) {
@@ -232,7 +295,7 @@ public class PressingService {
         if (p.getStatut() != Pressing.Status.RECU && p.getStatut() != Pressing.Status.EN_COURS) {
             throw new BusinessException("Un pressage terminé ne peut plus être annulé.");
         }
-        if (p.getMontantPaye().signum() > 0) {
+        if (p.getMontantPaye().signum() > 0 || p.getMontantRegle().signum() > 0) {
             throw new BusinessException("Ce pressage a déjà été payé : il ne peut pas être annulé.");
         }
         p.cancel(motif.trim());

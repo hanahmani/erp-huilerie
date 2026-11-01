@@ -16,6 +16,7 @@ import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/ta
 import MovementModal from './MovementModal';
 import LotModal from './LotModal';
 import InventoriesTab from './InventoriesTab';
+import TanksTab from './TanksTab';
 import TraceModal from './TraceModal';
 import { ARTICLE_TYPES, LOT_OWNERS, LOT_STATUS, MOVEMENT_TYPES, toOptions } from '../../utils/labels';
 import { dayRange, formatDateTime, formatQty } from '../../utils/format';
@@ -212,10 +213,11 @@ export default function StockPage() {
                   ) : null} />
       <Alert type="success">{message}</Alert>
       <Tabs value={tab} onChange={setTab}
-            tabs={[{ value: 'state', label: 'État du stock' }, { value: 'mvts', label: 'Mouvements' }, { value: 'lots', label: 'Lots' }, { value: 'inv', label: 'Inventaires' }]} />
+            tabs={[{ value: 'state', label: 'État du stock' }, { value: 'mvts', label: 'Mouvements' }, { value: 'lots', label: 'Lots' }, { value: 'tanks', label: 'Puits / silos' }, { value: 'inv', label: 'Inventaires' }]} />
       {tab === 'state' ? <StateTab key={reloadKey} /> : null}
       {tab === 'mvts' ? <MovementsTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}
       {tab === 'lots' ? <LotsTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}
+      {tab === 'tanks' ? <TanksTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}
       {tab === 'inv' ? <InventoriesTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}
       {modal === 'mvt' ? <MovementModal onClose={() => setModal(null)} onDone={() => done('Mouvement enregistré.')} /> : null}
       {modal === 'lot' ? <LotModal onClose={() => setModal(null)} onDone={() => done('Lot créé.')} /> : null}

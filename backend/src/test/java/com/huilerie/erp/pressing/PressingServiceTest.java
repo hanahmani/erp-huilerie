@@ -46,7 +46,7 @@ class PressingServiceTest {
 
     private PressingDto.Detail receive() {
         return service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), "Chemlali", "Sfax",
-                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), new BigDecimal("0.300"), null, null, null, null, null));
+                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), new BigDecimal("0.300"), null, null, null, null, null, null, null));
     }
 
     @Test
@@ -61,7 +61,7 @@ class PressingServiceTest {
     void lHuileObtenueAppartientAuClient() {
         PressingDto.Detail p = receive();
         service.start(p.id());
-        PressingDto.Detail done = service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null));
+        PressingDto.Detail done = service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null, null));
         assertThat(done.rendement()).isEqualByComparingTo("20.00");
         var lot = lots.findAll().stream().filter(l -> l.getNumero().equals(p.numero())).findFirst().orElseThrow();
         assertThat(lot.getProprietaire()).isEqualTo(LotOwner.CLIENT);
@@ -75,7 +75,7 @@ class PressingServiceTest {
     void remiseApresPaiementSeulementPuisSoldee() {
         PressingDto.Detail p = receive();
         service.start(p.id());
-        service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null));
+        service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null, null));
 
         assertThatThrownBy(() -> service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("10"), null)))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("payé");
@@ -92,7 +92,7 @@ class PressingServiceTest {
     @Test
     void tareSuperieureAuBrutRefusee() {
         assertThatThrownBy(() -> service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
-                Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null, null, null, null, null)))
+                Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -100,7 +100,7 @@ class PressingServiceTest {
     void annulationImpossibleApresLaFin() {
         PressingDto.Detail p = receive();
         service.start(p.id());
-        service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("90"), null));
+        service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("90"), null, null));
         assertThatThrownBy(() -> service.cancel(p.id(), "erreur")).isInstanceOf(BusinessException.class);
     }
 }

@@ -25,6 +25,7 @@ export const MOVEMENT_TYPES = {
   INVENTAIRE_MOINS: 'Inventaire −',
   PRESSAGE_ENTREE: 'Pressage (huile client)',
   PRESSAGE_REMISE: 'Remise au client',
+  PRESSAGE_ACHAT: "Achat d'olives (huile en puits)",
   CONSOMMATION_PRODUCTION: 'Consommation production',
   PRODUCTION_SORTIE: 'Sortie de production',
   CONDITIONNEMENT_SORTIE: 'Conditionnement (sortie)',
@@ -52,6 +53,11 @@ export const INVENTORY_STATUS = { EN_COURS: 'En cours', VALIDE: 'Validé', ANNUL
 
 export const PRESSING_STATUS = { RECU: 'Olives reçues', EN_COURS: 'Pressage en cours', TERMINE: 'Huile à remettre', REMIS: 'Huile remise', ANNULE: 'Annulé' };
 export const PRESSING_STATUS_CLASS = { RECU: '', EN_COURS: 'badge-role', TERMINE: 'badge-warn', REMIS: 'badge-ok', ANNULE: 'badge-off' };
+export const PRESSING_MODES = { SERVICE: 'Pressage pour le client', ACHAT: "Achat d'olives" };
+/** Libellé du statut : un achat terminé n'a pas d'huile à remettre, elle est dans le puits. */
+export const pressingStatusLabel = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'Huile en puits' : PRESSING_STATUS[p.statut]);
+export const pressingStatusClass = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'badge-ok' : PRESSING_STATUS_CLASS[p.statut]);
+export const TANK_TYPES = { PUITS: 'Puits', SILO: 'Silo', CUVE: 'Cuve', AUTRE: 'Autre' };
 export const OLIVE_STATES = { SAINES: 'Saines', TOMBEES: 'Tombées (ramassées au sol)', ABIMEES: 'Abîmées' };
 export const PRODUCTION_STATUS = { PLANIFIE: 'Planifié', EN_COURS: 'En cours', TERMINE: 'Terminé', ANNULE: 'Annulé' };
 export const PRODUCTION_STATUS_CLASS = { PLANIFIE: '', EN_COURS: 'badge-warn', TERMINE: 'badge-ok', ANNULE: 'badge-off' };

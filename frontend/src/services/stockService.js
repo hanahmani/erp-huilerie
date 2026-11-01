@@ -9,6 +9,12 @@ export const stockService = {
   setLotStatus: (id, statut, motif) => api.patch(`/stock/lots/${id}/status`, { statut, motif }),
 };
 
+export const tankService = {
+  list: () => api.get('/stock/tanks'),
+  save: (id, body) => (id ? api.put(`/stock/tanks/${id}`, body) : api.post('/stock/tanks', body)),
+  setStatus: (id, actif) => api.patch(`/stock/tanks/${id}/status`, { actif }),
+};
+
 export const inventoryService = {
   list: (params) => api.get(`/stock/inventories${toQuery(params)}`),
   get: (id) => api.get(`/stock/inventories/${id}`),

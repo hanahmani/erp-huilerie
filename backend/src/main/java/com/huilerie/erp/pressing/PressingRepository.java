@@ -34,15 +34,19 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
 
     long countByStatutIn(List<Pressing.Status> statuts);
 
+    long countByStatutInAndMode(List<Pressing.Status> statuts, Pressing.Mode mode);
+
     @Query("""
             select coalesce(sum(p.huileObtenue - p.huileRemise), 0) from Pressing p
             where p.statut = com.huilerie.erp.pressing.Pressing.Status.TERMINE
+              and p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
             """)
     BigDecimal oilToReturn();
 
     @Query("""
             select coalesce(sum(p.montant - p.montantPaye), 0) from Pressing p
             where p.statut <> com.huilerie.erp.pressing.Pressing.Status.ANNULE
+              and p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
             """)
     BigDecimal unpaid();
 

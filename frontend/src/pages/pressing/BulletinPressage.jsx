@@ -1,6 +1,6 @@
 import { DocHeader } from '../../components/print/DocPrintDialog';
 import { formatDT, formatQty } from '../../utils/format';
-import { OLIVE_STATES } from '../../utils/labels';
+import { OLIVE_STATES, PRESSING_MODES } from '../../utils/labels';
 
 /** Formats proposés pour le bulletin. */
 export const BULLETIN_FORMATS = ['A4', '80'];
@@ -29,14 +29,16 @@ function Block({ title, children }) {
 
 /** Bulletin de pressage, rempli à l'arrivée des olives du client. */
 export default function BulletinPressage({ p, settings, format }) {
+  const achat = p.mode === 'ACHAT';
   return (
     <div className={`ticket ticket-${format} bulletin`}>
       <DocHeader settings={settings} />
       <div className="ticket-flag">BULLETIN DE PRESSAGE N° {p.numeroBulletin}</div>
       <div className="bulletin-date">Reçu le {dt(p.dateReception)} · Pressage {p.numero}</div>
+      <div className="bulletin-date"><strong>{PRESSING_MODES[p.mode] || PRESSING_MODES.SERVICE}</strong></div>
 
       <div className="bulletin-grid">
-        <Block title="Client">
+        <Block title={achat ? 'Vendeur' : 'Client'}>
           <Field k="N° client" v={p.clientCode} />
           <Field k="Nom" v={p.clientNom} />
           <Field k="Adresse" v={p.adresse} />
@@ -55,12 +57,21 @@ export default function BulletinPressage({ p, settings, format }) {
         <Field k="Poids brut" v={formatQty(p.poidsBrut, 'kg')} />
         <Field k="Tare" v={formatQty(p.tare, 'kg')} />
         <Field k="Poids net" v={formatQty(p.poidsNet, 'kg')} strong />
-        <Field k="Tarif" v={`${formatDT(p.tarifKg)} / kg`} />
-        <Field k="Montant des frais" v={formatDT(p.montant)} strong />
+        {achat ? (
+          <>
+            <Field k="Prix d'achat" v={`${formatDT(p.prixOlivesKg)} / kg`} />
+            <Field k="Montant à payer au vendeur" v={formatDT(p.montantAchat)} strong />
+          </>
+        ) : (
+          <>
+            <Field k="Tarif" v={`${formatDT(p.tarifKg)} / kg`} />
+            <Field k="Montant des frais" v={formatDT(p.montant)} strong />
+          </>
+        )}
       </Block>
 
       <div className="bulletin-signatures">
-        <div><span>Le client / Le transporteur</span></div>
+        <div><span>{achat ? 'Le vendeur' : 'Le client'} / Le transporteur</span></div>
         <div><span>L'huilerie</span></div>
       </div>
     </div>
