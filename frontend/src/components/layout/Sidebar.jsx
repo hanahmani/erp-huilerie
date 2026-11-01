@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { NAVIGATION } from '../../utils/navigation';
-import OliveMark from '../common/OliveMark';
 
 export default function Sidebar({ open, onNavigate }) {
   const { can } = useAuth();
@@ -9,11 +8,7 @@ export default function Sidebar({ open, onNavigate }) {
   return (
     <aside className={`sidebar${open ? ' open' : ''}`}>
       <NavLink to="/" className="brand" onClick={onNavigate}>
-        <OliveMark size={40} />
-        <div>
-          <div className="brand-name">Ben Chaaben</div>
-          <div className="brand-sub">Gestion de l'huilerie</div>
-        </div>
+        <img className="brand-logo" src={`${import.meta.env.BASE_URL}logo/logo-dark.svg`} alt="Huilerie Ben Chaaben — accueil" />
       </NavLink>
 
       <nav className="nav" aria-label="Navigation principale">
