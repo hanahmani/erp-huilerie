@@ -169,6 +169,9 @@
 .pos-line { border: 1px solid var(--beige-100); border-radius: var(--radius-s); padding: 8px 10px; }
 .pos-line-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pos-lot { height: 34px; margin: 6px 0; font-size: 13px; }
+.pos-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 6px 0 2px; font-size: 13px; }
+.pos-unit button { padding: 4px 12px; border: 1px solid var(--beige-300); border-radius: var(--radius-s); background: var(--white); font: inherit; cursor: pointer; color: var(--ink); }
+.pos-unit button.active { background: var(--olive-800); border-color: var(--olive-800); color: var(--white); font-weight: 600; }
 .pos-line-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 14px; }
 .pos-line-total { margin-left: auto; font-variant-numeric: tabular-nums; }
 .qty { display: inline-flex; border: 1px solid var(--beige-300); border-radius: var(--radius-s); overflow: hidden; }

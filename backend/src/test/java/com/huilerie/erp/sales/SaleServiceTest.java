@@ -54,7 +54,7 @@ class SaleServiceTest {
     private SaleDto.QuickSaleRequest request(String qty, String cash, Long clientId, String remise) {
         return new SaleDto.QuickSaleRequest(UUID.randomUUID().toString(), clientId,
                 remise == null ? null : new BigDecimal(remise),
-                List.of(new SaleDto.LineRequest(huile.getId(), null, new BigDecimal(qty), null)),
+                List.of(new SaleDto.LineRequest(huile.getId(), null, new BigDecimal(qty), null, false)),
                 cash == null ? List.of() : List.of(new SaleDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal(cash))));
     }
 
@@ -129,7 +129,7 @@ class SaleServiceTest {
     @Test
     void prixModifieSansPermissionRefuse() {
         var r = new SaleDto.QuickSaleRequest(UUID.randomUUID().toString(), null, null,
-                List.of(new SaleDto.LineRequest(huile.getId(), null, BigDecimal.ONE, new BigDecimal("10"))),
+                List.of(new SaleDto.LineRequest(huile.getId(), null, BigDecimal.ONE, new BigDecimal("10"), false)),
                 List.of(new SaleDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("10"))));
         assertThatThrownBy(() -> saleService.createQuickSale(r)).isInstanceOf(AccessDeniedException.class);
     }
@@ -142,7 +142,7 @@ class SaleServiceTest {
         fx.receive(vrac, lotClient, "100");
 
         var r = new SaleDto.QuickSaleRequest(UUID.randomUUID().toString(), null, null,
-                List.of(new SaleDto.LineRequest(vrac.getId(), lotClient.getId(), BigDecimal.ONE, null)),
+                List.of(new SaleDto.LineRequest(vrac.getId(), lotClient.getId(), BigDecimal.ONE, null, false)),
                 List.of(new SaleDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("15"))));
         assertThatThrownBy(() -> saleService.createQuickSale(r))
                 .isInstanceOf(BusinessException.class)

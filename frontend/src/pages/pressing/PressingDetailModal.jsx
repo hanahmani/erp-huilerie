@@ -8,6 +8,7 @@ import DocPrintDialog from '../../components/print/DocPrintDialog';
 import { useAuth } from '../../context/AuthContext';
 import { pressingService } from '../../services/operationsService';
 import { tankService } from '../../services/stockService';
+import { settingsService } from '../../services/settingsService';
 import { formatDateTime, formatDT, formatQty } from '../../utils/format';
 import { OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
@@ -29,6 +30,12 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
   const [print, setPrint] = useState(initialPrint || null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [density, setDensity] = useState(null);
+
+  useEffect(() => { settingsService.get().then((s) => setDensity(Number(s.densiteHuile))).catch(() => {}); }, []);
+  // Huile pesée en kg : équivalent en litres donné à titre indicatif (kg ÷ densité).
+  const litres = (kg) => (density && kg != null && String(p?.unite).toLowerCase() === 'kg'
+    ? <span className="muted"> · ≈ {formatQty((Number(kg) / density).toFixed(3), 'L')}</span> : null);
 
   useEffect(() => { if (!initial) pressingService.get(id).then(setP).catch((e) => setError(e.message)); }, [id, initial]);
   const achat = p?.mode === 'ACHAT';
@@ -104,11 +111,11 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   <dt>Payé / reste</dt><dd>{formatDT(p.montantPaye)} / <strong>{formatDT(p.reste)}</strong></dd>
                 </>
               )}
-              <dt>Huile obtenue</dt><dd>{p.huileObtenue != null ? <strong>{formatQty(p.huileObtenue, p.unite)}</strong> : '—'}</dd>
+              <dt>Huile obtenue</dt><dd>{p.huileObtenue != null ? <><strong>{formatQty(p.huileObtenue, p.unite)}</strong>{litres(p.huileObtenue)}</> : '—'}</dd>
               <dt>Rendement</dt><dd>{p.rendement != null ? `${Number(p.rendement).toFixed(2)} ${p.unite} / 100 kg` : '—'}</dd>
               {!achat ? (
                 <>
-                  <dt>Remis / à remettre</dt><dd>{formatQty(p.huileRemise, p.unite)} / <strong>{formatQty(p.huileARemettre, p.unite)}</strong></dd>
+                  <dt>Remis / à remettre</dt><dd>{formatQty(p.huileRemise, p.unite)} / <strong>{formatQty(p.huileARemettre, p.unite)}</strong>{litres(p.huileARemettre)}</dd>
                   <dt>Lot client</dt><dd>{p.lotNumero || '—'}</dd>
                 </>
               ) : null}

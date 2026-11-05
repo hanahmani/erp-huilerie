@@ -3,6 +3,7 @@ package com.huilerie.erp.salesdocs;
 import com.huilerie.erp.audit.AuditService;
 import com.huilerie.erp.catalog.Article;
 import com.huilerie.erp.catalog.ArticleRepository;
+import com.huilerie.erp.catalog.OilUnits;
 import com.huilerie.erp.clients.Client;
 import com.huilerie.erp.clients.ClientRepository;
 import com.huilerie.erp.common.Money;
@@ -138,13 +139,18 @@ public class SalesDocumentService {
         d.clearLines();
         BigDecimal ht = Money.zero();
         BigDecimal tva = Money.zero();
+        BigDecimal density = settings.oilDensity();
         for (SalesDocDto.LineRequest l : r.lignes()) {
             Article a = articles.findById(l.articleId()).orElseThrow(() -> new NotFoundException("Article introuvable."));
             if (!a.isActif()) {
                 throw new BusinessException("« " + a.getNom() + " » est désactivé.");
             }
             StockLot lot = l.lotId() == null ? null : lots.findById(l.lotId()).orElseThrow(() -> new NotFoundException("Lot introuvable."));
-            BigDecimal pu = l.prixUnitaire() != null ? Money.strict(l.prixUnitaire(), "Prix") : a.getPrixVente();
+            if (l.enLitres() && !OilUnits.soldByLitre(a)) {
+                throw new BusinessException("« " + a.getNom() + " » n'a pas de prix au litre : vente au litre impossible.");
+            }
+            BigDecimal catalogPrice = l.enLitres() ? a.getPrixVenteLitre() : a.getPrixVente();
+            BigDecimal pu = l.prixUnitaire() != null ? Money.strict(l.prixUnitaire(), "Prix") : catalogPrice;
             if (pu == null) {
                 throw new BusinessException("Indiquez un prix pour « " + a.getNom() + " ».");
             }
@@ -157,7 +163,9 @@ public class SalesDocumentService {
             BigDecimal q = Money.strict(l.quantite(), "Quantité");
             BigDecimal lht = PurchaseService.lineHt(q, pu, remise);
             BigDecimal ltva = PurchaseService.lineTva(lht, rate);
-            d.addLine(a, lot, q, pu, remise, rate, lht, ltva);
+            // Au litre : quantité et prix en L sur le document, kg (L × densité) en sortie de stock.
+            d.addLine(a, lot, l.enLitres() ? "L" : a.getUnite().getCode(), q,
+                    l.enLitres() ? OilUnits.litresToKg(q, density) : q, pu, remise, rate, lht, ltva);
             ht = ht.add(lht);
             tva = tva.add(ltva);
         }
@@ -191,7 +199,7 @@ public class SalesDocumentService {
                 if (l.getLot() != null && !l.getLot().isSellable()) {
                     throw new BusinessException("Le lot " + l.getLot().getNumero() + " n'est pas vendable (client ou bloqué).");
                 }
-                stock.apply(l.getArticle(), l.getLot(), MovementType.LIVRAISON, l.getQuantite(),
+                stock.apply(l.getArticle(), l.getLot(), MovementType.LIVRAISON, l.getQuantiteStock(),
                         d.getType().name() + " " + numero + " — " + d.getClient().getNom(), DOC_TYPE, d.getId());
             }
         }
@@ -231,10 +239,7 @@ public class SalesDocumentService {
         }
         SalesDocument d = new SalesDocument(target, src.getClient(), src, SecurityUtils.username());
         d.header(src.getClient(), LocalDate.now(), src.getEcheance(), src.getRefClient(), src.getNotes());
-        for (SalesDocument.Line l : src.getLignes()) {
-            d.addLine(l.getArticle(), l.getLot(), l.getQuantite(), l.getPrixUnitaire(), l.getRemisePct(), l.getTauxTva(),
-                    l.getTotalHt(), l.getTotalTva());
-        }
+        src.getLignes().forEach(d::copyLine);
         d.totals(src.getTotalHt(), src.getTotalTva(), Money.zero());
         src.markTransformed();
         d = docs.save(d);
@@ -279,17 +284,14 @@ public class SalesDocumentService {
         }
         SalesDocument a = new SalesDocument(Type.AVOIR, f.getClient(), f, SecurityUtils.username());
         a.header(f.getClient(), LocalDate.now(), null, f.getRefClient(), r.motif().trim());
-        for (SalesDocument.Line l : f.getLignes()) {
-            a.addLine(l.getArticle(), l.getLot(), l.getQuantite(), l.getPrixUnitaire(), l.getRemisePct(), l.getTauxTva(),
-                    l.getTotalHt(), l.getTotalTva());
-        }
+        f.getLignes().forEach(a::copyLine);
         a.totals(f.getTotalHt(), f.getTotalTva(), f.getTimbre());
         String numero = numbers.nextYearly("DOC_AVOIR", "AVR");
         a.validate(numero, SecurityUtils.username());
         a = docs.save(a);
         if (r.retourStock()) {
             for (SalesDocument.Line l : f.getLignes()) {
-                stock.apply(l.getArticle(), l.getLot(), MovementType.RETOUR_CLIENT, l.getQuantite(), "Avoir " + numero, DOC_TYPE, a.getId());
+                stock.apply(l.getArticle(), l.getLot(), MovementType.RETOUR_CLIENT, l.getQuantiteStock(), "Avoir " + numero, DOC_TYPE, a.getId());
             }
         }
         if (f.getMontantPaye().signum() > 0) {
@@ -316,7 +318,7 @@ public class SalesDocumentService {
         }
         if (d.getType() == Type.LIVRAISON && d.getStatut() == Status.VALIDE) {
             for (SalesDocument.Line l : d.getLignes()) {
-                stock.apply(l.getArticle(), l.getLot(), MovementType.ANNULATION_PLUS, l.getQuantite(),
+                stock.apply(l.getArticle(), l.getLot(), MovementType.ANNULATION_PLUS, l.getQuantiteStock(),
                         "Annulation " + d.getNumero(), DOC_TYPE, d.getId());
             }
         }

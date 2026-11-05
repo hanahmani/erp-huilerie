@@ -35,6 +35,10 @@ public class SaleLine {
     @Column(nullable = false, precision = 15, scale = 3)
     private BigDecimal quantite;
 
+    /** Quantité sortie du stock, dans l'unité de l'article (kg pour 10 L d'huile : 9,160). NULL = quantite. */
+    @Column(name = "quantite_stock", precision = 15, scale = 3)
+    private BigDecimal quantiteStock;
+
     @Column(name = "prix_unitaire", nullable = false, precision = 12, scale = 3)
     private BigDecimal prixUnitaire;
 
@@ -44,14 +48,16 @@ public class SaleLine {
     protected SaleLine() {
     }
 
-    SaleLine(Sale sale, Article article, StockLot lot, BigDecimal quantite, BigDecimal prixUnitaire,
-             BigDecimal totalLigne) {
+    /** unite : celle de l'article, ou « L » pour une huile vendue au litre (quantiteStock en kg). */
+    SaleLine(Sale sale, Article article, StockLot lot, String unite, BigDecimal quantite, BigDecimal quantiteStock,
+             BigDecimal prixUnitaire, BigDecimal totalLigne) {
         this.sale = sale;
         this.article = article;
         this.lot = lot;
         this.designation = article.getNom();
-        this.unite = article.getUnite().getCode();
+        this.unite = unite;
         this.quantite = quantite;
+        this.quantiteStock = unite.equals(article.getUnite().getCode()) ? null : quantiteStock;
         this.prixUnitaire = prixUnitaire;
         this.totalLigne = totalLigne;
     }
@@ -62,6 +68,7 @@ public class SaleLine {
     public String getDesignation() { return designation; }
     public String getUnite() { return unite; }
     public BigDecimal getQuantite() { return quantite; }
+    public BigDecimal getQuantiteStock() { return quantiteStock == null ? quantite : quantiteStock; }
     public BigDecimal getPrixUnitaire() { return prixUnitaire; }
     public BigDecimal getTotalLigne() { return totalLigne; }
 }

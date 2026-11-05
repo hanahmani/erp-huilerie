@@ -18,6 +18,10 @@ public record SettingsRequest(
         @jakarta.validation.constraints.DecimalMin(value = "0", message = "Le timbre ne peut pas être négatif.")
         java.math.BigDecimal timbreFiscal,
         @jakarta.validation.constraints.Min(value = 5, message = "5 minutes minimum.")
-        @jakarta.validation.constraints.Max(value = 480, message = "480 minutes maximum.") Integer inactiviteMinutes
+        @jakarta.validation.constraints.Max(value = 480, message = "480 minutes maximum.") Integer inactiviteMinutes,
+        @jakarta.validation.constraints.DecimalMin(value = "0.5", message = "Densité de l'huile : 0,5 kg/L minimum.")
+        @jakarta.validation.constraints.DecimalMax(value = "1.5", message = "Densité de l'huile : 1,5 kg/L maximum.")
+        @jakarta.validation.constraints.Digits(integer = 2, fraction = 4, message = "Densité de l'huile : 4 décimales maximum.")
+        java.math.BigDecimal densiteHuile
 ) {
 }

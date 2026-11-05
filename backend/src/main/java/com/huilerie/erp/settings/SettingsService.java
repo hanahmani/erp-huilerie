@@ -36,6 +36,11 @@ public class SettingsService {
         return repository.findById(CompanySettings.SINGLE_ID);
     }
 
+    /** kg par litre ; 0,916 tant que les paramètres n'ont pas été enregistrés. */
+    public java.math.BigDecimal oilDensity() {
+        return find().map(CompanySettings::getDensiteHuile).orElse(com.huilerie.erp.catalog.OilUnits.DEFAULT_DENSITY);
+    }
+
     public boolean creditAllowed() {
         return find().map(CompanySettings::isVenteCreditAutorisee).orElse(false);
     }
@@ -53,6 +58,15 @@ public class SettingsService {
         s.setVenteCreditAutorisee(r.venteCreditAutorisee());
         s.setTimbreFiscal(com.huilerie.erp.common.Money.strict(r.timbreFiscal(), "Timbre fiscal"));
         s.setInactiviteMinutes(r.inactiviteMinutes());
+        java.math.BigDecimal density = r.densiteHuile() == null ? com.huilerie.erp.catalog.OilUnits.DEFAULT_DENSITY
+                : r.densiteHuile().setScale(4, java.math.RoundingMode.HALF_UP);
+        boolean densityChanged = s.getDensiteHuile() == null || s.getDensiteHuile().compareTo(density) != 0;
+        s.setDensiteHuile(density);
+        if (densityChanged) {
+            // Les prix au kg des huiles vendues au litre suivent la nouvelle densité.
+            articles.findByPrixVenteLitreIsNotNull().forEach(a ->
+                    a.setPrixVente(com.huilerie.erp.catalog.OilUnits.kgPrice(a.getPrixVenteLitre(), density)));
+        }
         s.setTarifPressageKg(com.huilerie.erp.common.Money.strict(r.tarifPressageKg(), "Tarif de pressage"));
         if (r.pressageArticleId() == null) {
             s.setPressageArticle(null);

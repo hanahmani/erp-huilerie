@@ -20,6 +20,15 @@ import { fromMillimes, lineMillimes, normalizeDecimal, toMillimes } from '../../
 const MODES = Object.keys(PAYMENT_MODES);
 const EMPTY_PAY = { ESPECES: '', CARTE: '', VIREMENT: '', CHEQUE: '' };
 
+/** Huile stockée en kg avec un prix au litre : vendable au kg ou au litre. */
+const byLitre = (article) => article.prixVenteLitre != null && article.densite != null;
+
+/** Quantité de stock (unité de l'article, en millièmes) consommée par une ligne : litres × densité pour l'huile. */
+function stockMillimes(line) {
+  const q = toMillimes(line.quantite);
+  return line.enLitres ? Math.round(q * Number(line.article.densite)) : q;
+}
+
 /** Quantité disponible pour une ligne (lot choisi ou total sans lot). */
 function availableFor(article, lotId) {
   if (!article.suiviLot) return Number(article.disponible);
@@ -35,7 +44,7 @@ export default function QuickSalePage() {
   const [catalog, setCatalog] = useState(null);
   const [settings, setSettings] = useState(null);
   const [search, setSearch] = useState('');
-  const [cart, setCart] = useState([]);           // { key, article, lotId, quantite, prix }
+  const [cart, setCart] = useState([]);           // { key, article, lotId, enLitres, quantite, prix }
   const [clientQuery, setClientQuery] = useState('');
   const [clientOptions, setClientOptions] = useState([]);
   const [client, setClient] = useState(null);
@@ -81,11 +90,15 @@ export default function QuickSalePage() {
       if (existing) {
         return c.map((l) => (l === existing ? { ...l, quantite: fromMillimes(toMillimes(l.quantite) + 1000).replace(/\.?0+$/, '') } : l));
       }
-      return [...c, { key: `${a.id}-${Date.now()}`, article: a, lotId, quantite: '1', prix: a.prixVente }];
+      // Huile au prix fixé au litre : vendue au litre par défaut, le caissier peut passer au kg.
+      const enLitres = byLitre(a);
+      return [...c, { key: `${a.id}-${Date.now()}`, article: a, lotId, enLitres, quantite: '1',
+        prix: enLitres ? a.prixVenteLitre : a.prixVente }];
     });
   };
 
   const updateLine = (key, patch) => setCart((c) => c.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const setMode = (l, enLitres) => updateLine(l.key, { enLitres, prix: enLitres ? l.article.prixVenteLitre : l.article.prixVente });
   const removeLine = (key) => setCart((c) => c.filter((l) => l.key !== key));
   const stepQty = (l, delta) => {
     const next = toMillimes(l.quantite) + delta * 1000;
@@ -120,7 +133,7 @@ export default function QuickSalePage() {
   lines.forEach((l) => {
     if (toMillimes(l.quantite) <= 0) problems.push(`Quantité invalide pour ${l.article.nom}.`);
     else if (l.article.suiviLot && !l.lotId) problems.push(`Choisissez le lot de ${l.article.nom}.`);
-    else if (toMillimes(l.quantite) > Math.round(l.dispo * 1000)) problems.push(`Stock insuffisant pour ${l.article.nom} (${formatQty(l.dispo, l.article.unite)}).`);
+    else if (stockMillimes(l) > Math.round(l.dispo * 1000)) problems.push(`Stock insuffisant pour ${l.article.nom} (${formatQty(l.dispo, l.article.unite)}).`);
   });
   if (autresM > totalM) problems.push('Carte, virement et chèque ne peuvent pas dépasser le total.');
   if (cart.length && resteM > 0 && !creditOk) {
@@ -154,6 +167,7 @@ export default function QuickSalePage() {
           lotId: l.lotId ? Number(l.lotId) : null,
           quantite: normalizeDecimal(l.quantite),
           prixUnitaire: canPrice ? normalizeDecimal(l.prix) : null,
+          enLitres: Boolean(l.enLitres),
         })),
         paiements: MODES.filter((m) => toMillimes(pay[m]) > 0).map((m) => ({ mode: m, montant: normalizeDecimal(pay[m]) })),
       });
@@ -213,7 +227,7 @@ export default function QuickSalePage() {
                   <span className="pos-tile-name">{a.nom}</span>
                   <span className="pos-tile-meta">{a.reference}{a.categorie ? ` · ${a.categorie}` : ''}</span>
                   <span className="pos-tile-foot">
-                    <strong>{formatDT(a.prixVente)}</strong>
+                    <strong>{byLitre(a) ? `${formatDT(a.prixVenteLitre)} / L` : formatDT(a.prixVente)}</strong>
                     <span className={empty ? 'pos-stock-out' : 'pos-stock'}>{empty ? 'Rupture' : formatQty(a.disponible, a.unite)}</span>
                   </span>
                 </button>
@@ -262,13 +276,21 @@ export default function QuickSalePage() {
                   {l.article.lots.map((lot) => <option key={lot.lotId} value={lot.lotId}>Lot {lot.numero} · {formatQty(lot.quantite, l.article.unite)}</option>)}
                 </select>
               ) : null}
+              {byLitre(l.article) ? (
+                <div className="pos-unit" role="group" aria-label="Unité de vente">
+                  <button type="button" className={l.enLitres ? 'active' : ''} onClick={() => setMode(l, true)}>Litre</button>
+                  <button type="button" className={l.enLitres ? '' : 'active'} onClick={() => setMode(l, false)}>{l.article.unite}</button>
+                  {l.enLitres && stockMillimes(l) > 0
+                    ? <span className="muted">= {formatQty(fromMillimes(stockMillimes(l)), l.article.unite)} sortis du stock</span> : null}
+                </div>
+              ) : null}
               <div className="pos-line-row">
                 <div className="qty">
                   <button type="button" onClick={() => stepQty(l, -1)} aria-label="Diminuer"><Minus size={14} /></button>
                   <input inputMode="decimal" value={l.quantite} onChange={(e) => updateLine(l.key, { quantite: e.target.value })} aria-label="Quantité" />
                   <button type="button" onClick={() => stepQty(l, 1)} aria-label="Augmenter"><Plus size={14} /></button>
                 </div>
-                <span className="muted">{l.article.unite} ×</span>
+                <span className="muted">{l.enLitres ? 'L' : l.article.unite} ×</span>
                 {canPrice
                   ? <input className="input pos-price" inputMode="decimal" value={l.prix} onChange={(e) => updateLine(l.key, { prix: e.target.value })} aria-label="Prix unitaire" />
                   : <span>{formatDT(l.prix)}</span>}

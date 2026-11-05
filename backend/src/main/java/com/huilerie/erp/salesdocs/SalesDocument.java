@@ -124,9 +124,16 @@ public class SalesDocument {
         lignes.clear();
     }
 
-    void addLine(Article a, StockLot lot, BigDecimal q, BigDecimal pu, BigDecimal remise, BigDecimal tva,
-                 BigDecimal ht, BigDecimal mtva) {
-        lignes.add(new Line(this, a, lot, q, pu, remise, tva, ht, mtva));
+    /** unite : celle de l'article, ou « L » pour une huile vendue au litre (stockQty en kg). */
+    void addLine(Article a, StockLot lot, String unite, BigDecimal q, BigDecimal stockQty, BigDecimal pu,
+                 BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva) {
+        lignes.add(new Line(this, a, lot, unite, q, stockQty, pu, remise, tva, ht, mtva));
+    }
+
+    /** Copie d'une ligne (transformation, avoir) : mêmes unité et quantité de stock. */
+    void copyLine(Line l) {
+        addLine(l.getArticle(), l.getLot(), l.getUnite(), l.getQuantite(), l.getQuantiteStock(), l.getPrixUnitaire(),
+                l.getRemisePct(), l.getTauxTva(), l.getTotalHt(), l.getTotalTva());
     }
 
     void totals(BigDecimal ht, BigDecimal tva, BigDecimal timbre) {
@@ -209,6 +216,9 @@ public class SalesDocument {
         private String unite;
         @Column(nullable = false, precision = 15, scale = 3)
         private BigDecimal quantite;
+        /** Quantité sortie du stock dans l'unité de l'article (kg pour de l'huile vendue au litre). NULL = quantite. */
+        @Column(name = "quantite_stock", precision = 15, scale = 3)
+        private BigDecimal quantiteStock;
         @Column(name = "prix_unitaire", nullable = false, precision = 12, scale = 3)
         private BigDecimal prixUnitaire;
         @Column(name = "remise_pct", nullable = false, precision = 5, scale = 2)
@@ -223,14 +233,15 @@ public class SalesDocument {
         protected Line() {
         }
 
-        Line(SalesDocument d, Article a, StockLot lot, BigDecimal q, BigDecimal pu, BigDecimal remise, BigDecimal tva,
-             BigDecimal ht, BigDecimal mtva) {
+        Line(SalesDocument d, Article a, StockLot lot, String unite, BigDecimal q, BigDecimal stockQty, BigDecimal pu,
+             BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva) {
             this.document = d;
             this.article = a;
             this.lot = lot;
             this.designation = a.getNom();
-            this.unite = a.getUnite().getCode();
+            this.unite = unite;
             this.quantite = q;
+            this.quantiteStock = unite.equals(a.getUnite().getCode()) ? null : stockQty;
             this.prixUnitaire = pu;
             this.remisePct = remise;
             this.tauxTva = tva;
@@ -244,6 +255,8 @@ public class SalesDocument {
         public String getDesignation() { return designation; }
         public String getUnite() { return unite; }
         public BigDecimal getQuantite() { return quantite; }
+        public BigDecimal getQuantiteStock() { return quantiteStock == null ? quantite : quantiteStock; }
+        public boolean isEnLitres() { return quantiteStock != null; }
         public BigDecimal getPrixUnitaire() { return prixUnitaire; }
         public BigDecimal getRemisePct() { return remisePct; }
         public BigDecimal getTauxTva() { return tauxTva; }

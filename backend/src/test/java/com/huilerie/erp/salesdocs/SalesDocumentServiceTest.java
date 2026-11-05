@@ -52,7 +52,7 @@ class SalesDocumentServiceTest {
 
     private SalesDocDto.Detail draft(Type type, String qty) {
         return service.create(new SalesDocDto.Request(type, client.getId(), LocalDate.now(), LocalDate.now().plusDays(30), null, null,
-                List.of(new SalesDocDto.LineRequest(bidon.getId(), null, new BigDecimal(qty), null, new BigDecimal("10"), null))));
+                List.of(new SalesDocDto.LineRequest(bidon.getId(), null, new BigDecimal(qty), null, new BigDecimal("10"), null, false))));
     }
 
     @Test
@@ -91,7 +91,7 @@ class SalesDocumentServiceTest {
     void documentValideNonModifiable() {
         SalesDocDto.Detail devis = service.validate(draft(Type.DEVIS, "1").id());
         assertThatThrownBy(() -> service.update(devis.id(), new SalesDocDto.Request(Type.DEVIS, client.getId(), LocalDate.now(),
-                null, null, null, List.of(new SalesDocDto.LineRequest(bidon.getId(), null, BigDecimal.ONE, null, null, null)))))
+                null, null, null, List.of(new SalesDocDto.LineRequest(bidon.getId(), null, BigDecimal.ONE, null, null, null, false)))))
                 .isInstanceOf(BusinessException.class);
     }
 
@@ -99,7 +99,7 @@ class SalesDocumentServiceTest {
     void plafondDeCreditRespecte() {
         Client limited = fx.client("Limite", "100");
         SalesDocDto.Detail f = service.create(new SalesDocDto.Request(Type.FACTURE, limited.getId(), LocalDate.now(), null, null, null,
-                List.of(new SalesDocDto.LineRequest(bidon.getId(), null, new BigDecimal("2"), null, null, null))));
+                List.of(new SalesDocDto.LineRequest(bidon.getId(), null, new BigDecimal("2"), null, null, null, false))));
         assertThatThrownBy(() -> service.validate(f.id())).isInstanceOf(BusinessException.class).hasMessageContaining("Plafond");
     }
 

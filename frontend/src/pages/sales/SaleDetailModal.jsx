@@ -71,7 +71,10 @@ export default function SaleDetailModal({ saleId, onClose, onChanged }) {
                 {sale.lignes.map((l, i) => (
                   <tr key={i}>
                     <td>{l.designation}</td><td>{l.lotNumero || '—'}</td>
-                    <td className="num">{formatQty(l.quantite, l.unite)}</td>
+                    <td className="num">
+                      {formatQty(l.quantite, l.unite)}
+                      {l.unite !== l.uniteStock ? <><br /><span className="muted">{formatQty(l.quantiteStock, l.uniteStock)}</span></> : null}
+                    </td>
                     <td className="num">{formatDT(l.prixUnitaire)}</td>
                     <td className="num">{formatDT(l.total)}</td>
                   </tr>

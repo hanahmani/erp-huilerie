@@ -20,6 +20,7 @@ public final class ArticleDto {
             @NotNull(message = "L'unité est obligatoire.") Long uniteId,
             @DecimalMin(value = "0", message = "Le prix d'achat ne peut pas être négatif.") BigDecimal prixAchat,
             @DecimalMin(value = "0", message = "Le prix de vente ne peut pas être négatif.") BigDecimal prixVente,
+            @DecimalMin(value = "0", message = "Le prix au litre ne peut pas être négatif.") BigDecimal prixVenteLitre,
             @DecimalMin(value = "0", message = "Le seuil ne peut pas être négatif.") BigDecimal seuilMin,
             @DecimalMin(value = "0", message = "Le stock maximum ne peut pas être négatif.") BigDecimal stockMax,
             @Size(max = 64) String codeBarres,
@@ -29,7 +30,7 @@ public final class ArticleDto {
 
     public record Response(Long id, String reference, String nom, String description, ArticleType type,
                            Long categorieId, String categorieNom, Long uniteId, String uniteCode,
-                           BigDecimal prixAchat, BigDecimal prixVente, BigDecimal seuilMin,
+                           BigDecimal prixAchat, BigDecimal prixVente, BigDecimal prixVenteLitre, BigDecimal seuilMin,
                            String codeBarres, boolean vendable, boolean suiviLot, boolean actif, BigDecimal stockMax) {
 
         public static Response from(Article a) {
@@ -37,7 +38,7 @@ public final class ArticleDto {
                     a.getCategorie() == null ? null : a.getCategorie().getId(),
                     a.getCategorie() == null ? null : a.getCategorie().getNom(),
                     a.getUnite().getId(), a.getUnite().getCode(), a.getPrixAchat(),
-                    a.getPrixVente(), a.getSeuilMin(), a.getCodeBarres(), a.isVendable(), a.isSuiviLot(), a.isActif(),
+                    a.getPrixVente(), a.getPrixVenteLitre(), a.getSeuilMin(), a.getCodeBarres(), a.isVendable(), a.isSuiviLot(), a.isActif(),
                     a.getStockMax());
         }
     }

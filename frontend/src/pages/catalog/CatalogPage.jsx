@@ -31,7 +31,15 @@ export default function CatalogPage() {
       options: units.filter((u) => u.actif || u.id === article.uniteId).map((u) => ({ value: u.id, label: `${u.libelle} (${u.code})` })),
     },
     { name: 'prixAchat', label: "Prix d'achat (DT)", type: 'number' },
-    { name: 'prixVente', label: 'Prix de vente (DT)', type: 'number', hint: 'Obligatoire si vendable.' },
+    {
+      name: 'prixVenteLitre', label: 'Prix de vente au litre (DT)', type: 'number',
+      hidden: (v) => v.type !== 'HUILE_VRAC',
+      hint: 'Huile stockée en kg : vendue au kg ou au litre en caisse. Le prix au kg est calculé (prix au litre ÷ densité).',
+    },
+    {
+      name: 'prixVente', label: 'Prix de vente (DT)', type: 'number', hint: 'Obligatoire si vendable.',
+      hidden: (v) => v.type === 'HUILE_VRAC' && v.prixVenteLitre !== '' && v.prixVenteLitre != null,
+    },
     { name: 'seuilMin', label: 'Seuil d\'alerte de stock', type: 'number', hint: 'Dans l\'unité de l\'article.' },
     { name: 'stockMax', label: 'Stock maximum', type: 'number', hint: 'Facultatif.' },
     { name: 'codeBarres', label: 'Code-barres' },
@@ -63,7 +71,12 @@ export default function CatalogPage() {
           { key: 'nom', header: 'Désignation', render: (a) => <strong>{a.nom}</strong> },
           { key: 'type', header: 'Type', render: (a) => ARTICLE_TYPES[a.type] },
           { key: 'unite', header: 'Unité', render: (a) => a.uniteCode },
-          { key: 'prixVente', header: 'Prix de vente', align: 'right', render: (a) => (a.prixVente != null ? formatDT(a.prixVente) : '—') },
+          {
+            key: 'prixVente', header: 'Prix de vente', align: 'right',
+            render: (a) => (a.prixVente == null ? '—' : a.prixVenteLitre != null
+              ? <>{formatDT(a.prixVenteLitre)} / L<br /><span className="muted">{formatDT(a.prixVente)} / {a.uniteCode}</span></>
+              : formatDT(a.prixVente)),
+          },
           { key: 'seuil', header: 'Seuil', align: 'right', render: (a) => (a.seuilMin != null ? formatQty(a.seuilMin, a.uniteCode) : '—') },
           {
             key: 'flags', header: '',
@@ -76,8 +89,8 @@ export default function CatalogPage() {
           },
         ]}
         fields={fields}
-        toForm={(a) => ({ ...a, categorieId: a.categorieId ?? '', uniteId: a.uniteId ?? '' })}
-        onSave={catalogService.saveArticle}
+        toForm={(a) => ({ ...a, categorieId: a.categorieId ?? '', uniteId: a.uniteId ?? '', prixVenteLitre: a.prixVenteLitre ?? '' })}
+        onSave={(id, p) => catalogService.saveArticle(id, p.type === 'HUILE_VRAC' ? p : { ...p, prixVenteLitre: null })}
         onStatus={catalogService.articleStatus}
       />
     </>

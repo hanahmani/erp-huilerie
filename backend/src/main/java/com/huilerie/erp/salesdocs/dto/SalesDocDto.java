@@ -19,7 +19,8 @@ public final class SalesDocDto {
                               @NotNull @DecimalMin(value = "0.001", message = "Quantité positive.") BigDecimal quantite,
                               @DecimalMin(value = "0", message = "Prix positif ou nul.") BigDecimal prixUnitaire,
                               @DecimalMin("0") @DecimalMax("100") BigDecimal remisePct,
-                              Long taxId) {
+                              Long taxId,
+                              boolean enLitres) {
     }
 
     public record Request(@NotNull(message = "Le type est obligatoire.") SalesDocument.Type type,
@@ -46,8 +47,10 @@ public final class SalesDocDto {
     public record CancelRequest(@NotBlank(message = "Le motif est obligatoire.") @Size(max = 255) String motif) {
     }
 
+    /** enLitres : huile vendue au litre ; quantiteStock (uniteStock = unité de l'article) est ce qui sort du stock. */
     public record Line(Long id, Long articleId, Long lotId, String lotNumero, String designation, String unite,
-                       BigDecimal quantite, BigDecimal prixUnitaire, BigDecimal remisePct, BigDecimal tauxTva,
+                       BigDecimal quantite, boolean enLitres, BigDecimal quantiteStock, String uniteStock,
+                       BigDecimal prixUnitaire, BigDecimal remisePct, BigDecimal tauxTva,
                        BigDecimal totalHt, BigDecimal totalTva) {
     }
 
@@ -75,7 +78,8 @@ public final class SalesDocDto {
                     children.stream().map(Detail::rel).toList(),
                     d.getLignes().stream().map(l -> new Line(l.getId(), l.getArticle().getId(),
                             l.getLot() == null ? null : l.getLot().getId(), l.getLot() == null ? null : l.getLot().getNumero(),
-                            l.getDesignation(), l.getUnite(), l.getQuantite(), l.getPrixUnitaire(), l.getRemisePct(),
+                            l.getDesignation(), l.getUnite(), l.getQuantite(), l.isEnLitres(), l.getQuantiteStock(),
+                            l.getArticle().getUnite().getCode(), l.getPrixUnitaire(), l.getRemisePct(),
                             l.getTauxTva(), l.getTotalHt(), l.getTotalTva())).toList(),
                     d.getPaiements().stream().map(p -> new Payment(p.getNumero(), p.getDate(), p.getMode(), p.getMontant(),
                             p.getReference(), p.getUsername())).toList());

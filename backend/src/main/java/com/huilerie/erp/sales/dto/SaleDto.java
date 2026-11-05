@@ -24,7 +24,8 @@ public final class SaleDto {
             Long lotId,
             @NotNull(message = "Quantité manquante.") @DecimalMin(value = "0.001", message = "La quantité doit être positive.")
             BigDecimal quantite,
-            @DecimalMin(value = "0", message = "Le prix ne peut pas être négatif.") BigDecimal prixUnitaire) {
+            @DecimalMin(value = "0", message = "Le prix ne peut pas être négatif.") BigDecimal prixUnitaire,
+            boolean enLitres) {
     }
 
     public record PaymentRequest(
@@ -46,12 +47,15 @@ public final class SaleDto {
 
     // ------------------------------------------------------------ réponses
 
+    /** quantiteStock : quantité sortie du stock dans l'unité de l'article (kg pour une huile vendue au litre). */
     public record Line(Long articleId, Long lotId, String lotNumero, String designation, String unite,
-                       BigDecimal quantite, BigDecimal prixUnitaire, BigDecimal total) {
+                       BigDecimal quantite, BigDecimal quantiteStock, String uniteStock, BigDecimal prixUnitaire,
+                       BigDecimal total) {
         static Line from(SaleLine l) {
             return new Line(l.getArticle().getId(), l.getLot() == null ? null : l.getLot().getId(),
                     l.getLot() == null ? null : l.getLot().getNumero(), l.getDesignation(), l.getUnite(),
-                    l.getQuantite(), l.getPrixUnitaire(), l.getTotalLigne());
+                    l.getQuantite(), l.getQuantiteStock(), l.getArticle().getUnite().getCode(), l.getPrixUnitaire(),
+                    l.getTotalLigne());
         }
     }
 
@@ -111,10 +115,13 @@ public final class SaleDto {
                              Instant plusAncienne) {
     }
 
-    /** Article proposé en caisse, avec le stock réellement vendable. */
+    /**
+     * Article proposé en caisse, avec le stock réellement vendable.
+     * prixVenteLitre et densite renseignés : huile en kg vendable aussi au litre (litres = kg / densité).
+     */
     public record SellableArticle(Long id, String reference, String nom, String codeBarres, String unite,
-                                  String categorie, BigDecimal prixVente, boolean suiviLot,
-                                  BigDecimal disponible, List<SellableLot> lots) {
+                                  String categorie, BigDecimal prixVente, BigDecimal prixVenteLitre, BigDecimal densite,
+                                  boolean suiviLot, BigDecimal disponible, List<SellableLot> lots) {
     }
 
     public record SellableLot(Long lotId, String numero, BigDecimal quantite) {

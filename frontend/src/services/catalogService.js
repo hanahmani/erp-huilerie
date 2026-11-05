@@ -8,6 +8,7 @@ export const catalogService = {
   saveCategory: (id, body) => (id ? api.put(`/catalog/categories/${id}`, body) : api.post('/catalog/categories', body)),
   categoryStatus: (id, actif) => api.patch(`/catalog/categories/${id}/status`, { actif }),
   articles: (params) => api.get(`/catalog/articles${toQuery(params)}`),
+  article: (id) => api.get(`/catalog/articles/${id}`),
   saveArticle: (id, body) => (id ? api.put(`/catalog/articles/${id}`, body) : api.post('/catalog/articles', body)),
   articleStatus: (id, actif) => api.patch(`/catalog/articles/${id}/status`, { actif }),
 };

@@ -97,8 +97,9 @@ public class Sale {
         this.dateVente = Instant.now();
     }
 
-    void addLine(Article article, StockLot lot, BigDecimal qty, BigDecimal price, BigDecimal lineTotal) {
-        lignes.add(new SaleLine(this, article, lot, qty, price, lineTotal));
+    void addLine(Article article, StockLot lot, String unite, BigDecimal qty, BigDecimal stockQty, BigDecimal price,
+                 BigDecimal lineTotal) {
+        lignes.add(new SaleLine(this, article, lot, unite, qty, stockQty, price, lineTotal));
     }
 
     void addPayment(PaymentMode mode, BigDecimal amount) {

@@ -33,4 +33,6 @@ public interface ArticleRepository extends JpaRepository<Article, Long> {
     List<Article> findByVendableTrueAndActifTrueOrderByNomAsc();
 
     List<Article> findByActifTrueAndSeuilMinIsNotNull();
+
+    List<Article> findByPrixVenteLitreIsNotNull();
 }

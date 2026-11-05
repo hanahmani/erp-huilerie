@@ -29,6 +29,8 @@ export default function CompanySettingsForm() {
     ...baseFields,
     { name: 'timbreFiscal', label: 'Timbre fiscal par facture (DT)', type: 'number', hint: 'Ajouté à chaque facture validée. Vide = aucun.' },
     { name: 'inactiviteMinutes', label: 'Déconnexion après inactivité (minutes)', type: 'number', hint: '30 minutes par défaut.' },
+    { name: 'densiteHuile', label: 'Densité de l\'huile (kg par litre)', type: 'number',
+      hint: '1 L = 0,916 kg par défaut. Sert à vendre au litre l\'huile stockée en kg.' },
     { name: 'tarifPressageKg', label: 'Tarif du pressage (DT par kg d\'olives)', type: 'number', hint: 'Prérempli à chaque réception, modifiable.' },
     { name: 'pressageArticleId', label: 'Article « huile des clients »', type: 'select', numeric: true, placeholder: 'Aucun',
       options: oils.map((a) => ({ value: a.id, label: `${a.nom} (${a.uniteCode})` })), hint: 'Article suivi par lot dans lequel est stockée l\'huile des clients.' },

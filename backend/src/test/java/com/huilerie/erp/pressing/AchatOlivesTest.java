@@ -99,7 +99,7 @@ class AchatOlivesTest {
         assertThat(contenu("PUITS-1")).isEqualByComparingTo("200");
 
         sales.createQuickSale(new SaleDto.QuickSaleRequest("vente-puits-1", null, null,
-                List.of(new SaleDto.LineRequest(huileVrac.getId(), puits.lotId(), new BigDecimal("15"), null)),
+                List.of(new SaleDto.LineRequest(huileVrac.getId(), puits.lotId(), new BigDecimal("15"), null, false)),
                 List.of(new SaleDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("180")))));
         assertThat(contenu("PUITS-1")).isEqualByComparingTo("185");
     }

@@ -43,6 +43,10 @@ public class Article {
     @Column(name = "prix_vente", precision = 12, scale = 3)
     private BigDecimal prixVente;
 
+    /** Huile en vrac en kg : prix fixé au litre, prix_vente (au kg) en est déduit. */
+    @Column(name = "prix_vente_litre", precision = 12, scale = 3)
+    private BigDecimal prixVenteLitre;
+
     @Column(name = "seuil_min", precision = 15, scale = 3)
     private BigDecimal seuilMin;
 
@@ -99,6 +103,8 @@ public class Article {
     public void setPrixAchat(BigDecimal v) { prixAchat = v; }
     public BigDecimal getPrixVente() { return prixVente; }
     public void setPrixVente(BigDecimal v) { prixVente = v; }
+    public BigDecimal getPrixVenteLitre() { return prixVenteLitre; }
+    public void setPrixVenteLitre(BigDecimal v) { prixVenteLitre = v; }
     public BigDecimal getSeuilMin() { return seuilMin; }
     public void setSeuilMin(BigDecimal v) { seuilMin = v; }
     public BigDecimal getStockMax() { return stockMax; }

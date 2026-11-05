@@ -11,12 +11,14 @@ import com.huilerie.erp.common.exception.BusinessException;
 import com.huilerie.erp.common.exception.NotFoundException;
 import com.huilerie.erp.common.numbering.DocumentNumberService;
 import com.huilerie.erp.common.response.PageResponse;
+import com.huilerie.erp.settings.SettingsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -27,14 +29,16 @@ public class CatalogService {
     private final ArticleRepository articles;
     private final AuditService audit;
     private final DocumentNumberService numbers;
+    private final SettingsService settings;
 
     public CatalogService(UnitRepository units, CategoryRepository categories, ArticleRepository articles,
-                          AuditService audit, DocumentNumberService numbers) {
+                          AuditService audit, DocumentNumberService numbers, SettingsService settings) {
         this.units = units;
         this.categories = categories;
         this.articles = articles;
         this.audit = audit;
         this.numbers = numbers;
+        this.settings = settings;
     }
 
     // ------------------------------------------------------------------ unités
@@ -127,12 +131,16 @@ public class CatalogService {
                 : articles.existsByCodeBarresAndIdNot(barcode, id))) {
             throw new BusinessException("Ce code-barres est déjà attribué à un autre article.");
         }
-        if (r.vendable() && r.prixVente() == null) {
-            throw new BusinessException("Un article vendable doit avoir un prix de vente.");
-        }
         Unit unit = unit(r.uniteId());
         if (!unit.isActif()) {
             throw new BusinessException("Cette unité est désactivée.");
+        }
+        BigDecimal prixLitre = Money.strict(r.prixVenteLitre(), "Prix au litre");
+        if (prixLitre != null && !OilUnits.litreEligible(r.type(), unit)) {
+            throw new BusinessException("Le prix au litre est réservé à l'huile en vrac stockée en kg (unité « kg »).");
+        }
+        if (r.vendable() && r.prixVente() == null && prixLitre == null) {
+            throw new BusinessException("Un article vendable doit avoir un prix de vente.");
         }
         Category cat = r.categorieId() == null ? null : category(r.categorieId());
 
@@ -150,7 +158,10 @@ public class CatalogService {
         a.setCategorie(cat);
         a.setUnite(unit);
         a.setPrixAchat(Money.strict(r.prixAchat(), "Prix d'achat"));
-        a.setPrixVente(Money.strict(r.prixVente(), "Prix de vente"));
+        a.setPrixVenteLitre(prixLitre);
+        // Prix fixé au litre : le prix au kg est calculé avec la densité des Paramètres.
+        a.setPrixVente(prixLitre != null ? OilUnits.kgPrice(prixLitre, settings.oilDensity())
+                : Money.strict(r.prixVente(), "Prix de vente"));
         a.setSeuilMin(Money.strict(r.seuilMin(), "Seuil minimal"));
         a.setStockMax(Money.strict(r.stockMax(), "Stock maximum"));
         if (a.getSeuilMin() != null && a.getStockMax() != null && a.getStockMax().compareTo(a.getSeuilMin()) < 0) {

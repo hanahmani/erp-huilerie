@@ -80,7 +80,7 @@ public class TraceabilityService {
                     (Long) r[2], (String) r[3]));
         }
         for (Object[] r : rows("""
-                select s.numeroTicket, s.dateVente, c.nom, l.quantite from SaleLine l join l.sale s left join s.client c
+                select s.numeroTicket, s.dateVente, c.nom, coalesce(l.quantiteStock, l.quantite) from SaleLine l join l.sale s left join s.client c
                 where l.lot.id = :id and s.statut = com.huilerie.erp.sales.SaleStatus.VALIDEE""", lotId)) {
             down.add(new Link("Vente", (String) r[0], (Instant) r[1], r[2] == null ? "Client comptoir" : "Client " + r[2],
                     (BigDecimal) r[3], null, null));

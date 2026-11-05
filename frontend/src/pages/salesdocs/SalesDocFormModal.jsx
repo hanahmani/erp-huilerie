@@ -9,6 +9,7 @@ import { clientService } from '../../services/clientService';
 import { referenceService } from '../../services/referenceService';
 import { stockService } from '../../services/stockService';
 import { salesDocService } from '../../services/salesDocService';
+import { settingsService } from '../../services/settingsService';
 import { formatDT, formatQty, todayISO } from '../../utils/format';
 import { DOC_TYPES } from '../../utils/labels';
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
@@ -20,6 +21,9 @@ function preview(l, taxes) {
   return { ht, tva: tax ? Math.round((ht * Number(tax.taux)) / 100) : 0 };
 }
 
+/** Prix du catalogue mémorisés sur la ligne : l'huile au prix fixé au litre peut passer du kg au litre. */
+const prices = (a) => ({ uniteStock: a.uniteCode, prixKg: a.prixVente, prixLitre: a.prixVenteLitre });
+
 export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
   const [clientId, setClientId] = useState(doc?.clientId ?? '');
   const [date, setDate] = useState(doc?.dateDoc ?? todayISO());
@@ -28,12 +32,24 @@ export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
   const [notes, setNotes] = useState(doc?.notes ?? '');
   const [taxes, setTaxes] = useState([]);
   const [lines, setLines] = useState(() => (doc?.lignes ?? []).map((l) => ({
-    key: l.id, articleId: l.articleId, nom: l.designation, unite: l.unite, suiviLot: Boolean(l.lotId), lotId: l.lotId ?? '', lots: [],
+    key: l.id, articleId: l.articleId, nom: l.designation, unite: l.unite, enLitres: l.enLitres, uniteStock: l.uniteStock,
+    prixKg: null, prixLitre: null, suiviLot: Boolean(l.lotId), lotId: l.lotId ?? '', lots: [],
     quantite: String(l.quantite), prixUnitaire: String(l.prixUnitaire), remisePct: String(l.remisePct), tauxTva: l.tauxTva, taxId: '',
   })));
   const [picker, setPicker] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [density, setDensity] = useState(null);
+
+  useEffect(() => { settingsService.get().then((s) => setDensity(Number(s.densiteHuile))).catch(() => {}); }, []);
+  // Brouillon rouvert : on relit les prix des articles pour permettre le choix kg / litre.
+  useEffect(() => {
+    const ids = [...new Set((doc?.lignes ?? []).map((l) => l.articleId))];
+    Promise.all(ids.map((id) => catalogService.article(id).catch(() => null))).then((arts) => {
+      const byId = Object.fromEntries(arts.filter(Boolean).map((a) => [a.id, a]));
+      setLines((ls) => ls.map((l) => (byId[l.articleId] ? { ...l, ...prices(byId[l.articleId]) } : l)));
+    });
+  }, [doc]);
 
   useEffect(() => {
     referenceService.taxes().then((t) => {
@@ -46,7 +62,8 @@ export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
   const fetchClients = useCallback((q) => clientService.list({ q, actif: true, size: 30 }), []);
   const toClient = useCallback((c) => ({ value: c.id, label: `${c.nom} (${c.code})` }), []);
   const fetchArticles = useCallback((q) => catalogService.articles({ q, actif: true, size: 50 }), []);
-  const toArticle = useCallback((a) => ({ value: a.id, label: `${a.nom} (${a.reference})${a.prixVente != null ? ` · ${Number(a.prixVente).toFixed(3)} DT` : ''}` }), []);
+  const toArticle = useCallback((a) => ({ value: a.id, label: `${a.nom} (${a.reference})${a.prixVenteLitre != null
+    ? ` · ${Number(a.prixVenteLitre).toFixed(3)} DT / L` : a.prixVente != null ? ` · ${Number(a.prixVente).toFixed(3)} DT` : ''}` }), []);
 
   const addArticle = async (id, a) => {
     if (!a) return;
@@ -55,13 +72,22 @@ export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
       lots = (await stockService.lots({ articleId: a.id, owner: 'ENTREPRISE', statut: 'DISPONIBLE', size: 50 }).catch(() => ({ content: [] }))).content
         .filter((l) => Number(l.quantite) > 0);
     }
+    // Huile au prix fixé au litre : ligne au litre par défaut, comme en caisse.
+    const enLitres = a.prixVenteLitre != null;
+    const prix = enLitres ? a.prixVenteLitre : a.prixVente;
     setLines((ls) => [...ls, {
-      key: `${id}-${Date.now()}`, articleId: a.id, nom: a.nom, unite: a.uniteCode, suiviLot: a.suiviLot, lots, lotId: lots[0]?.id ?? '',
-      quantite: '1', prixUnitaire: a.prixVente != null ? String(a.prixVente) : '', remisePct: '0', taxId: taxes[0]?.id ?? '',
+      key: `${id}-${Date.now()}`, articleId: a.id, nom: a.nom, unite: enLitres ? 'L' : a.uniteCode, enLitres, ...prices(a),
+      suiviLot: a.suiviLot, lots, lotId: lots[0]?.id ?? '',
+      quantite: '1', prixUnitaire: prix != null ? String(prix) : '', remisePct: '0', taxId: taxes[0]?.id ?? '',
     }]);
     setPicker('');
   };
   const update = (key, patch) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  const setMode = (l, enLitres) => {
+    const prix = enLitres ? l.prixLitre : l.prixKg;
+    update(l.key, { enLitres, unite: enLitres ? 'L' : l.uniteStock, prixUnitaire: prix != null ? String(prix) : l.prixUnitaire });
+  };
+  const kgOf = (l) => (density ? fromMillimes(Math.round(toMillimes(l.quantite) * density)) : null);
 
   const totals = lines.reduce((acc, l) => { const t = preview(l, taxes); return { ht: acc.ht + t.ht, tva: acc.tva + t.tva }; }, { ht: 0, tva: 0 });
   const needsLot = type === 'LIVRAISON' || type === 'FACTURE';
@@ -76,6 +102,7 @@ export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
         lignes: lines.map((l) => ({
           articleId: l.articleId, lotId: l.lotId ? Number(l.lotId) : null, quantite: normalizeDecimal(l.quantite),
           prixUnitaire: normalizeDecimal(l.prixUnitaire), remisePct: normalizeDecimal(l.remisePct) || '0', taxId: l.taxId ? Number(l.taxId) : null,
+          enLitres: Boolean(l.enLitres),
         })),
       }));
     } catch (e) {
@@ -104,7 +131,16 @@ export default function SalesDocFormModal({ type, doc, onClose, onSaved }) {
             <thead><tr><th>Article</th><th>Lot</th><th>Qté</th><th>P.U. HT</th><th>Rem. %</th><th>TVA</th><th className="num">Total HT</th><th /></tr></thead>
             <tbody>{lines.map((l) => (
               <tr key={l.key}>
-                <td><strong>{l.nom}</strong><div className="muted" style={{ fontSize: 12 }}>{l.unite}</div></td>
+                <td><strong>{l.nom}</strong>
+                  {l.prixLitre != null || l.enLitres ? (
+                    <div className="pos-unit" role="group" aria-label="Unité de vente">
+                      <button type="button" className={l.enLitres ? 'active' : ''} disabled={l.prixLitre == null} onClick={() => setMode(l, true)}>Litre</button>
+                      <button type="button" className={l.enLitres ? '' : 'active'} onClick={() => setMode(l, false)}>{l.uniteStock}</button>
+                    </div>
+                  ) : <div className="muted" style={{ fontSize: 12 }}>{l.unite}</div>}
+                  {l.enLitres && toMillimes(l.quantite) > 0 && kgOf(l)
+                    ? <div className="muted" style={{ fontSize: 12 }}>= {formatQty(kgOf(l), l.uniteStock)} sortis du stock</div> : null}
+                </td>
                 <td>{l.suiviLot ? (
                   <select className="select" value={l.lotId} onChange={(e) => update(l.key, { lotId: e.target.value })}>
                     <option value="">Choisir…</option>

@@ -38,7 +38,7 @@ class ArticleReferenceTest {
     }
 
     private ArticleDto.Request request(String nom, ArticleType type) {
-        return new ArticleDto.Request(nom, null, type, null, litre.getId(), null, null, null, null, null, false,
+        return new ArticleDto.Request(nom, null, type, null, litre.getId(), null, null, null, null, null, null, false,
                 type == ArticleType.HUILE_VRAC);
     }
 
@@ -61,7 +61,7 @@ class ArticleReferenceTest {
     void laReferenceNeChangePasALaModification() {
         ArticleDto.Response a = create("Huile en vrac", ArticleType.HUILE_VRAC);
         ArticleDto.Request renamed = new ArticleDto.Request("Huile en vrac extra vierge", null, ArticleType.HUILE_VRAC, null,
-                litre.getId(), null, new BigDecimal("15.000"), null, null, null, true, true);
+                litre.getId(), null, new BigDecimal("15.000"), null, null, null, null, true, true);
         assertThat(service.saveArticle(a.id(), renamed).reference()).isEqualTo("HVR-0001");
     }
 }

@@ -44,6 +44,10 @@ public class CompanySettings {
     @Column(name = "timbre_fiscal", precision = 12, scale = 3)
     private java.math.BigDecimal timbreFiscal;
 
+    /** kg par litre, la même pour toutes les huiles. */
+    @Column(name = "densite_huile", nullable = false, precision = 6, scale = 4)
+    private java.math.BigDecimal densiteHuile = com.huilerie.erp.catalog.OilUnits.DEFAULT_DENSITY;
+
     @Column(name = "inactivite_minutes")
     private Integer inactiviteMinutes;
 
@@ -74,6 +78,8 @@ public class CompanySettings {
     public Instant getUpdatedAt() { return updatedAt; }
     public java.math.BigDecimal getTimbreFiscal() { return timbreFiscal; }
     public void setTimbreFiscal(java.math.BigDecimal v) { timbreFiscal = v; }
+    public java.math.BigDecimal getDensiteHuile() { return densiteHuile; }
+    public void setDensiteHuile(java.math.BigDecimal v) { densiteHuile = v; }
     public Integer getInactiviteMinutes() { return inactiviteMinutes; }
     public void setInactiviteMinutes(Integer v) { inactiviteMinutes = v; }
     public java.math.BigDecimal getTarifPressageKg() { return tarifPressageKg; }

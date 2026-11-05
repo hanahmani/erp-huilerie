@@ -3,6 +3,7 @@ package com.huilerie.erp.sales;
 import com.huilerie.erp.audit.AuditService;
 import com.huilerie.erp.catalog.Article;
 import com.huilerie.erp.catalog.ArticleRepository;
+import com.huilerie.erp.catalog.OilUnits;
 import com.huilerie.erp.clients.Client;
 import com.huilerie.erp.clients.ClientRepository;
 import com.huilerie.erp.common.Money;
@@ -83,6 +84,7 @@ public class SaleService {
         Map<Long, List<StockBalance>> byArticle = new HashMap<>();
         balances.sellable(list.stream().map(Article::getId).toList(), LotOwner.ENTREPRISE, LotStatus.DISPONIBLE)
                 .forEach(b -> byArticle.computeIfAbsent(b.getArticle().getId(), k -> new ArrayList<>()).add(b));
+        BigDecimal density = settings.oilDensity();
         return list.stream().map(a -> {
             List<StockBalance> bs = byArticle.getOrDefault(a.getId(), List.of());
             BigDecimal dispo = bs.stream().map(StockBalance::getQuantite).reduce(Money.zero(), BigDecimal::add);
@@ -92,7 +94,8 @@ public class SaleService {
                     .toList();
             return new SaleDto.SellableArticle(a.getId(), a.getReference(), a.getNom(), a.getCodeBarres(),
                     a.getUnite().getCode(), a.getCategorie() == null ? null : a.getCategorie().getNom(),
-                    a.getPrixVente(), a.isSuiviLot(), dispo, lotLines);
+                    a.getPrixVente(), a.getPrixVenteLitre(), OilUnits.soldByLitre(a) ? density : null,
+                    a.isSuiviLot(), dispo, lotLines);
         }).toList();
     }
 
@@ -128,9 +131,11 @@ public class SaleService {
         }
 
         // ---- préparation des lignes (contrôles avant toute écriture)
-        record Prepared(Article article, StockLot lot, BigDecimal qty, BigDecimal price, BigDecimal total) {
+        record Prepared(Article article, StockLot lot, String unite, BigDecimal qty, BigDecimal stockQty, BigDecimal price,
+                        BigDecimal total) {
         }
         List<Prepared> prepared = new ArrayList<>();
+        BigDecimal density = settings.oilDensity();
         for (SaleDto.LineRequest l : r.lignes()) {
             Article a = articles.findById(l.articleId()).orElseThrow(() -> new NotFoundException("Produit introuvable."));
             if (!a.isActif() || !a.isVendable()) {
@@ -148,12 +153,18 @@ public class SaleService {
                 }
             }
             BigDecimal qty = Money.strict(l.quantite(), "Quantité");
-            BigDecimal catalogPrice = a.getPrixVente();
+            if (l.enLitres() && !OilUnits.soldByLitre(a)) {
+                throw new BusinessException("« " + a.getNom() + " » n'a pas de prix au litre : vente au litre impossible.");
+            }
+            // Au litre : prix et quantité en L sur le ticket, kg (L × densité) en sortie de stock.
+            String unite = l.enLitres() ? "L" : a.getUnite().getCode();
+            BigDecimal stockQty = l.enLitres() ? OilUnits.litresToKg(qty, density) : qty;
+            BigDecimal catalogPrice = l.enLitres() ? a.getPrixVenteLitre() : a.getPrixVente();
             BigDecimal price = l.prixUnitaire() == null ? catalogPrice : Money.strict(l.prixUnitaire(), "Prix unitaire");
             if (price.compareTo(catalogPrice) != 0 && !canOverridePrice) {
                 throw new AccessDeniedException("Vous n'êtes pas autorisé à modifier le prix de vente.");
             }
-            prepared.add(new Prepared(a, lot, qty, price, SaleCalculator.lineTotal(qty, price)));
+            prepared.add(new Prepared(a, lot, unite, qty, stockQty, price, SaleCalculator.lineTotal(qty, price)));
         }
 
         Map<PaymentMode, BigDecimal> payments = new EnumMap<>(PaymentMode.class);
@@ -186,13 +197,13 @@ public class SaleService {
         // ---- écritures
         String numero = numbers.nextYearly("TICKET", "TCK");
         Sale sale = new Sale(numero, r.idempotencyKey(), client, cashier);
-        prepared.forEach(p -> sale.addLine(p.article(), p.lot(), p.qty(), p.price(), p.total()));
+        prepared.forEach(p -> sale.addLine(p.article(), p.lot(), p.unite(), p.qty(), p.stockQty(), p.price(), p.total()));
         t.affecte().forEach(sale::addPayment);
         sale.setTotals(t.sousTotal(), t.remise(), t.total(), t.recu(), t.paye(), t.reste(), t.monnaie());
         Sale saved = sales.save(sale);
 
         for (Prepared p : prepared) {
-            stock.apply(p.article(), p.lot(), MovementType.VENTE, p.qty(), null, DOC_TYPE, saved.getId());
+            stock.apply(p.article(), p.lot(), MovementType.VENTE, p.stockQty(), null, DOC_TYPE, saved.getId());
         }
         t.affecte().forEach((mode, amount) -> finance.record(CashMovementType.ENCAISSEMENT, mode, amount,
                 "Vente " + numero, DOC_TYPE, saved.getId()));
@@ -300,7 +311,7 @@ public class SaleService {
         }
         String reason = motif.trim();
         for (SaleLine l : s.getLignes()) {
-            stock.apply(l.getArticle(), l.getLot(), MovementType.ANNULATION_VENTE, l.getQuantite(),
+            stock.apply(l.getArticle(), l.getLot(), MovementType.ANNULATION_VENTE, l.getQuantiteStock(),
                     "Annulation " + s.getNumeroTicket() + " : " + reason, DOC_TYPE, s.getId());
         }
         for (SalePayment p : s.getPaiements()) {

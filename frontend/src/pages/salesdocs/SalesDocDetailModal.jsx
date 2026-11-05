@@ -93,7 +93,7 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
           <table className="table" style={{ marginTop: 16 }}>
             <thead><tr><th>Article</th><th>Lot</th><th className="num">Qté</th><th className="num">P.U. HT</th><th className="num">Rem.</th><th className="num">TVA</th><th className="num">Total HT</th></tr></thead>
             <tbody>{d.lignes.map((l) => (
-              <tr key={l.id}><td>{l.designation}</td><td>{l.lotNumero || '—'}</td><td className="num">{formatQty(l.quantite, l.unite)}</td>
+              <tr key={l.id}><td>{l.designation}</td><td>{l.lotNumero || '—'}</td><td className="num">{formatQty(l.quantite, l.unite)}{l.enLitres ? <><br /><span className="muted">{formatQty(l.quantiteStock, l.uniteStock)}</span></> : null}</td>
                 <td className="num">{formatDT(l.prixUnitaire)}</td><td className="num">{Number(l.remisePct)} %</td><td className="num">{Number(l.tauxTva)} %</td>
                 <td className="num">{formatDT(l.totalHt)}</td></tr>
             ))}</tbody>

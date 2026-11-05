@@ -7,10 +7,11 @@ public record SettingsResponse(boolean configured, String raisonSociale, String 
                                String email, String matriculeFiscal, String messageTicket,
                                boolean venteCreditAutorisee, java.math.BigDecimal tarifPressageKg,
                                Long pressageArticleId, String pressageArticleNom, java.math.BigDecimal timbreFiscal,
-                               Integer inactiviteMinutes) {
+                               Integer inactiviteMinutes, java.math.BigDecimal densiteHuile) {
 
     public static SettingsResponse empty() {
-        return new SettingsResponse(false, null, null, null, null, null, null, false, null, null, null, null, null);
+        return new SettingsResponse(false, null, null, null, null, null, null, false, null, null, null, null, null,
+                com.huilerie.erp.catalog.OilUnits.DEFAULT_DENSITY);
     }
 
     public static SettingsResponse from(CompanySettings s) {
@@ -18,6 +19,6 @@ public record SettingsResponse(boolean configured, String raisonSociale, String 
                 s.getMatriculeFiscal(), s.getMessageTicket(), s.isVenteCreditAutorisee(), s.getTarifPressageKg(),
                 s.getPressageArticle() == null ? null : s.getPressageArticle().getId(),
                 s.getPressageArticle() == null ? null : s.getPressageArticle().getNom(), s.getTimbreFiscal(),
-                s.getInactiviteMinutes());
+                s.getInactiviteMinutes(), s.getDensiteHuile());
     }
 }
