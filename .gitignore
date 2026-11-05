@@ -17,3 +17,6 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# Sauvegardes de la base (scripts/sauvegarde.sh)
+sauvegardes/
