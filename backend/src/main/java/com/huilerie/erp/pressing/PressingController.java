@@ -14,9 +14,11 @@ import java.time.Instant;
 public class PressingController {
 
     private final PressingService service;
+    private final ClientAccountService accounts;
 
-    public PressingController(PressingService service) {
+    public PressingController(PressingService service, ClientAccountService accounts) {
         this.service = service;
+        this.accounts = accounts;
     }
 
     @GetMapping
@@ -59,6 +61,33 @@ public class PressingController {
     @PostMapping("/{id}/return")
     public PressingDto.Detail returnOil(@PathVariable Long id, @Valid @RequestBody PressingDto.ReturnRequest r) {
         return service.returnOil(id, r);
+    }
+
+    @GetMapping("/accounts")
+    public java.util.List<PressingDto.AccountRow> accounts() {
+        return accounts.accounts();
+    }
+
+    @GetMapping("/clients/{clientId}/oil")
+    public PressingDto.OilAccount oilAccount(@PathVariable Long clientId) {
+        return accounts.oilAccount(clientId);
+    }
+
+    @PostMapping("/clients/{clientId}/return")
+    public PressingDto.OilAccount returnToClient(@PathVariable Long clientId,
+                                                 @Valid @RequestBody PressingDto.ClientReturnRequest r) {
+        return accounts.returnToClient(clientId, r);
+    }
+
+    @GetMapping("/clients/{clientId}/seller")
+    public PressingDto.SellerAccount sellerAccount(@PathVariable Long clientId) {
+        return accounts.sellerAccount(clientId);
+    }
+
+    @PostMapping("/clients/{clientId}/advances")
+    public PressingDto.SellerAccount giveAdvance(@PathVariable Long clientId,
+                                                 @Valid @RequestBody PressingDto.PaymentRequest r) {
+        return accounts.giveAdvance(clientId, r);
     }
 
     @PostMapping("/{id}/pay")

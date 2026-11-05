@@ -14,6 +14,7 @@ import com.huilerie.erp.common.numbering.DocumentNumberService;
 import com.huilerie.erp.common.response.PageResponse;
 import com.huilerie.erp.finance.CashMovementType;
 import com.huilerie.erp.finance.FinanceService;
+import com.huilerie.erp.finance.PaymentMode;
 import com.huilerie.erp.inventory.*;
 import com.huilerie.erp.pressing.dto.PressingDto;
 import com.huilerie.erp.settings.CompanySettings;
@@ -27,13 +28,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Bulletin de pressage.
- * SERVICE : l'huile obtenue entre dans un lot appartenant au client (jamais vendable) et n'en sort que par une
- * remise au client ; le service est facturé au kilo d'olives net et doit être payé avant la remise.
+ * SERVICE : l'huile obtenue entre dans un lot appartenant au client (le puits qui lui est réservé, sinon un lot propre
+ * au pressage), jamais vendable, et n'en sort que par une remise ; le service est facturé au kilo d'olives net et doit
+ * être payé avant la remise. Les remises se font sur le compte d'huile du client ({@link ClientAccountService}).
  * ACHAT : l'huilerie achète les olives au kilo net ; l'huile obtenue est versée dans un puits (vendable en caisse)
- * et le vendeur est payé, en une ou plusieurs fois, jusqu'au montant d'achat.
+ * et le vendeur est payé, en une ou plusieurs fois, jusqu'au montant d'achat ; ses avances en sont déduites.
  */
 @Service
 public class PressingService {
@@ -52,11 +55,16 @@ public class PressingService {
     private final DocumentNumberService numbers;
     private final AuditService audit;
     private final TankService tanks;
+    private final ClientAccountService accounts;
+    private final com.huilerie.erp.inventory.StorageTankRepository tankRepository;
 
     public PressingService(PressingRepository pressings, ClientRepository clients, ArticleRepository articles,
                            StockLotRepository lots, StockService stock, FinanceService finance, SettingsService settings,
-                           DocumentNumberService numbers, AuditService audit, TankService tanks) {
+                           DocumentNumberService numbers, AuditService audit, TankService tanks,
+                           ClientAccountService accounts, com.huilerie.erp.inventory.StorageTankRepository tankRepository) {
+        this.tankRepository = tankRepository;
         this.tanks = tanks;
+        this.accounts = accounts;
         this.pressings = pressings;
         this.clients = clients;
         this.articles = articles;
@@ -138,6 +146,16 @@ public class PressingService {
         audit.log(SecurityUtils.username(), purchase ? "PRESSING_PURCHASE" : "PRESSING_RECEIVE", "Pressing",
                 String.valueOf(p.getId()), p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString()
                         + " kg net" + (purchase ? ", achat " + p.getMontantAchat().toPlainString() + " DT" : ""));
+        if (purchase) {
+            accounts.imputeAdvances(p);
+            BigDecimal avance = Money.strict(r.avance(), "Avance");
+            if (avance != null && avance.signum() > 0) {
+                if (r.modeAvance() == null) {
+                    throw new BusinessException("Indiquez le mode de paiement de l'avance.");
+                }
+                payToSeller(p, r.modeAvance(), avance, "Avance à la réception");
+            }
+        }
         return PressingDto.Detail.from(p);
     }
 
@@ -188,12 +206,25 @@ public class PressingService {
             if (r.tankId() == null) {
                 throw new BusinessException("Choisissez le puits ou le silo où l'huile est stockée.");
             }
+            if (tankRepository.findById(r.tankId()).map(t -> t.getClient() != null).orElse(false)) {
+                throw new BusinessException("Ce puits est réservé à un client : l'huile achetée va dans un puits de l'huilerie.");
+            }
             StorageTank tank = tanks.fill(r.tankId(), huile, MovementType.PRESSAGE_ACHAT,
                     "Achat olives " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
             p.finishPurchase(tank, huile, pertes);
             audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
                     p.getNumero() + " : " + huile.toPlainString() + " " + tank.getArticle().getUnite().getCode()
                             + " dans " + tank.getCode());
+            return PressingDto.Detail.from(p);
+        }
+        if (r.tankId() != null) {
+            StorageTank own = accounts.clientTank(p, r.tankId());
+            tanks.fill(own.getId(), huile, MovementType.PRESSAGE_ENTREE,
+                    "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
+            p.finishInTank(own, huile, pertes);
+            audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
+                    p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode()
+                            + " dans " + own.getCode());
             return PressingDto.Detail.from(p);
         }
         if (lots.existsByArticleIdAndNumeroIgnoreCase(p.getArticle().getId(), p.getNumero())) {
@@ -208,7 +239,7 @@ public class PressingService {
         return PressingDto.Detail.from(p);
     }
 
-    /** Remise de l'huile au client (en une ou plusieurs fois), après paiement complet du service. */
+    /** Remise de l'huile d'un seul pressage (en une ou plusieurs fois), après paiement complet du service. */
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
     @Transactional
     public PressingDto.Detail returnOil(Long id, PressingDto.ReturnRequest r) {
@@ -219,22 +250,8 @@ public class PressingService {
         if (p.getStatut() != Pressing.Status.TERMINE) {
             throw new BusinessException("L'huile ne peut être remise qu'après la fin du pressage.");
         }
-        if (p.reste().signum() > 0) {
-            throw new BusinessException("Le service n'est pas entièrement payé (reste " + p.reste().toPlainString()
-                    + " DT) : encaissez-le avant de remettre l'huile.");
-        }
-        BigDecimal q = Money.strict(r.quantite(), "Quantité");
-        if (q.compareTo(p.huileARemettre()) > 0) {
-            throw new BusinessException("Il reste " + p.huileARemettre().toPlainString() + " à remettre.");
-        }
-        p.getRemises().size();
-        String remisA = Text.clean(r.remisA()) == null ? p.getClient().getNom() : Text.clean(r.remisA());
-        String numero = numbers.nextYearly("REMISE_HUILE", "RMH");
-        stock.apply(p.getArticle(), p.getLot(), MovementType.PRESSAGE_REMISE, q, "Remise " + numero + " à " + remisA,
-                DOC_TYPE, p.getId());
-        p.addReturn(numero, q, remisA, SecurityUtils.username());
+        accounts.giveOil(p.getClient(), List.of(p), r.quantite(), false, r.remisA());
         pressings.saveAndFlush(p);
-        audit.log(SecurityUtils.username(), "PRESSING_RETURN", "Pressing", String.valueOf(id), numero + " " + q.toPlainString());
         return PressingDto.Detail.from(p);
     }
 
@@ -273,19 +290,22 @@ public class PressingService {
         if (p.getStatut() == Pressing.Status.ANNULE) {
             throw new BusinessException("Ce pressage est annulé.");
         }
-        BigDecimal amount = Money.strict(r.montant(), "Montant");
+        payToSeller(p, r.mode(), Money.strict(r.montant(), "Montant"), Text.clean(r.reference()));
+        return PressingDto.Detail.from(p);
+    }
+
+    private void payToSeller(Pressing p, PaymentMode mode, BigDecimal amount, String reference) {
         if (amount.compareTo(p.resteVendeur()) > 0) {
             throw new BusinessException("Le paiement dépasse le reste dû au vendeur (" + p.resteVendeur().toPlainString() + " DT).");
         }
         p.getReglementsVendeur().size();
         String numero = numbers.nextYearly("PAIEMENT_OLIVES", "PAO");
-        p.addSellerPayment(numero, r.mode(), amount, Text.clean(r.reference()), SecurityUtils.username());
+        p.addSellerPayment(numero, mode, amount, reference, SecurityUtils.username(), null);
         pressings.saveAndFlush(p);
-        finance.record(CashMovementType.DECAISSEMENT, r.mode(), amount,
+        finance.record(CashMovementType.DECAISSEMENT, mode, amount,
                 "Achat olives " + p.getNumero() + " (" + p.getClient().getNom() + ")", "ACHAT_OLIVES", p.getId());
-        audit.log(SecurityUtils.username(), "OLIVE_PURCHASE_PAYMENT", "Pressing", String.valueOf(id),
+        audit.log(SecurityUtils.username(), "OLIVE_PURCHASE_PAYMENT", "Pressing", String.valueOf(p.getId()),
                 numero + " " + amount.toPlainString() + " DT");
-        return PressingDto.Detail.from(p);
     }
 
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
@@ -295,9 +315,12 @@ public class PressingService {
         if (p.getStatut() != Pressing.Status.RECU && p.getStatut() != Pressing.Status.EN_COURS) {
             throw new BusinessException("Un pressage terminé ne peut plus être annulé.");
         }
-        if (p.getMontantPaye().signum() > 0 || p.getMontantRegle().signum() > 0) {
+        // Les avances déduites ne sont pas de l'argent sorti pour cet achat : elles sont rendues au vendeur.
+        boolean cashPaid = p.getReglementsVendeur().stream().anyMatch(sp -> sp.getAdvance() == null);
+        if (p.getMontantPaye().signum() > 0 || cashPaid) {
             throw new BusinessException("Ce pressage a déjà été payé : il ne peut pas être annulé.");
         }
+        accounts.releaseAdvances(p);
         p.cancel(motif.trim());
         audit.log(SecurityUtils.username(), "PRESSING_CANCEL", "Pressing", String.valueOf(id), p.getNumero() + " : " + motif.trim());
         return PressingDto.Detail.from(p);

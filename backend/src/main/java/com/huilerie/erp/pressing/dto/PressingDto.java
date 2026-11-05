@@ -16,7 +16,8 @@ public final class PressingDto {
     /**
      * Bulletin de pressage / bon de pesée. mode vide : SERVICE.
      * SERVICE : tarifKg et articleId facultatifs, sinon valeurs des paramètres.
-     * ACHAT : prixOlivesKg obligatoire ; articleId et tarifKg ignorés (l'huile ira dans un puits).
+     * ACHAT : prixOlivesKg obligatoire ; articleId et tarifKg ignorés (l'huile ira dans un puits) ;
+     * les avances déjà versées au vendeur sont déduites, puis avance (facultative) est payée le jour même.
      * adresse vide : adresse du client.
      */
     public record ReceiveRequest(
@@ -34,7 +35,18 @@ public final class PressingDto {
             @Size(max = 30, message = "N° de véhicule : 30 caractères au maximum.") String vehicule,
             @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse,
             Pressing.Mode mode,
-            @DecimalMin(value = "0", message = "Le prix d'achat ne peut pas être négatif.") BigDecimal prixOlivesKg) {
+            @DecimalMin(value = "0", message = "Le prix d'achat ne peut pas être négatif.") BigDecimal prixOlivesKg,
+            @DecimalMin(value = "0", message = "L'avance ne peut pas être négative.") BigDecimal avance,
+            PaymentMode modeAvance) {
+
+        /** Bulletin sans avance payée le jour même. */
+        public ReceiveRequest(Long clientId, Long articleId, String variete, String provenance,
+                              Pressing.OliveState etatOlives, BigDecimal poidsBrut, BigDecimal tare, BigDecimal tarifKg,
+                              String notes, String blNumero, String transporteur, String vehicule, String adresse,
+                              Pressing.Mode mode, BigDecimal prixOlivesKg) {
+            this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, null, null);
+        }
     }
 
     /** Correction des informations de transport du bulletin (statut RECU uniquement). */
@@ -45,7 +57,10 @@ public final class PressingDto {
             @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
     }
 
-    /** tankId : obligatoire pour un achat d'olives (puits où l'huile est versée), ignoré sinon. */
+    /**
+     * tankId : obligatoire pour un achat d'olives (puits de l'huilerie où l'huile est versée) ;
+     * facultatif pour un pressage à façon (puits réservé au client, sinon lot propre au pressage).
+     */
     public record FinishRequest(
             @NotNull @DecimalMin(value = "0.001", message = "La quantité d'huile doit être positive.") BigDecimal huileObtenue,
             @DecimalMin(value = "0", message = "Les pertes ne peuvent pas être négatives.") BigDecimal pertesKg,
@@ -54,6 +69,13 @@ public final class PressingDto {
 
     public record ReturnRequest(
             @NotNull @DecimalMin(value = "0.001", message = "La quantité doit être positive.") BigDecimal quantite,
+            @Size(max = 150) String remisA) {
+    }
+
+    /** Remise sur le compte d'huile du client : quantité en kg, ou en litres (convertie avec la densité). */
+    public record ClientReturnRequest(
+            @NotNull @DecimalMin(value = "0.001", message = "La quantité doit être positive.") BigDecimal quantite,
+            boolean enLitres,
             @Size(max = 150) String remisA) {
     }
 
@@ -68,7 +90,9 @@ public final class PressingDto {
     public record ReturnLine(String numero, Instant date, BigDecimal quantite, String remisA, String username) {
     }
 
-    public record PaymentLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, String reference, String username) {
+    /** avanceNumero : règlement vendeur pris sur une avance déjà versée (pas de sortie de caisse). */
+    public record PaymentLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, String reference, String username,
+                              String avanceNumero) {
     }
 
     public record Detail(Long id, String numero, Pressing.Status statut, Long clientId, String clientNom, String clientCode,
@@ -98,12 +122,13 @@ public final class PressingDto {
                     p.getRemises().stream().map(r -> new ReturnLine(r.getNumero(), r.getDate(), r.getQuantite(),
                             r.getRemisA(), r.getUsername())).toList(),
                     p.getPaiements().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
-                            x.getMontant(), x.getReference(), x.getUsername())).toList(),
+                            x.getMontant(), x.getReference(), x.getUsername(), null)).toList(),
                     p.getNumeroBulletin(), p.getBlNumero(), p.getTransporteur(), p.getVehicule(), p.getAdresse(),
                     p.getMode(), p.getPrixOlivesKg(), p.getMontantAchat(), p.getMontantRegle(), p.resteVendeur(),
                     t == null ? null : t.getId(), t == null ? null : t.getCode(), t == null ? null : t.getNom(),
                     p.getReglementsVendeur().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
-                            x.getMontant(), x.getReference(), x.getUsername())).toList());
+                            x.getMontant(), x.getReference(), x.getUsername(),
+                            x.getAdvance() == null ? null : x.getAdvance().getNumero())).toList());
         }
     }
 
@@ -117,5 +142,43 @@ public final class PressingDto {
                     p.getNumeroBulletin(), p.getVehicule(), p.getMode(), p.getMontantAchat(), p.resteVendeur(),
                     p.getTank() == null ? null : p.getTank().getCode());
         }
+    }
+
+    // ------------------------------------------------------------ comptes clients
+
+    /** Une ligne du relevé d'huile : ENTREE (fin d'un pressage) ou SORTIE (remise), avec le solde après l'opération. */
+    public record OilMovement(Instant date, String type, String numero, String detail, BigDecimal entree,
+                              BigDecimal sortie, BigDecimal litres, BigDecimal solde, String username) {
+    }
+
+    public record TankLine(Long id, String code, String nom, BigDecimal quantite, BigDecimal capacite) {
+    }
+
+    /**
+     * Compte d'huile d'un client (pressage à façon) : solde en kg (et en litres), argent encore dû pour le service,
+     * puits réservés, relevé chronologique des entrées et sorties.
+     */
+    public record OilAccount(Long clientId, String clientNom, String clientCode, String unite, BigDecimal solde,
+                             BigDecimal soldeLitres, BigDecimal densite, BigDecimal montantDu, List<TankLine> puits,
+                             List<OilMovement> mouvements) {
+    }
+
+    public record AdvanceLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, BigDecimal impute,
+                              BigDecimal reste, String reference, String username) {
+    }
+
+    public record PurchaseLine(Long id, String numero, String numeroBulletin, Instant date, Pressing.Status statut,
+                               BigDecimal poidsNet, BigDecimal prixOlivesKg, BigDecimal montantAchat,
+                               BigDecimal montantRegle, BigDecimal reste) {
+    }
+
+    /** Compte vendeur : achats d'olives, ce qui lui reste dû, avances versées et encore disponibles. */
+    public record SellerAccount(Long clientId, String clientNom, String clientCode, BigDecimal resteDu,
+                                BigDecimal avanceDisponible, List<AdvanceLine> avances, List<PurchaseLine> achats) {
+    }
+
+    /** Résumé par client pour la liste des comptes. */
+    public record AccountRow(Long clientId, String clientNom, String clientCode, String telephone, BigDecimal huile,
+                             BigDecimal montantDu, BigDecimal resteVendeur, BigDecimal avanceDisponible) {
     }
 }

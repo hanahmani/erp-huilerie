@@ -55,7 +55,7 @@ class AchatOlivesTest {
 
     private TankDto.Response puits(String code, String capacite) {
         return tanks.create(new TankDto.Request(code, "Puits " + code, StorageTank.Type.PUITS, huileVrac.getId(),
-                new BigDecimal(capacite)));
+                new BigDecimal(capacite), null));
     }
 
     /** 1020 kg brut − 20 kg de tare = 1000 kg net, achetés 0,900 DT/kg. */
@@ -153,6 +153,6 @@ class AchatOlivesTest {
         TankDto.Response puits = puits("PUITS-4", "1000");
         presserDans(achat(), puits.id(), "200");
         assertThatThrownBy(() -> tanks.update(puits.id(), new TankDto.Request(null, "Puits 4", StorageTank.Type.PUITS,
-                null, new BigDecimal("100")))).isInstanceOf(BusinessException.class);
+                null, new BigDecimal("100"), null))).isInstanceOf(BusinessException.class);
     }
 }

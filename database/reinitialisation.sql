@@ -40,8 +40,10 @@ TRUNCATE TABLE sales;
 TRUNCATE TABLE client_payments;
 
 TRUNCATE TABLE pressing_seller_payments;
+TRUNCATE TABLE seller_advances;
 TRUNCATE TABLE pressing_payments;
 TRUNCATE TABLE pressing_returns;
+TRUNCATE TABLE client_oil_returns;
 TRUNCATE TABLE pressings;
 
 TRUNCATE TABLE production_byproducts;

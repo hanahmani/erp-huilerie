@@ -17,8 +17,8 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Puits et silos de stockage d'huile. Chaque puits porte un lot ENTREPRISE (même numéro que le code) :
- * les entrées s'y ajoutent, les ventes en caisse en sortent, la capacité n'est jamais dépassée.
+ * Puits et silos de stockage d'huile. Chaque puits porte un lot (même numéro que le code) : ENTREPRISE pour un puits
+ * de l'huilerie (ventes en caisse), CLIENT pour un puits réservé à un client (remises). La capacité n'est jamais dépassée.
  */
 @Service
 public class TankService {
@@ -27,11 +27,14 @@ public class TankService {
     private final StockLotRepository lots;
     private final StockBalanceRepository balances;
     private final ArticleRepository articles;
+    private final com.huilerie.erp.clients.ClientRepository clients;
     private final StockService stock;
     private final AuditService audit;
 
     public TankService(StorageTankRepository tanks, StockLotRepository lots, StockBalanceRepository balances,
-                       ArticleRepository articles, StockService stock, AuditService audit) {
+                       ArticleRepository articles, com.huilerie.erp.clients.ClientRepository clients, StockService stock,
+                       AuditService audit) {
+        this.clients = clients;
         this.tanks = tanks;
         this.lots = lots;
         this.balances = balances;
@@ -69,11 +72,19 @@ public class TankService {
         if (lots.existsByArticleIdAndNumeroIgnoreCase(article.getId(), code)) {
             throw new BusinessException("Un lot " + code + " existe déjà pour cet article : choisissez un autre code.");
         }
-        StockLot lot = lots.save(new StockLot(article, code, LotOwner.ENTREPRISE, null));
-        StorageTank t = tanks.save(new StorageTank(code, r.nom().trim(), r.type(), article, lot,
+        com.huilerie.erp.clients.Client client = null;
+        if (r.clientId() != null) {
+            client = clients.findById(r.clientId()).orElseThrow(() -> new NotFoundException("Client introuvable."));
+            if (!client.isActif()) {
+                throw new BusinessException("Ce client est désactivé.");
+            }
+        }
+        StockLot lot = lots.save(client == null ? new StockLot(article, code, LotOwner.ENTREPRISE, null)
+                : new StockLot(article, code, LotOwner.CLIENT, client));
+        StorageTank t = tanks.save(new StorageTank(code, r.nom().trim(), r.type(), article, client, lot,
                 Money.strict(r.capacite(), "Capacité")));
         audit.log(SecurityUtils.username(), "TANK_CREATE", "StorageTank", String.valueOf(t.getId()),
-                code + " " + t.getCapacite().toPlainString());
+                code + " " + t.getCapacite().toPlainString() + (client == null ? "" : " — client " + client.getNom()));
         return toDto(t);
     }
 

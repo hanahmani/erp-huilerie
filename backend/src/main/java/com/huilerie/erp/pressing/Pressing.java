@@ -61,7 +61,7 @@ public class Pressing {
     @JoinColumn(name = "article_id")
     private Article article;
 
-    /** ACHAT : puits où l'huile a été versée. */
+    /** ACHAT : puits de l'huilerie où l'huile a été versée ; SERVICE : puits du client (facultatif). */
     @ManyToOne
     @JoinColumn(name = "tank_id")
     private StorageTank tank;
@@ -205,8 +205,10 @@ public class Pressing {
         finish(tank.getLot(), huile, pertes);
     }
 
-    SellerPayment addSellerPayment(String numero, PaymentMode mode, BigDecimal amount, String reference, String user) {
-        SellerPayment p = new SellerPayment(this, numero, mode, amount, reference, user);
+    /** advance renseignée : part d'une avance déduite de l'achat (pas de nouvelle sortie de caisse). */
+    SellerPayment addSellerPayment(String numero, PaymentMode mode, BigDecimal amount, String reference, String user,
+                                   SellerAdvance advance) {
+        SellerPayment p = new SellerPayment(this, numero, mode, amount, reference, user, advance);
         reglementsVendeur.add(p);
         montantRegle = montantRegle.add(amount);
         return p;
@@ -229,6 +231,12 @@ public class Pressing {
         this.adresse = adresse;
     }
 
+    /** Fin d'un pressage à façon dont l'huile est versée dans le puits du client. */
+    void finishInTank(StorageTank tank, BigDecimal huile, BigDecimal pertes) {
+        this.tank = tank;
+        finish(tank.getLot(), huile, pertes);
+    }
+
     void start() {
         statut = Status.EN_COURS;
         dateDebut = Instant.now();
@@ -242,8 +250,8 @@ public class Pressing {
         this.dateFin = Instant.now();
     }
 
-    Return addReturn(String numero, BigDecimal q, String remisA, String user) {
-        Return r = new Return(this, numero, q, remisA, user);
+    Return addReturn(ClientOilReturn clientReturn, BigDecimal q) {
+        Return r = new Return(this, clientReturn, q);
         remises.add(r);
         huileRemise = huileRemise.add(q);
         if (huileRemise.compareTo(huileObtenue) == 0) {
@@ -330,7 +338,13 @@ public class Pressing {
         @JoinColumn(name = "pressing_id", nullable = false)
         private Pressing pressing;
 
-        @Column(nullable = false, unique = true, length = 30)
+        /** Remise au client dont cette ligne est la part prise sur ce pressage. */
+        @ManyToOne
+        @JoinColumn(name = "client_return_id")
+        private ClientOilReturn clientReturn;
+
+        /** Numéro de la remise (RMH-…) : le même pour toutes les parts d'une remise. */
+        @Column(nullable = false, length = 30)
         private String numero;
 
         @Column(nullable = false, precision = 15, scale = 3)
@@ -348,16 +362,18 @@ public class Pressing {
         protected Return() {
         }
 
-        Return(Pressing pressing, String numero, BigDecimal quantite, String remisA, String username) {
+        Return(Pressing pressing, ClientOilReturn clientReturn, BigDecimal quantite) {
             this.pressing = pressing;
-            this.numero = numero;
+            this.clientReturn = clientReturn;
+            this.numero = clientReturn.getNumero();
             this.quantite = quantite;
-            this.remisA = remisA;
-            this.username = username;
-            this.date = Instant.now();
+            this.remisA = clientReturn.getRemisA();
+            this.username = clientReturn.getUsername();
+            this.date = clientReturn.getDate();
         }
 
         public Long getId() { return id; }
+        public ClientOilReturn getClientReturn() { return clientReturn; }
         public String getNumero() { return numero; }
         public BigDecimal getQuantite() { return quantite; }
         public String getRemisA() { return remisA; }
@@ -418,7 +434,7 @@ public class Pressing {
         public String getUsername() { return username; }
     }
 
-    /** Paiement au vendeur des olives (sortie de caisse). */
+    /** Paiement au vendeur des olives : sortie de caisse, ou part d'une avance déjà versée (advance renseignée). */
     @Entity(name = "PressingSellerPayment")
     @Immutable
     @Table(name = "pressing_seller_payments")
@@ -430,6 +446,10 @@ public class Pressing {
         @ManyToOne(optional = false)
         @JoinColumn(name = "pressing_id", nullable = false)
         private Pressing pressing;
+
+        @ManyToOne
+        @JoinColumn(name = "advance_id")
+        private SellerAdvance advance;
 
         @Column(nullable = false, unique = true, length = 30)
         private String numero;
@@ -454,8 +474,10 @@ public class Pressing {
         protected SellerPayment() {
         }
 
-        SellerPayment(Pressing pressing, String numero, PaymentMode mode, BigDecimal montant, String reference, String username) {
+        SellerPayment(Pressing pressing, String numero, PaymentMode mode, BigDecimal montant, String reference, String username,
+                      SellerAdvance advance) {
             this.pressing = pressing;
+            this.advance = advance;
             this.numero = numero;
             this.mode = mode;
             this.montant = montant;
@@ -464,6 +486,7 @@ public class Pressing {
             this.date = Instant.now();
         }
 
+        public SellerAdvance getAdvance() { return advance; }
         public String getNumero() { return numero; }
         public PaymentMode getMode() { return mode; }
         public BigDecimal getMontant() { return montant; }

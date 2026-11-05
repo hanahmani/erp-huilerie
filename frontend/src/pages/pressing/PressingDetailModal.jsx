@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, CheckCircle2, HandCoins, Pencil, Play, Printer, Undo2 } from 'lucide-react';
+import { Ban, BookUser, CheckCircle2, HandCoins, Pencil, Play, Printer, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -17,8 +17,11 @@ import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
 
 const PRINT_TITLES = { bulletin: 'Bulletin de pressage', reception: 'Bon de pesée', return: "Bon de remise d'huile" };
 
-/** initialPrint : document à imprimer dès l'ouverture (ex. 'bulletin' juste après la réception). */
-export default function PressingDetailModal({ id, initial, initialPrint, onClose, onChanged }) {
+/**
+ * initialPrint : document à imprimer dès l'ouverture (ex. 'bulletin' juste après la réception).
+ * onOpenAccount({ clientId, clientNom, tab }) : ouvre le compte du client (remises d'huile, avances).
+ */
+export default function PressingDetailModal({ id, initial, initialPrint, onClose, onChanged, onOpenAccount }) {
   const { can } = useAuth();
   const manage = can('PRESSING_MANAGE');
   const canPay = can(['PRESSING_MANAGE', 'SALES_CREATE']);
@@ -39,10 +42,16 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
 
   useEffect(() => { if (!initial) pressingService.get(id).then(setP).catch((e) => setError(e.message)); }, [id, initial]);
   const achat = p?.mode === 'ACHAT';
-  // Puits proposés à la fin d'un achat : actifs, avec la place restante.
+  // Puits proposés à la fin du pressage, actifs, avec la place restante :
+  // achat → puits de l'huilerie ; service → puits réservés à ce client et contenant la même huile.
   useEffect(() => {
-    if (panel === 'finish' && achat) tankService.list().then((l) => setTanks(l.filter((t) => t.actif))).catch((e) => setError(e.message));
-  }, [panel, achat]);
+    if (panel !== 'finish' || !p) return;
+    tankService.list().then((l) => setTanks(l.filter((t) => t.actif && (achat
+      ? !t.clientId : t.clientId === p.clientId && t.articleId === p.articleId)))).catch((e) => setError(e.message));
+  }, [panel, achat, p]);
+  const account = (tab) => onOpenAccount?.({ clientId: p.clientId, clientNom: p.clientNom, tab });
+  // Annulation possible tant que rien n'a été encaissé ni payé en caisse (une avance déduite est rendue au vendeur).
+  const cashPaid = p && (Number(p.montantPaye) > 0 || p.reglementsVendeur.some((x) => !x.avanceNumero));
 
   const run = async (fn) => {
     setBusy(true);
@@ -71,12 +80,13 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                {!achat ? <Button variant="secondary" onClick={() => setPrint('reception')}><Printer size={16} />Bon de pesée</Button> : null}
                {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
-               {manage && ['RECU', 'EN_COURS'].includes(p.statut) && !Number(p.montantPaye) && !Number(p.montantRegle) ? <Button variant="danger" onClick={() => open('cancel')}><Ban size={16} />Annuler</Button> : null}
+               {onOpenAccount ? <Button variant="secondary" onClick={() => account(achat ? 'seller' : 'oil')}><BookUser size={16} />Compte du client</Button> : null}
+               {manage && ['RECU', 'EN_COURS'].includes(p.statut) && !cashPaid ? <Button variant="danger" onClick={() => open('cancel')}><Ban size={16} />Annuler</Button> : null}
                {!achat && canPay && p.statut !== 'ANNULE' && Number(p.reste) > 0 ? <Button variant="secondary" onClick={() => open('pay', { mode: 'ESPECES', montant: String(p.reste) })}><HandCoins size={16} />Encaisser</Button> : null}
                {manage && p.statut === 'RECU' ? <Button loading={busy} onClick={() => run(() => pressingService.start(p.id))}><Play size={16} />Démarrer le pressage</Button> : null}
                {manage && p.statut === 'EN_COURS' ? <Button onClick={() => open('finish')}><CheckCircle2 size={16} />Terminer le pressage</Button> : null}
                {achat && canPaySeller && p.statut !== 'ANNULE' && Number(p.resteVendeur) > 0 ? <Button variant="secondary" onClick={() => open('paySeller', { mode: 'ESPECES', montant: String(p.resteVendeur) })}><HandCoins size={16} />Payer le vendeur</Button> : null}
-               {!achat && manage && p.statut === 'TERMINE' ? <Button onClick={() => open('return', { quantite: String(p.huileARemettre), remisA: p.clientNom })}><Undo2 size={16} />Remettre l'huile</Button> : null}
+               {!achat && manage && p.statut === 'TERMINE' && onOpenAccount ? <Button onClick={() => account('oil')}><Undo2 size={16} />Remettre l'huile</Button> : null}
              </>
            ) : null}>
       <Alert type="error">{error}</Alert>
@@ -125,7 +135,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
           {achat && p.reglementsVendeur.length ? (
             <div style={{ marginTop: 16 }}><h2 style={{ marginBottom: 8 }}>Paiements au vendeur</h2>
               <table className="table"><tbody>{p.reglementsVendeur.map((x) => (
-                <tr key={x.numero}><td><strong>{x.numero}</strong><div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {PAYMENT_MODES[x.mode]}{x.reference ? ` · ${x.reference}` : ''}</div></td><td className="num">{formatDT(x.montant)}</td></tr>
+                <tr key={x.numero}><td><strong>{x.numero}</strong><div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {x.avanceNumero ? `pris sur l'avance ${x.avanceNumero}` : PAYMENT_MODES[x.mode]}{x.reference && !x.avanceNumero ? ` · ${x.reference}` : ''}</div></td><td className="num">{formatDT(x.montant)}</td></tr>
               ))}</tbody></table></div>
           ) : null}
 
@@ -172,12 +182,20 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                           {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
                         </select>
                         {!tanks.length ? <span className="hint">Aucun puits actif : créez-en un dans Stock › Puits / silos.</span> : null}</div>
-                    ) : null}
+                    ) : (
+                      <div className="field wide"><label>Puits / silo du client</label>
+                        <select className="select" {...f('tankId')}>
+                          <option value="">Aucun (lot propre à ce pressage)</option>
+                          {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
+                        </select>
+                        <span className="hint">{tanks.length ? "L'huile s'ajoute au compte du client, dans son puits."
+                          : `Aucun puits réservé à ${p.clientNom} : créez-en un dans Stock › Puits / silos (propriétaire : ce client).`}</span></div>
+                    )}
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
                     <Button loading={busy} disabled={!toMillimes(form.huile) || (achat && !form.tankId)} onClick={() => run(() => pressingService.finish(p.id, {
                       huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
-                      tankId: achat ? Number(form.tankId) : null,
+                      tankId: form.tankId ? Number(form.tankId) : null,
                     }))}>{achat ? "Verser l'huile dans le puits" : "Enregistrer l'huile du client"}</Button></div>
                 </>
               ) : null}
@@ -204,18 +222,6 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
                     <Button loading={busy} disabled={!toMillimes(form.montant)} onClick={() => run(() => pressingService.paySeller(p.id, { mode: form.mode, montant: normalizeDecimal(form.montant), reference: form.reference || null }))}>Payer</Button></div>
-                </>
-              ) : null}
-              {panel === 'return' ? (
-                <>
-                  <h2 style={{ marginBottom: 12 }}>Remettre l'huile au client</h2>
-                  <div className="form-grid">
-                    <div className="field"><label>Quantité ({p.unite})</label><input className="input" inputMode="decimal" {...f('quantite')} />
-                      <span className="hint">Reste à remettre : {formatQty(p.huileARemettre, p.unite)}</span></div>
-                    <div className="field"><label>Remis à</label><input className="input" {...f('remisA')} /></div>
-                  </div>
-                  <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
-                    <Button loading={busy} disabled={!toMillimes(form.quantite)} onClick={() => run(() => pressingService.returnOil(p.id, { quantite: normalizeDecimal(form.quantite), remisA: form.remisA || null }))}>Valider la remise</Button></div>
                 </>
               ) : null}
               {panel === 'cancel' ? (

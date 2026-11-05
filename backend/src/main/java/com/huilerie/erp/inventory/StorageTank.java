@@ -9,8 +9,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Puits, silo ou cuve de stockage d'huile. Son contenu est un lot ENTREPRISE dont le numéro est le code du puits :
- * l'huile y est mélangée, se vend en caisse sous ce lot, et ne peut pas dépasser la capacité.
+ * Puits, silo ou cuve de stockage d'huile. Son contenu est un lot dont le numéro est le code du puits et qui ne peut
+ * pas dépasser la capacité :
+ * <ul>
+ *   <li>puits de l'huilerie (client vide) : lot ENTREPRISE, huile achetée, vendue en caisse ;</li>
+ *   <li>puits d'un client : lot CLIENT, huile de ses pressages à façon, qui n'en sort que par une remise.</li>
+ * </ul>
  */
 @Entity
 @Table(name = "storage_tanks")
@@ -37,6 +41,11 @@ public class StorageTank {
     @JoinColumn(name = "article_id", nullable = false, updatable = false)
     private Article article;
 
+    /** Puits réservé à un client (pressage à façon) ; vide : puits de l'huilerie. */
+    @ManyToOne
+    @JoinColumn(name = "client_id", updatable = false)
+    private com.huilerie.erp.clients.Client client;
+
     @OneToOne(optional = false)
     @JoinColumn(name = "lot_id", nullable = false, unique = true, updatable = false)
     private StockLot lot;
@@ -54,8 +63,10 @@ public class StorageTank {
     protected StorageTank() {
     }
 
-    StorageTank(String code, String nom, Type type, Article article, StockLot lot, BigDecimal capacite) {
+    StorageTank(String code, String nom, Type type, Article article, com.huilerie.erp.clients.Client client, StockLot lot,
+                BigDecimal capacite) {
         this.code = code;
+        this.client = client;
         this.nom = nom;
         this.type = type;
         this.article = article;
@@ -79,6 +90,7 @@ public class StorageTank {
     public String getNom() { return nom; }
     public Type getType() { return type; }
     public Article getArticle() { return article; }
+    public com.huilerie.erp.clients.Client getClient() { return client; }
     public StockLot getLot() { return lot; }
     public BigDecimal getCapacite() { return capacite; }
     public boolean isActif() { return actif; }

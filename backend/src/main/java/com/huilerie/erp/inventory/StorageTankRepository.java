@@ -15,6 +15,8 @@ public interface StorageTankRepository extends JpaRepository<StorageTank, Long> 
 
     List<StorageTank> findAllByOrderByCodeAsc();
 
+    List<StorageTank> findByClientIdOrderByCodeAsc(Long clientId);
+
     /** Verrou du puits pendant un versement : deux pressages ne peuvent pas dépasser la capacité ensemble. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from StorageTank t where t.id = :id")

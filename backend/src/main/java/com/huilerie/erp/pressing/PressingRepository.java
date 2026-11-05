@@ -32,6 +32,34 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
     Page<Pressing> search(@Param("q") String q, @Param("statut") Pressing.Status statut, @Param("clientId") Long clientId,
                           @Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
 
+    /** Pressages à façon terminés d'un client (huile encore chez l'huilerie), les plus anciens d'abord, verrouillés. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select p from Pressing p where p.client.id = :clientId
+              and p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
+              and p.statut = com.huilerie.erp.pressing.Pressing.Status.TERMINE
+            order by p.dateFin, p.id
+            """)
+    List<Pressing> lockOilOf(@Param("clientId") Long clientId);
+
+    List<Pressing> findByClientIdAndModeOrderByIdAsc(Long clientId, Pressing.Mode mode);
+
+    /** Par client : huile à remettre, service encore dû, reste dû au vendeur (achats). */
+    @Query("""
+            select c.id, c.nom, c.code, c.telephone,
+              coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
+                                 and p.statut = com.huilerie.erp.pressing.Pressing.Status.TERMINE
+                                then p.huileObtenue - p.huileRemise else 0 end), 0),
+              coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
+                                then p.montant - p.montantPaye else 0 end), 0),
+              coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.ACHAT
+                                then p.montantAchat - p.montantRegle else 0 end), 0)
+            from Pressing p join p.client c
+            where p.statut <> com.huilerie.erp.pressing.Pressing.Status.ANNULE
+            group by c.id, c.nom, c.code, c.telephone
+            """)
+    List<Object[]> accounts();
+
     long countByStatutIn(List<Pressing.Status> statuts);
 
     long countByStatutInAndMode(List<Pressing.Status> statuts, Pressing.Mode mode);

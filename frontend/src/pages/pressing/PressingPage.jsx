@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, Droplets, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Download, Droplets, Plus, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { usePagedList } from '../../hooks/usePagedList';
 import { pressingService } from '../../services/operationsService';
@@ -8,14 +8,45 @@ import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import Spinner from '../../components/common/Spinner';
 import EmptyState from '../../components/common/EmptyState';
+import Tabs from '../../components/common/Tabs';
 import DataTable from '../../components/tables/DataTable';
 import Pagination from '../../components/tables/Pagination';
 import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/tables/Toolbar';
 import ReceptionModal from './ReceptionModal';
 import PressingDetailModal from './PressingDetailModal';
+import ClientAccountModal from './ClientAccountModal';
 import { dayRange, formatDateTime, formatDT, formatQty } from '../../utils/format';
 import { PRESSING_MODES, PRESSING_STATUS, pressingStatusClass, pressingStatusLabel, toOptions } from '../../utils/labels';
 import { exportCsv } from '../../utils/exportCsv';
+
+/** Comptes des clients : huile à remettre, service dû, reste dû au vendeur, avances disponibles. */
+function AccountsTab({ onOpen, reloadKey }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  const load = useCallback(() => pressingService.accounts().then(setRows).catch((e) => setError(e.message)), []);
+  useEffect(() => { load(); }, [load, reloadKey]);
+
+  const shown = (rows || []).filter((r) => !q.trim() || `${r.clientNom} ${r.clientCode} ${r.telephone || ''}`.toLowerCase().includes(q.trim().toLowerCase()));
+  return (
+    <div className="panel">
+      <Toolbar><SearchBox value={q} onChange={setQ} placeholder="Client, code, téléphone" /></Toolbar>
+      <Alert type="error">{error}</Alert>
+      {!rows ? <div className="panel-body"><Spinner /></div> : (
+        <DataTable rows={shown} onRowClick={(r) => onOpen(r)}
+                   empty={<EmptyState icon={Users} title="Aucun compte ouvert"
+                                      text="Les clients apparaissent ici dès qu'ils ont de l'huile à reprendre, un service à payer, un achat à régler ou une avance." />}
+                   columns={[
+                     { key: 'c', header: 'Client', render: (r) => <><strong>{r.clientNom}</strong><div className="muted" style={{ fontSize: 12 }}>{r.clientCode}{r.telephone ? ` · ${r.telephone}` : ''}</div></> },
+                     { key: 'h', header: 'Huile à remettre', align: 'right', render: (r) => (Number(r.huile) ? <strong>{formatQty(r.huile, 'kg')}</strong> : '—') },
+                     { key: 'm', header: 'Service dû', align: 'right', render: (r) => (Number(r.montantDu) ? formatDT(r.montantDu) : '—') },
+                     { key: 'v', header: 'Dû au vendeur', align: 'right', render: (r) => (Number(r.resteVendeur) ? formatDT(r.resteVendeur) : '—') },
+                     { key: 'a', header: 'Avance disponible', align: 'right', render: (r) => (Number(r.avanceDisponible) ? formatDT(r.avanceDisponible) : '—') },
+                   ]} />
+      )}
+    </div>
+  );
+}
 
 export default function PressingPage() {
   const { can } = useAuth();
@@ -23,6 +54,10 @@ export default function PressingPage() {
   const list = usePagedList(fetcher, {});
   const [receiving, setReceiving] = useState(false);
   const [open, setOpen] = useState(null);   // { id, initial }
+  const [tab, setTab] = useState('bulletins');
+  const [account, setAccount] = useState(null);   // { clientId, clientNom, tab }
+  const [reloadKey, setReloadKey] = useState(0);
+  const changed = () => { list.reload(); setReloadKey((k) => k + 1); };
 
   const exportAll = async () => {
     const page = await fetcher({ ...list.filters, page: 0, size: 100 });
@@ -48,6 +83,10 @@ export default function PressingPage() {
                       {can('PRESSING_MANAGE') ? <Button onClick={() => setReceiving(true)}><Plus size={18} />Réception d'olives</Button> : null}
                     </>
                   )} />
+      <Tabs tabs={[{ value: 'bulletins', label: 'Bulletins' }, { value: 'accounts', label: 'Comptes clients' }]} value={tab} onChange={setTab} />
+      {tab === 'accounts' ? <AccountsTab reloadKey={reloadKey} onOpen={(r) => setAccount({ clientId: r.clientId, clientNom: r.clientNom,
+        tab: Number(r.huile) || Number(r.montantDu) ? 'oil' : 'seller' })} /> : null}
+      {tab === 'bulletins' ? <>
       <Alert type="error">{list.error}</Alert>
       <div className="panel">
         <Toolbar>
@@ -78,8 +117,12 @@ export default function PressingPage() {
         )}
         <Pagination page={list.page} totalPages={list.data.totalPages} totalElements={list.data.totalElements} onChange={list.setPage} />
       </div>
+      </> : null}
       {receiving ? <ReceptionModal onClose={() => setReceiving(false)} onDone={(p) => { setReceiving(false); list.reload(); setOpen({ id: p.id, initial: p, print: 'bulletin' }); }} /> : null}
-      {open ? <PressingDetailModal id={open.id} initial={open.initial} initialPrint={open.print} onClose={() => setOpen(null)} onChanged={list.reload} /> : null}
+      {open ? <PressingDetailModal id={open.id} initial={open.initial} initialPrint={open.print} onClose={() => setOpen(null)} onChanged={changed}
+                                   onOpenAccount={(acc) => { setOpen(null); setAccount(acc); }} /> : null}
+      {account ? <ClientAccountModal clientId={account.clientId} clientNom={account.clientNom} initialTab={account.tab}
+                                     onClose={() => setAccount(null)} onChanged={changed} /> : null}
     </>
   );
 }
