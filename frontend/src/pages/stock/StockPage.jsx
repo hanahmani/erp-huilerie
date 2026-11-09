@@ -213,7 +213,7 @@ export default function StockPage() {
                   ) : null} />
       <Alert type="success">{message}</Alert>
       <Tabs value={tab} onChange={setTab}
-            tabs={[{ value: 'state', label: 'État du stock' }, { value: 'mvts', label: 'Mouvements' }, { value: 'lots', label: 'Lots' }, { value: 'tanks', label: 'Puits / silos' }, { value: 'inv', label: 'Inventaires' }]} />
+            tabs={[{ value: 'state', label: 'État du stock' }, { value: 'mvts', label: 'Mouvements' }, { value: 'lots', label: 'Lots' }, { value: 'tanks', label: 'Citernes / fûts / puits' }, { value: 'inv', label: 'Inventaires' }]} />
       {tab === 'state' ? <StateTab key={reloadKey} /> : null}
       {tab === 'mvts' ? <MovementsTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}
       {tab === 'lots' ? <LotsTab canAdjust={canAdjust} reloadKey={reloadKey} /> : null}

@@ -80,12 +80,22 @@ public final class PressingDto {
 
     /**
      * tankId : obligatoire pour un achat d'olives (puits de l'huilerie où l'huile est versée) ;
-     * facultatif pour un pressage à façon (puits réservé au client, sinon lot propre au pressage).
+     * facultatif pour un pressage à façon (citerne, fût ou puits réservé au client, sinon lot propre au pressage).
+     * priseDirecte (pressage à façon) : le client emporte toute son huile tout de suite ; le reste du service est
+     * encaissé en même temps (modePaiement obligatoire s'il reste à payer) ; remisA : personne qui prend l'huile.
      */
     public record FinishRequest(
             @NotNull @DecimalMin(value = "0.001", message = "La quantité d'huile doit être positive.") BigDecimal huileObtenue,
             @DecimalMin(value = "0", message = "Les pertes ne peuvent pas être négatives.") BigDecimal pertesKg,
-            Long tankId) {
+            Long tankId,
+            boolean priseDirecte,
+            PaymentMode modePaiement,
+            @Size(max = 80) String reference,
+            @Size(max = 150, message = "Remis à : 150 caractères au maximum.") String remisA) {
+
+        public FinishRequest(BigDecimal huileObtenue, BigDecimal pertesKg, Long tankId) {
+            this(huileObtenue, pertesKg, tankId, false, null, null, null);
+        }
     }
 
     public record ReturnRequest(

@@ -249,6 +249,9 @@ public class PressingService {
                             + " dans " + tank.getCode());
             return PressingDto.Detail.from(p);
         }
+        if (r.priseDirecte() && r.tankId() != null) {
+            throw new BusinessException("Prise directe : l'huile part avec le client, ne choisissez pas de citerne ni de fût.");
+        }
         if (r.tankId() != null) {
             StorageTank own = accounts.clientTank(p, r.tankId());
             tanks.fill(own.getId(), huile, MovementType.PRESSAGE_ENTREE,
@@ -267,7 +270,20 @@ public class PressingService {
                 "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
         p.finish(lot, huile, pertes);
         audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
-                p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode());
+                p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode()
+                        + (r.priseDirecte() ? " (prise directe)" : ""));
+        if (r.priseDirecte()) {
+            // Le client emporte son huile : le reste du service est encaissé maintenant, puis toute l'huile est remise.
+            if (p.reste().signum() > 0) {
+                if (r.modePaiement() == null) {
+                    throw new BusinessException("Prise directe : choisissez le mode de paiement du service ("
+                            + p.reste().toPlainString() + " DT).");
+                }
+                recordPayment(p, r.modePaiement(), p.reste(), Text.clean(r.reference()));
+            }
+            accounts.giveOil(p.getClient(), List.of(p), huile, false, r.remisA());
+            pressings.saveAndFlush(p);
+        }
         return PressingDto.Detail.from(p);
     }
 
@@ -301,14 +317,20 @@ public class PressingService {
         if (amount.compareTo(p.reste()) > 0) {
             throw new BusinessException("Le paiement dépasse le reste dû (" + p.reste().toPlainString() + " DT).");
         }
+        recordPayment(p, r.mode(), amount, Text.clean(r.reference()));
+        return PressingDto.Detail.from(p);
+    }
+
+    /** Encaissement du service : paiement sur le bulletin et entrée en caisse. */
+    private void recordPayment(Pressing p, PaymentMode mode, BigDecimal amount, String reference) {
         p.getPaiements().size();
         String numero = numbers.nextYearly("PAIEMENT_PRESSAGE", "PPR");
-        p.addPayment(numero, r.mode(), amount, Text.clean(r.reference()), SecurityUtils.username());
+        p.addPayment(numero, mode, amount, reference, SecurityUtils.username());
         pressings.saveAndFlush(p);
-        finance.record(CashMovementType.ENCAISSEMENT, r.mode(), amount,
+        finance.record(CashMovementType.ENCAISSEMENT, mode, amount,
                 "Pressage " + p.getNumero() + " (" + p.getClient().getNom() + ")", DOC_TYPE, p.getId());
-        audit.log(SecurityUtils.username(), "PRESSING_PAYMENT", "Pressing", String.valueOf(id), numero + " " + amount.toPlainString() + " DT");
-        return PressingDto.Detail.from(p);
+        audit.log(SecurityUtils.username(), "PRESSING_PAYMENT", "Pressing", String.valueOf(p.getId()),
+                numero + " " + amount.toPlainString() + " DT");
     }
 
     /** Paiement au vendeur des olives achetées : sortie de caisse, plafonnée au reste dû. */

@@ -20,7 +20,7 @@ import java.time.Instant;
 @Table(name = "storage_tanks")
 public class StorageTank {
 
-    public enum Type { PUITS, SILO, CUVE, AUTRE }
+    public enum Type { PUITS, SILO, CUVE, CITERNE, FUT, AUTRE }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

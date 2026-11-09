@@ -10,7 +10,7 @@ import { pressingService } from '../../services/operationsService';
 import { tankService } from '../../services/stockService';
 import { settingsService } from '../../services/settingsService';
 import { formatDateTime, formatDT, formatQty, fromLocalInput, toLocalInput } from '../../utils/format';
-import { OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
+import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, TANK_TYPES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
 import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
@@ -91,7 +91,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                {manage && ['RECU', 'EN_COURS', 'ANNULE'].includes(p.statut) && !cashPaid ? <Button variant="danger" onClick={() => open('delete')}><Trash2 size={16} />Supprimer</Button> : null}
                {!achat && canPay && p.statut !== 'ANNULE' && Number(p.reste) > 0 ? <Button variant="secondary" onClick={() => open('pay', { mode: 'ESPECES', montant: String(p.reste) })}><HandCoins size={16} />Encaisser</Button> : null}
                {manage && p.statut === 'RECU' ? <Button loading={busy} onClick={() => run(() => pressingService.start(p.id))}><Play size={16} />Démarrer le pressage</Button> : null}
-               {manage && p.statut === 'EN_COURS' ? <Button onClick={() => open('finish')}><CheckCircle2 size={16} />Terminer le pressage</Button> : null}
+               {manage && p.statut === 'EN_COURS' ? <Button onClick={() => open('finish', { dest: '', mode: 'ESPECES' })}><CheckCircle2 size={16} />Terminer le pressage</Button> : null}
                {achat && canPaySeller && p.statut !== 'ANNULE' && Number(p.resteVendeur) > 0 ? <Button variant="secondary" onClick={() => open('paySeller', { mode: 'ESPECES', montant: String(p.resteVendeur) })}><HandCoins size={16} />Payer le vendeur</Button> : null}
                {!achat && manage && p.statut === 'TERMINE' && onOpenAccount ? <Button onClick={() => account('oil')}><Undo2 size={16} />Remettre l'huile</Button> : null}
              </>
@@ -202,22 +202,52 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                           <option value="">Choisir…</option>
                           {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
                         </select>
-                        {!tanks.length ? <span className="hint">Aucun puits actif : créez-en un dans Stock › Puits / silos.</span> : null}</div>
+                        {!tanks.length ? <span className="hint">Aucun puits actif : créez-en un dans Stock › Citernes / fûts / puits.</span> : null}</div>
                     ) : (
-                      <div className="field wide"><label>Puits / silo du client</label>
-                        <select className="select" {...f('tankId')}>
-                          <option value="">Aucun (lot propre à ce pressage)</option>
-                          {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
-                        </select>
-                        <span className="hint">{tanks.length ? "L'huile s'ajoute au compte du client, dans son puits."
-                          : `Aucun puits réservé à ${p.clientNom} : créez-en un dans Stock › Puits / silos (propriétaire : ce client).`}</span></div>
+                      <>
+                        <div className="field wide"><label>L'huile du client *</label>
+                          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                            {Object.entries(OIL_DESTINATIONS).map(([k, v]) => (
+                              <label key={k} className="check"><input type="radio" name="dest" value={k} checked={form.dest === k}
+                                                                      onChange={(e) => setForm({ ...form, dest: e.target.value, tankId: '' })} />{v}</label>
+                            ))}
+                          </div></div>
+                        {form.dest === 'TANK' ? (
+                          <div className="field wide"><label>Citerne / fût du client *</label>
+                            <select className="select" {...f('tankId')}>
+                              <option value="">Choisir…</option>
+                              {tanks.map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
+                            </select>
+                            <span className="hint">{tanks.length ? "L'huile reste à l'huilerie, sur le compte du client ; elle sort plus tard par une remise."
+                              : `Aucune citerne ni aucun fût réservé à ${p.clientNom} : créez-en dans Stock › Citernes / fûts / puits (propriétaire : ce client).`}</span></div>
+                        ) : null}
+                        {form.dest === 'LOT' ? <p className="hint field wide">L'huile reste à l'huilerie, sur le compte du client, dans un lot propre à ce pressage.</p> : null}
+                        {form.dest === 'DIRECT' ? (
+                          <>
+                            <div className="field"><label>Remis à</label><input className="input" maxLength={150} placeholder={p.clientNom} {...f('remisA')} /></div>
+                            {Number(p.reste) > 0 ? (
+                              <>
+                                <div className="field"><label>Paiement du service ({formatDT(p.reste)}) *</label>
+                                  <select className="select" {...f('mode')}>{Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+                                <div className="field"><label>Référence</label><input className="input" maxLength={80} {...f('reference')} placeholder="N° de chèque, virement…" /></div>
+                              </>
+                            ) : null}
+                            <p className="hint field wide">Le client emporte toute son huile maintenant{Number(p.reste) > 0 ? ` ; le service (${formatDT(p.reste)}) est encaissé en même temps` : ''}.</p>
+                          </>
+                        ) : null}
+                      </>
                     )}
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
-                    <Button loading={busy} disabled={!toMillimes(form.huile) || (achat && !form.tankId)} onClick={() => run(() => pressingService.finish(p.id, {
-                      huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
-                      tankId: form.tankId ? Number(form.tankId) : null,
-                    }))}>{achat ? "Verser l'huile dans le puits" : "Enregistrer l'huile du client"}</Button></div>
+                    <Button loading={busy} disabled={!toMillimes(form.huile) || (achat ? !form.tankId : !form.dest || (form.dest === 'TANK' && !form.tankId))}
+                            onClick={() => run(() => pressingService.finish(p.id, {
+                              huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
+                              tankId: form.tankId ? Number(form.tankId) : null,
+                              priseDirecte: !achat && form.dest === 'DIRECT',
+                              modePaiement: !achat && form.dest === 'DIRECT' && Number(p.reste) > 0 ? form.mode : null,
+                              reference: form.reference || null, remisA: form.remisA || null,
+                            }))}>{achat ? "Verser l'huile dans le puits" : form.dest === 'DIRECT'
+                              ? (Number(p.reste) > 0 ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
                 </>
               ) : null}
               {panel === 'pay' ? (

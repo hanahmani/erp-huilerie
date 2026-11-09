@@ -57,7 +57,7 @@ function TankModal({ tank, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={creating ? 'Nouveau puits / silo' : `Puits ${tank.code}`} onClose={onClose}
+    <Modal title={creating ? 'Nouveau contenant (citerne, fût, puits…)' : `${TANK_TYPES[tank.type] || 'Contenant'} ${tank.code}`} onClose={onClose}
            footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
              <Button onClick={save} loading={saving} disabled={!valid}>Enregistrer</Button></>)}>
       <Alert type="error">{error}</Alert>
@@ -118,14 +118,14 @@ export default function TanksTab({ canAdjust, reloadKey }) {
     <div className="panel">
       {canAdjust ? (
         <div className="panel-body" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button onClick={() => setEditing({})}><Plus size={18} />Nouveau puits / silo</Button>
+          <Button onClick={() => setEditing({})}><Plus size={18} />Nouvelle citerne / fût / puits</Button>
         </div>
       ) : null}
       <Alert type="error">{error}</Alert>
       {!rows ? <div className="panel-body"><Spinner /></div> : (
         <DataTable rows={rows}
-                   empty={<EmptyState icon={Container} title="Aucun puits"
-                                      text="Créez vos puits et silos : l'huile des olives achetées y sera versée puis vendue en caisse." />}
+                   empty={<EmptyState icon={Container} title="Aucun contenant"
+                                      text="Créez vos puits et silos (huile achetée, vendue en caisse) et les citernes ou fûts des clients (leur huile conservée à l'huilerie)." />}
                    columns={[
                      { key: 'code', header: 'Code', render: (t) => <><strong>{t.code}</strong><div className="muted" style={{ fontSize: 12 }}>{t.nom}</div></> },
                      { key: 'type', header: 'Type', render: (t) => TANK_TYPES[t.type] },

@@ -77,6 +77,52 @@ class ComptesClientsTest {
                 avance == null ? null : PaymentMode.ESPECES));
     }
 
+    private PressingDto.Detail recu() {
+        PressingDto.Detail p = service.receive(new PressingDto.ReceiveRequest(x.getId(), huileClients.getId(), null, null,
+                Pressing.OliveState.SAINES, new BigDecimal("1000"), BigDecimal.ZERO, new BigDecimal("0.100"), null,
+                null, null, null, null, Pressing.Mode.SERVICE, null));
+        service.start(p.id());
+        return p;
+    }
+
+    @Test
+    void huileConserveeDansLaCiterneOuLeFutDuClient() {
+        TankDto.Response citerne = tanks.create(new TankDto.Request("CIT-X", "Citerne de X", StorageTank.Type.CITERNE,
+                huileClients.getId(), new BigDecimal("1000"), x.getId()));
+        TankDto.Response fut = tanks.create(new TankDto.Request("FUT-X1", "Fût de X", StorageTank.Type.FUT,
+                huileClients.getId(), new BigDecimal("200"), x.getId()));
+        assertThat(pressage(citerne.id(), "150").tankCode()).isEqualTo("CIT-X");
+        assertThat(pressage(fut.id(), "180").tankCode()).isEqualTo("FUT-X1");
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("330");
+        assertThatThrownBy(() -> pressage(fut.id(), "50")).isInstanceOf(BusinessException.class);   // fût de 200 kg plein
+    }
+
+    @Test
+    @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "STOCK_VIEW", "STOCK_ADJUST", "SALES_CREATE"})
+    void priseDirecteEncaisseLeServiceEtRemetToutLHuile() {
+        PressingDto.Detail p = recu();
+        assertThatThrownBy(() -> service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null, null,
+                true, null, null, null))).isInstanceOf(BusinessException.class).hasMessageContaining("mode de paiement");
+
+        PressingDto.Detail fini = service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null, null,
+                true, PaymentMode.ESPECES, null, "Fils de X"));
+        assertThat(fini.statut()).isEqualTo(Pressing.Status.REMIS);
+        assertThat(fini.reste()).isEqualByComparingTo("0");
+        assertThat(fini.huileARemettre()).isEqualByComparingTo("0");
+        assertThat(fini.remises()).singleElement().satisfies(r -> assertThat(r.remisA()).isEqualTo("Fils de X"));
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("100");
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void priseDirecteSansCiterne() {
+        PressingDto.Detail p = recu();
+        TankDto.Response citerne = tanks.create(new TankDto.Request("CIT-X", "Citerne de X", StorageTank.Type.CITERNE,
+                huileClients.getId(), new BigDecimal("1000"), x.getId()));
+        assertThatThrownBy(() -> service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null,
+                citerne.id(), true, PaymentMode.ESPECES, null, null))).isInstanceOf(BusinessException.class);
+    }
+
     private BigDecimal decaisse() {
         return cash.total(CashMovementType.DECAISSEMENT, null, null, null);
     }
