@@ -98,6 +98,16 @@ class PressingServiceTest {
     }
 
     @Test
+    void tarifDuServiceModifiableSurLeBulletin() {
+        PressingDto.Detail p = receive();                          // 500 kg à 0,300 = 150 DT
+        PressingDto.Detail modifie = service.updatePrice(p.id(), new BigDecimal("0.200"));
+        assertThat(modifie.tarifKg()).isEqualByComparingTo("0.200");
+        assertThat(modifie.montant()).isEqualByComparingTo("100.000");
+        service.cancel(p.id(), "erreur");
+        assertThatThrownBy(() -> service.updatePrice(p.id(), new BigDecimal("0.250"))).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void tareSuperieureAuBrutRefusee() {
         assertThatThrownBy(() -> service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
                 Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null, null, null, null, null, null, null)))

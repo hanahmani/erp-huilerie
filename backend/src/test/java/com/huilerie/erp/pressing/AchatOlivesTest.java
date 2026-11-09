@@ -124,6 +124,21 @@ class AchatOlivesTest {
     }
 
     @Test
+    void prixDAchatModifiableSurLeBulletinSansDescendreSousLeDejaPaye() {
+        PressingDto.Detail p = presserDans(achat(), puits("PUITS-3", "1000").id(), "200");    // 1000 kg à 0,900
+        service.paySeller(p.id(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("500"), null));
+
+        PressingDto.Detail plus = service.updatePrice(p.id(), new BigDecimal("1.100"));
+        assertThat(plus.prixOlivesKg()).isEqualByComparingTo("1.100");
+        assertThat(plus.montantAchat()).isEqualByComparingTo("1100.000");
+        assertThat(plus.resteVendeur()).isEqualByComparingTo("600.000");
+
+        assertThatThrownBy(() -> service.updatePrice(p.id(), new BigDecimal("0.400")))      // 400 DT < 500 DT déjà payés
+                .isInstanceOf(BusinessException.class).hasMessageContaining("déjà été payé");
+        assertThat(service.updatePrice(p.id(), new BigDecimal("0.500")).resteVendeur()).isEqualByComparingTo("0");
+    }
+
+    @Test
     void paiementDuVendeurLibreEtPlafonne() {
         PressingDto.Detail p = achat();
         service.paySeller(p.id(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("500"), null));

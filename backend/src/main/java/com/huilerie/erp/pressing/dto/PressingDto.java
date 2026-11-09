@@ -60,6 +60,11 @@ public final class PressingDto {
         }
     }
 
+    /** Nouveau prix au kg d'olives net : prix d'achat (ACHAT) ou tarif du service (SERVICE). */
+    public record PriceRequest(@NotNull(message = "Le prix est obligatoire.")
+                               @DecimalMin(value = "0", message = "Le prix ne peut pas être négatif.") BigDecimal prixKg) {
+    }
+
     /** Nouvelle date de réception des olives. */
     public record DateRequest(@NotNull(message = "La date de réception est obligatoire.") Instant dateReception) {
     }

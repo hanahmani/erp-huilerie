@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, BookUser, CalendarClock, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
+import { Ban, BadgeDollarSign, BookUser, CalendarClock, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -11,7 +11,7 @@ import { tankService } from '../../services/stockService';
 import { settingsService } from '../../services/settingsService';
 import { formatDateTime, formatDT, formatQty, fromLocalInput, toLocalInput } from '../../utils/format';
 import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, TANK_TYPES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
-import { normalizeDecimal, toMillimes } from '../../utils/money';
+import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
 import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
 
@@ -84,6 +84,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                <Button variant="secondary" onClick={() => setPrint('bulletin')}><Printer size={16} />Imprimer le bulletin</Button>
                {!achat ? <Button variant="secondary" onClick={() => setPrint('reception')}><Printer size={16} />Bon de pesée</Button> : null}
                {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { dateReception: toLocalInput(p.dateReception), blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
+               {manage && p.statut !== 'ANNULE' ? <Button variant="secondary" onClick={() => open('price', { prix: String(toMillimes(achat ? p.prixOlivesKg : p.tarifKg)) })}><BadgeDollarSign size={16} />{achat ? "Modifier le prix d'achat" : 'Modifier le tarif'}</Button> : null}
                {manage && p.statut !== 'RECU' ? <Button variant="secondary" onClick={() => open('date', { dateReception: toLocalInput(p.dateReception) })}><CalendarClock size={16} />Modifier la date</Button> : null}
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
                {onOpenAccount ? <Button variant="secondary" onClick={() => account(achat ? 'seller' : 'oil')}><BookUser size={16} />Compte du client</Button> : null}
@@ -179,6 +180,28 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                     }))}>Enregistrer</Button></div>
                 </>
               ) : null}
+              {panel === 'price' ? (() => {
+                const valid = /^\d+$/.test((form.prix || '').trim());
+                const prixM = valid ? Number(form.prix.trim()) : 0;
+                const montantM = Math.round((toMillimes(p.poidsNet) * prixM) / 1000);
+                const payeM = toMillimes(achat ? p.montantRegle : p.montantPaye);
+                return (
+                  <>
+                    <h2 style={{ marginBottom: 12 }}>{achat ? "Prix d'achat des olives" : 'Tarif du service'} · bulletin n° {p.numeroBulletin}</h2>
+                    <div className="form-grid">
+                      <div className="field"><label>{achat ? "Prix d'achat" : 'Tarif'} (millimes / kg d'olives) *</label>
+                        <input className="input" inputMode="numeric" autoFocus {...f('prix')} />
+                        {form.prix && !valid ? <span className="error">En millimes, sans virgule : 900 pour 0,900 DT.</span>
+                          : <span className="hint">= {formatDT(fromMillimes(prixM))} le kg · actuel {formatDT(achat ? p.prixOlivesKg : p.tarifKg)}</span>}</div>
+                      <div className="field"><label>Nouveau montant</label>
+                        <div><strong>{formatDT(fromMillimes(montantM))}</strong> <span className="muted">({formatQty(p.poidsNet, 'kg')} × {formatDT(fromMillimes(prixM))})</span></div>
+                        {payeM > 0 ? <span className={montantM < payeM ? 'error' : 'hint'}>Déjà payé : {formatDT(fromMillimes(payeM))}{montantM >= payeM ? ` · reste ${formatDT(fromMillimes(montantM - payeM))}` : ' : le montant ne peut pas être inférieur'}</span> : null}</div>
+                    </div>
+                    <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
+                      <Button loading={busy} disabled={!valid || montantM < payeM} onClick={() => run(() => pressingService.updatePrice(p.id, fromMillimes(prixM)))}>Enregistrer</Button></div>
+                  </>
+                );
+              })() : null}
               {panel === 'date' ? (
                 <>
                   <h2 style={{ marginBottom: 12 }}>Date de réception du bulletin n° {p.numeroBulletin}</h2>

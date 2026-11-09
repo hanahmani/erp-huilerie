@@ -237,6 +237,17 @@ public class Pressing {
         finish(tank.getLot(), huile, pertes);
     }
 
+    /** Nouveau prix au kg : prix d'achat des olives (ACHAT) ou tarif du service (SERVICE), montant recalculé. */
+    void changePrice(BigDecimal prixKg, BigDecimal nouveauMontant) {
+        if (isPurchase()) {
+            this.prixOlivesKg = prixKg;
+            this.montantAchat = nouveauMontant;
+        } else {
+            this.tarifKg = prixKg;
+            this.montant = nouveauMontant;
+        }
+    }
+
     /** Date de réception des olives (corrigible tant que le pressage n'a pas commencé). */
     void setDateReception(Instant dateReception) {
         this.dateReception = dateReception;

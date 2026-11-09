@@ -5,6 +5,7 @@ export const pressingService = {
   get: (id) => api.get(`/pressings/${id}`),
   receive: (body) => api.post('/pressings', body),
   updateTransport: (id, body) => api.put(`/pressings/${id}/transport`, body),
+  updatePrice: (id, prixKg) => api.put(`/pressings/${id}/price`, { prixKg }),
   updateDate: (id, dateReception) => api.put(`/pressings/${id}/date`, { dateReception }),
   start: (id) => api.post(`/pressings/${id}/start`),
   finish: (id, body) => api.post(`/pressings/${id}/finish`, body),

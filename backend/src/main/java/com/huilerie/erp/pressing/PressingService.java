@@ -180,6 +180,37 @@ public class PressingService {
     }
 
     /**
+     * Modification du prix au kg sur le bulletin, à tout statut sauf annulé : prix d'achat des olives (le montant dû au
+     * vendeur est recalculé ; les avances disponibles sont déduites si le montant augmente) ou tarif du service.
+     * Le nouveau montant ne peut pas être inférieur à ce qui a déjà été payé.
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public PressingDto.Detail updatePrice(Long id, BigDecimal prixKg) {
+        Pressing p = lock(id);
+        if (p.getStatut() == Pressing.Status.ANNULE) {
+            throw new BusinessException("Ce pressage est annulé.");
+        }
+        BigDecimal prix = Money.strict(prixKg, "Prix");
+        BigDecimal montant = p.getPoidsNet().multiply(prix).setScale(Money.SCALE, RoundingMode.HALF_UP);
+        BigDecimal dejaPaye = p.isPurchase() ? p.getMontantRegle() : p.getMontantPaye();
+        if (montant.compareTo(dejaPaye) < 0) {
+            throw new BusinessException("Le nouveau montant (" + montant.toPlainString() + " DT) est inférieur à ce qui a "
+                    + "déjà été payé (" + dejaPaye.toPlainString() + " DT).");
+        }
+        BigDecimal ancienPrix = p.isPurchase() ? p.getPrixOlivesKg() : p.getTarifKg();
+        p.changePrice(prix, montant);
+        audit.log(SecurityUtils.username(), "PRESSING_UPDATE_PRICE", "Pressing", String.valueOf(id),
+                "Bulletin " + p.getNumeroBulletin() + (p.isPurchase() ? " : prix d'achat " : " : tarif ")
+                        + ancienPrix.toPlainString() + " → " + prix.toPlainString() + " DT/kg, montant "
+                        + montant.toPlainString() + " DT");
+        if (p.isPurchase()) {
+            accounts.imputeAdvances(p);
+        }
+        return PressingDto.Detail.from(p);
+    }
+
+    /**
      * Correction de la date de réception, à tout moment (même après le pressage) : elle ne change ni le stock ni la caisse.
      * Elle ne peut pas être postérieure au début du pressage.
      */
