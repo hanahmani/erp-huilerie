@@ -11,6 +11,7 @@ import { pressingService } from '../../services/operationsService';
 import { formatDateTime, formatDT, formatQty } from '../../utils/format';
 import { PAYMENT_MODES, PRESSING_STATUS } from '../../utils/labels';
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
+import PaymentCancel from './PaymentCancel';
 
 /** Compte d'huile (pressage à façon) : solde, puits du client, remise en kg ou litres, relevé des entrées et sorties. */
 function OilTab({ clientId, clientNom, onChanged }) {
@@ -169,7 +170,9 @@ function OilTab({ clientId, clientNom, onChanged }) {
             <tr key={x.numero}>
               <td><strong>{x.numero}</strong> <span className="muted">{x.pressingNumero}</span>
                 <div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {PAYMENT_MODES[x.mode]}{x.reference ? ` · ${x.reference}` : ''}</div></td>
-              <td className="num">{formatDT(x.montant)}</td>
+              <td className="num">{formatDT(x.montant)}
+                <PaymentCancel pressingId={x.pressingId} numero={x.numero} montant={x.montant}
+                               onDone={() => { load(); setMessage(`Paiement ${x.numero} annulé.`); onChanged?.(); }} /></td>
             </tr>
           ))}</tbody></table> : <p className="muted">Aucun paiement.</p>}</div>
       </div>

@@ -120,6 +120,12 @@ public class PressingController {
         return service.paySeller(id, r);
     }
 
+    @PostMapping("/{id}/payments/{numero}/cancel")
+    public PressingDto.Detail cancelPayment(@PathVariable Long id, @PathVariable String numero,
+                                            @Valid @RequestBody PressingDto.CancelRequest r) {
+        return service.cancelPayment(id, numero, r.motif());
+    }
+
     @PostMapping("/{id}/cancel")
     public PressingDto.Detail cancel(@PathVariable Long id, @Valid @RequestBody PressingDto.CancelRequest r) {
         return service.cancel(id, r.motif());

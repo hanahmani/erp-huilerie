@@ -213,7 +213,7 @@ public final class PressingDto {
 
     /** Paiement du service, imputé sur un pressage. */
     public record ServicePaymentLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, String reference,
-                                     String pressingNumero, String numeroBulletin, String username) {
+                                     Long pressingId, String pressingNumero, String numeroBulletin, String username) {
     }
 
     public record AdvanceLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, BigDecimal impute,

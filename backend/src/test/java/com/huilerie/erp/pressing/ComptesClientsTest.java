@@ -186,6 +186,24 @@ class ComptesClientsTest {
     }
 
     @Test
+    void paiementSaisiParErreurAnnuleEtCompenseEnCaisse() {
+        PressingDto.Detail p1 = pressage(null, "150");             // 100 DT de service
+        PressingDto.OilAccount compte = accounts.payService(x.getId(),
+                new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("60"), null));
+        PressingDto.ServicePaymentLine ligne = compte.paiements().get(0);
+        assertThat(ligne.pressingId()).isEqualTo(p1.id());
+
+        PressingDto.Detail apres = service.cancelPayment(p1.id(), ligne.numero(), "Saisi par erreur");
+        assertThat(apres.reste()).isEqualByComparingTo("100");
+        assertThat(apres.paiements()).isEmpty();
+        assertThat(accounts.oilAccount(x.getId()).montantDu()).isEqualByComparingTo("100");
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("60");
+        assertThat(decaisse()).isEqualByComparingTo("60");          // l'encaissement est compensé
+        assertThatThrownBy(() -> service.cancelPayment(p1.id(), ligne.numero(), "encore"))
+                .isInstanceOf(com.huilerie.erp.common.exception.NotFoundException.class);
+    }
+
+    @Test
     void priseDirecteSansCiterne() {
         PressingDto.Detail p = recu();
         TankDto.Response citerne = tanks.create(new TankDto.Request("CIT-X", "Citerne de X", StorageTank.Type.CITERNE,

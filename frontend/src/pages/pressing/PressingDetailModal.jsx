@@ -14,6 +14,7 @@ import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, PRESSING
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
 import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
+import PaymentCancel from './PaymentCancel';
 
 const PRINT_TITLES = { bulletin: 'Bulletin de pressage', reception: 'Bon de pesée', return: "Bon de remise d'huile" };
 
@@ -166,7 +167,9 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                 ))}</tbody></table> : <p className="muted">Aucune remise.</p>}</div>
               <div><h2 style={{ marginBottom: 8 }}>Paiements</h2>
                 {p.paiements.length ? <table className="table"><tbody>{p.paiements.map((x) => (
-                  <tr key={x.numero}><td><strong>{x.numero}</strong><div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {PAYMENT_MODES[x.mode]}</div></td><td className="num">{formatDT(x.montant)}</td></tr>
+                  <tr key={x.numero}><td><strong>{x.numero}</strong><div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {PAYMENT_MODES[x.mode]}</div></td><td className="num">{formatDT(x.montant)}
+                    <PaymentCancel pressingId={p.id} numero={x.numero} montant={x.montant}
+                                   onDone={(next) => { setP(next); onChanged?.(); }} /></td></tr>
                 ))}</tbody></table> : <p className="muted">Aucun paiement.</p>}</div>
             </div>
           ) : null}

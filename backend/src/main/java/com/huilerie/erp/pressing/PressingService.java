@@ -439,6 +439,28 @@ public class PressingService {
                 numero + " " + amount.toPlainString() + " DT");
     }
 
+    /**
+     * Annulation d'un paiement du service saisi par erreur (sur le bulletin ou le compte du client) : la ligne est
+     * retirée, le service redevient dû, et une sortie de caisse de même montant et même mode compense l'encaissement
+     * (le journal de caisse ne se modifie jamais).
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE') or hasAuthority('FINANCE_MANAGE')")
+    @Transactional
+    public PressingDto.Detail cancelPayment(Long id, String numero, String motif) {
+        Pressing p = lock(id);
+        Pressing.Payment payment = p.getPaiements().stream().filter(x -> x.getNumero().equals(numero)).findFirst()
+                .orElseThrow(() -> new NotFoundException("Paiement " + numero + " introuvable sur ce bulletin."));
+        String raison = motif.trim();
+        p.removePayment(payment);
+        pressings.saveAndFlush(p);
+        finance.record(CashMovementType.DECAISSEMENT, payment.getMode(), payment.getMontant(),
+                "Annulation du paiement " + numero + " — pressage " + p.getNumero() + " (" + p.getClient().getNom()
+                        + ") : " + raison, DOC_TYPE, p.getId());
+        audit.log(SecurityUtils.username(), "PRESSING_PAYMENT_CANCEL", "Pressing", String.valueOf(id),
+                numero + " " + payment.getMontant().toPlainString() + " DT annulé : " + raison);
+        return PressingDto.Detail.from(p);
+    }
+
     /** Paiement au vendeur des olives achetées : sortie de caisse, plafonnée au reste dû. */
     @PreAuthorize("hasAuthority('PRESSING_MANAGE') or hasAuthority('FINANCE_MANAGE')")
     @Transactional

@@ -160,7 +160,7 @@ public class Pressing {
     @OrderBy("id")
     private List<Return> remises = new ArrayList<>();
 
-    @OneToMany(mappedBy = "pressing", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "pressing", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<Payment> paiements = new ArrayList<>();
 
@@ -281,6 +281,12 @@ public class Pressing {
         paiements.add(p);
         montantPaye = montantPaye.add(amount);
         return p;
+    }
+
+    /** Paiement du service saisi par erreur : retiré du bulletin, le service redevient dû. */
+    void removePayment(Payment payment) {
+        paiements.remove(payment);
+        montantPaye = montantPaye.subtract(payment.getMontant());
     }
 
     void cancel(String motif) {

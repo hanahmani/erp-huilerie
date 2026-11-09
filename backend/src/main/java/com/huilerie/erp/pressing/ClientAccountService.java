@@ -164,7 +164,7 @@ public class ClientAccountService {
                     p.getStatut(), p.getPoidsNet(), p.getMontant(), p.getMontantPaye(), p.reste()));
             for (Pressing.Payment x : p.getPaiements()) {
                 paiements.add(new PressingDto.ServicePaymentLine(x.getNumero(), x.getDate(), x.getMode(), x.getMontant(),
-                        x.getReference(), p.getNumero(), p.getNumeroBulletin(), x.getUsername()));
+                        x.getReference(), p.getId(), p.getNumero(), p.getNumeroBulletin(), x.getUsername()));
             }
         }
         paiements.sort(Comparator.comparing(PressingDto.ServicePaymentLine::date).reversed());
