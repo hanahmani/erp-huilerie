@@ -2,6 +2,7 @@ package com.huilerie.erp.pressing.dto;
 
 import com.huilerie.erp.finance.PaymentMode;
 import com.huilerie.erp.pressing.Pressing;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -101,6 +102,12 @@ public final class PressingDto {
         public FinishRequest(BigDecimal huileObtenue, BigDecimal pertesKg, Long tankId) {
             this(huileObtenue, pertesKg, tankId, false, null, null, null);
         }
+    }
+
+    /** Pressage groupé : bulletins du même client pressés ensemble ; fin.huileObtenue = huile totale. */
+    public record GroupFinishRequest(
+            @NotEmpty(message = "Choisissez les bulletins à presser ensemble.") List<Long> pressingIds,
+            @NotNull @Valid FinishRequest fin) {
     }
 
     public record ReturnRequest(

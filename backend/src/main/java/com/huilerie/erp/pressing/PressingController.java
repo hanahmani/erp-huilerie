@@ -68,6 +68,11 @@ public class PressingController {
         return service.finish(id, r);
     }
 
+    @PostMapping("/finish-group")
+    public java.util.List<PressingDto.Detail> finishGroup(@Valid @RequestBody PressingDto.GroupFinishRequest r) {
+        return service.finishGroup(r);
+    }
+
     @PostMapping("/{id}/return")
     public PressingDto.Detail returnOil(@PathVariable Long id, @Valid @RequestBody PressingDto.ReturnRequest r) {
         return service.returnOil(id, r);

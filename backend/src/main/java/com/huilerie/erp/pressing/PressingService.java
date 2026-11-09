@@ -263,59 +263,134 @@ public class PressingService {
         if (p.getStatut() != Pressing.Status.EN_COURS) {
             throw new BusinessException("Le pressage doit être en cours pour être terminé.");
         }
-        BigDecimal huile = Money.strict(r.huileObtenue(), "Huile obtenue");
-        BigDecimal pertes = Money.strict(r.pertesKg(), "Pertes");
-        if (p.isPurchase()) {
+        complete(List.of(p), r);
+        return PressingDto.Detail.from(p);
+    }
+
+    /**
+     * Pressage groupé : plusieurs bulletins du même client (même type, même huile), reçus ou en cours, pressés
+     * ensemble. L'huile totale est répartie au prorata du poids net de chaque bulletin, qui garde son numéro,
+     * ses paiements et son rendement (identique pour tous).
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public List<PressingDto.Detail> finishGroup(PressingDto.GroupFinishRequest r) {
+        List<Long> ids = r.pressingIds().stream().distinct().sorted().toList();
+        if (ids.size() < 2) {
+            throw new BusinessException("Choisissez au moins deux bulletins à presser ensemble.");
+        }
+        List<Pressing> group = ids.stream().map(this::lock).toList();   // verrouillés dans l'ordre des identifiants
+        Pressing first = group.get(0);
+        for (Pressing p : group) {
+            if (p.getStatut() != Pressing.Status.RECU && p.getStatut() != Pressing.Status.EN_COURS) {
+                throw new BusinessException("Le bulletin " + p.getNumeroBulletin() + " n'est plus à presser ("
+                        + p.getStatut() + ").");
+            }
+            if (!p.getClient().getId().equals(first.getClient().getId())) {
+                throw new BusinessException("Seuls les bulletins d'un même client se pressent ensemble.");
+            }
+            if (p.getMode() != first.getMode()) {
+                throw new BusinessException("Ne mélangez pas un pressage à façon et un achat d'olives.");
+            }
+            if (!p.isPurchase() && !p.getArticle().getId().equals(first.getArticle().getId())) {
+                throw new BusinessException("Les bulletins ne sont pas pour la même huile.");
+            }
+        }
+        for (Pressing p : group) {
+            if (p.getStatut() == Pressing.Status.RECU) {
+                p.start();
+            }
+        }
+        complete(group, r.fin());
+        audit.log(SecurityUtils.username(), "PRESSING_GROUP_FINISH", "Client", String.valueOf(first.getClient().getId()),
+                "Bulletins " + String.join(", ", group.stream().map(Pressing::getNumeroBulletin).toList()) + " : "
+                        + r.fin().huileObtenue().toPlainString() + " d'huile au total");
+        return group.stream().map(PressingDto.Detail::from).toList();
+    }
+
+    /** Part d'huile de chaque bulletin, au prorata du poids net ; le dernier reçoit l'arrondi. */
+    static List<BigDecimal> shares(List<Pressing> group, BigDecimal total) {
+        BigDecimal net = group.stream().map(Pressing::getPoidsNet).reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<BigDecimal> parts = new java.util.ArrayList<>();
+        BigDecimal given = BigDecimal.ZERO;
+        for (int i = 0; i < group.size(); i++) {
+            BigDecimal part = i == group.size() - 1 ? total.subtract(given)
+                    : total.multiply(group.get(i).getPoidsNet()).divide(net, Money.SCALE, RoundingMode.HALF_UP);
+            parts.add(part);
+            given = given.add(part);
+        }
+        return parts;
+    }
+
+    /**
+     * Termine les pressages donnés (en cours, déjà verrouillés) avec l'huile obtenue au total, répartie au prorata :
+     * achat → contenant de l'huilerie ; façon → contenant du client, lot propre à chaque bulletin, ou prise directe
+     * (le reste du service est encaissé et toute l'huile remise sous un seul numéro de remise).
+     */
+    private void complete(List<Pressing> group, PressingDto.FinishRequest r) {
+        Pressing first = group.get(0);
+        BigDecimal total = Money.strict(r.huileObtenue(), "Huile obtenue");
+        List<BigDecimal> huiles = shares(group, total);
+        List<BigDecimal> pertes = r.pertesKg() == null ? null : shares(group, Money.strict(r.pertesKg(), "Pertes"));
+        for (BigDecimal h : huiles) {
+            if (h.signum() <= 0) {
+                throw new BusinessException("La quantité d'huile est trop faible pour être répartie entre ces bulletins.");
+            }
+        }
+        if (first.isPurchase()) {
             if (r.tankId() == null) {
                 throw new BusinessException("Choisissez la pile, la citerne ou le fût où l'huile est stockée.");
             }
             if (tankRepository.findById(r.tankId()).map(t -> t.getClient() != null).orElse(false)) {
                 throw new BusinessException("Ce contenant est réservé à un client : l'huile achetée va dans un contenant de l'huilerie.");
             }
-            StorageTank tank = tanks.fill(r.tankId(), huile, MovementType.PRESSAGE_ACHAT,
-                    "Achat olives " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
-            p.finishPurchase(tank, huile, pertes);
-            audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
-                    p.getNumero() + " : " + huile.toPlainString() + " " + tank.getArticle().getUnite().getCode()
-                            + " dans " + tank.getCode());
-            return PressingDto.Detail.from(p);
-        }
-        if (r.priseDirecte() && r.tankId() != null) {
+        } else if (r.priseDirecte() && r.tankId() != null) {
             throw new BusinessException("Prise directe : l'huile part avec le client, ne choisissez pas de citerne ni de fût.");
         }
-        if (r.tankId() != null) {
-            StorageTank own = accounts.clientTank(p, r.tankId());
-            tanks.fill(own.getId(), huile, MovementType.PRESSAGE_ENTREE,
-                    "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
-            p.finishInTank(own, huile, pertes);
-            audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
-                    p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode()
-                            + " dans " + own.getCode());
-            return PressingDto.Detail.from(p);
-        }
-        if (lots.existsByArticleIdAndNumeroIgnoreCase(p.getArticle().getId(), p.getNumero())) {
-            throw new BusinessException("Un lot porte déjà le numéro " + p.getNumero() + ".");
-        }
-        StockLot lot = lots.save(new StockLot(p.getArticle(), p.getNumero(), LotOwner.CLIENT, p.getClient()));
-        stock.apply(p.getArticle(), lot, MovementType.PRESSAGE_ENTREE, huile,
-                "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
-        p.finish(lot, huile, pertes);
-        audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(id),
-                p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode()
-                        + (r.priseDirecte() ? " (prise directe)" : ""));
-        if (r.priseDirecte()) {
-            // Le client emporte son huile : le reste du service est encaissé maintenant, puis toute l'huile est remise.
-            if (p.reste().signum() > 0) {
-                if (r.modePaiement() == null) {
-                    throw new BusinessException("Prise directe : choisissez le mode de paiement du service ("
-                            + p.reste().toPlainString() + " DT).");
+        for (int i = 0; i < group.size(); i++) {
+            Pressing p = group.get(i);
+            BigDecimal huile = huiles.get(i);
+            BigDecimal perte = pertes == null ? null : pertes.get(i);
+            String where;
+            if (p.isPurchase()) {
+                StorageTank tank = tanks.fill(r.tankId(), huile, MovementType.PRESSAGE_ACHAT,
+                        "Achat olives " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
+                p.finishPurchase(tank, huile, perte);
+                where = " dans " + tank.getCode();
+            } else if (r.tankId() != null) {
+                StorageTank own = accounts.clientTank(p, r.tankId());
+                tanks.fill(own.getId(), huile, MovementType.PRESSAGE_ENTREE,
+                        "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
+                p.finishInTank(own, huile, perte);
+                where = " dans " + own.getCode();
+            } else {
+                if (lots.existsByArticleIdAndNumeroIgnoreCase(p.getArticle().getId(), p.getNumero())) {
+                    throw new BusinessException("Un lot porte déjà le numéro " + p.getNumero() + ".");
                 }
-                recordPayment(p, r.modePaiement(), p.reste(), Text.clean(r.reference()));
+                StockLot lot = lots.save(new StockLot(p.getArticle(), p.getNumero(), LotOwner.CLIENT, p.getClient()));
+                stock.apply(p.getArticle(), lot, MovementType.PRESSAGE_ENTREE, huile,
+                        "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
+                p.finish(lot, huile, perte);
+                where = r.priseDirecte() ? " (prise directe)" : "";
             }
-            accounts.giveOil(p.getClient(), List.of(p), huile, false, r.remisA());
-            pressings.saveAndFlush(p);
+            audit.log(SecurityUtils.username(), "PRESSING_FINISH", "Pressing", String.valueOf(p.getId()),
+                    p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode() + where);
         }
-        return PressingDto.Detail.from(p);
+        if (!first.isPurchase() && r.priseDirecte()) {
+            // Le client emporte son huile : le reste du service est encaissé maintenant, puis toute l'huile est remise.
+            BigDecimal due = group.stream().map(Pressing::reste).reduce(Money.zero(), BigDecimal::add);
+            if (due.signum() > 0 && r.modePaiement() == null) {
+                throw new BusinessException("Prise directe : choisissez le mode de paiement du service ("
+                        + due.toPlainString() + " DT).");
+            }
+            for (Pressing p : group) {
+                if (p.reste().signum() > 0) {
+                    recordPayment(p, r.modePaiement(), p.reste(), Text.clean(r.reference()));
+                }
+            }
+            accounts.giveOil(first.getClient(), group, total, false, r.remisA());
+            group.forEach(pressings::saveAndFlush);
+        }
     }
 
     /** Remise de l'huile d'un seul pressage (en une ou plusieurs fois), après paiement complet du service. */

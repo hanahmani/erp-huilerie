@@ -10,7 +10,7 @@ import { pressingService } from '../../services/operationsService';
 import { tankService } from '../../services/stockService';
 import { settingsService } from '../../services/settingsService';
 import { formatDateTime, formatDT, formatQty, formatYield, fromLocalInput, toLocalInput } from '../../utils/format';
-import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, TANK_TYPES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
+import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, PRESSING_STATUS, TANK_TYPES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
 import BulletinPressage, { BULLETIN_FORMATS } from './BulletinPressage';
@@ -49,6 +49,17 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
     tankService.list().then((l) => setTanks(l.filter((t) => t.actif && (achat
       ? !t.clientId : t.clientId === p.clientId && t.articleId === p.articleId)))).catch((e) => setError(e.message));
   }, [panel, achat, p]);
+  // Autres bulletins du même client encore à presser (même type) : pressage groupé possible.
+  const [others, setOthers] = useState([]);
+  useEffect(() => {
+    if (panel !== 'finish' || !p) return;
+    pressingService.list({ clientId: p.clientId, size: 100 })
+      .then((page) => setOthers(page.content.filter((x) => x.id !== p.id && x.mode === p.mode && ['RECU', 'EN_COURS'].includes(x.statut))))
+      .catch(() => setOthers([]));
+  }, [panel, p]);
+  // Pressage groupé : bulletins cochés en plus de celui-ci, et service encore dû sur l'ensemble.
+  const groupIds = form.groupIds || [];
+  const groupReste = Number(p?.reste || 0) + others.filter((x) => groupIds.includes(x.id)).reduce((sum, x) => sum + Number(x.reste), 0);
   const account = (tab) => onOpenAccount?.({ clientId: p.clientId, clientNom: p.clientNom, tab });
   // Annulation possible tant que rien n'a été encaissé ni payé en caisse (une avance déduite est rendue au vendeur).
   const cashPaid = p && (Number(p.montantPaye) > 0 || p.reglementsVendeur.some((x) => !x.avanceNumero));
@@ -217,8 +228,37 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
               {panel === 'finish' ? (
                 <>
                   <h2 style={{ marginBottom: 12 }}>Fin du pressage</h2>
+                  {others.length ? (() => {
+                    const ids = form.groupIds || [];
+                    const chosen = [{ id: p.id, numeroBulletin: p.numeroBulletin, dateReception: p.dateReception, poidsNet: p.poidsNet, statut: p.statut },
+                      ...others.filter((x) => ids.includes(x.id))];
+                    const netM = chosen.reduce((sum, x) => sum + toMillimes(x.poidsNet), 0);
+                    const huileM = toMillimes(form.huile);
+                    const toggle = (id) => setForm({ ...form, groupIds: ids.includes(id) ? ids.filter((v) => v !== id) : [...ids, id] });
+                    return (
+                      <div className="panel" style={{ padding: 12, marginBottom: 12 }}>
+                        <strong>Presser ensemble avec d'autres bulletins de {p.clientNom}</strong>
+                        <span className="hint" style={{ display: 'block', marginBottom: 8 }}>L'huile saisie est le total ; elle est répartie au prorata du poids net de chaque bulletin.</span>
+                        <table className="table"><tbody>
+                          {chosen.slice(0, 1).concat(others).map((x) => (
+                            <tr key={x.id}>
+                              <td><label className="check">
+                                <input type="checkbox" checked={x.id === p.id || ids.includes(x.id)} disabled={x.id === p.id} onChange={() => toggle(x.id)} />
+                                Bulletin {x.numeroBulletin}{x.id === p.id ? ' (celui-ci)' : ''}</label>
+                                <div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.dateReception)} · {PRESSING_STATUS[x.statut]}</div></td>
+                              <td className="num">{formatQty(x.poidsNet, 'kg')}
+                                {huileM > 0 && (x.id === p.id || ids.includes(x.id))
+                                  ? <div className="muted" style={{ fontSize: 12 }}>≈ {formatQty(fromMillimes(Math.round((huileM * toMillimes(x.poidsNet)) / netM)), p.unite)}</div> : null}</td>
+                            </tr>
+                          ))}
+                        </tbody></table>
+                        {ids.length ? <span className="hint">{chosen.length} bulletins · {formatQty(fromMillimes(netM), 'kg')} d'olives
+                          {huileM > 0 ? ` · rendement ${formatYield((huileM * 100) / netM)}` : ''}</span> : null}
+                      </div>
+                    );
+                  })() : null}
                   <div className="form-grid">
-                    <div className="field"><label>Huile obtenue ({p.unite}) *</label><input className="input" inputMode="decimal" autoFocus {...f('huile')} /></div>
+                    <div className="field"><label>Huile obtenue{form.groupIds?.length ? ' au total' : ''} ({p.unite}) *</label><input className="input" inputMode="decimal" autoFocus {...f('huile')} /></div>
                     {achat ? (
                       <div className="field wide"><label>Contenant de l'huilerie (pile, citerne, fût) *</label>
                         <select className="select" {...f('tankId')}>
@@ -248,14 +288,14 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                         {form.dest === 'DIRECT' ? (
                           <>
                             <div className="field"><label>Remis à</label><input className="input" maxLength={150} placeholder={p.clientNom} {...f('remisA')} /></div>
-                            {Number(p.reste) > 0 ? (
+                            {groupReste > 0 ? (
                               <>
-                                <div className="field"><label>Paiement du service ({formatDT(p.reste)}) *</label>
+                                <div className="field"><label>Paiement du service ({formatDT(fromMillimes(Math.round(groupReste * 1000)))}) *</label>
                                   <select className="select" {...f('mode')}>{Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
                                 <div className="field"><label>Référence</label><input className="input" maxLength={80} {...f('reference')} placeholder="N° de chèque, virement…" /></div>
                               </>
                             ) : null}
-                            <p className="hint field wide">Le client emporte toute son huile maintenant{Number(p.reste) > 0 ? ` ; le service (${formatDT(p.reste)}) est encaissé en même temps` : ''}.</p>
+                            <p className="hint field wide">Le client emporte toute son huile maintenant{groupReste > 0 ? ` ; le service (${formatDT(fromMillimes(Math.round(groupReste * 1000)))}) est encaissé en même temps` : ''}.</p>
                           </>
                         ) : null}
                       </>
@@ -263,14 +303,19 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
                     <Button loading={busy} disabled={!toMillimes(form.huile) || (achat ? !form.tankId : !form.dest || (form.dest === 'TANK' && !form.tankId))}
-                            onClick={() => run(() => pressingService.finish(p.id, {
-                              huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
-                              tankId: form.tankId ? Number(form.tankId) : null,
-                              priseDirecte: !achat && form.dest === 'DIRECT',
-                              modePaiement: !achat && form.dest === 'DIRECT' && Number(p.reste) > 0 ? form.mode : null,
-                              reference: form.reference || null, remisA: form.remisA || null,
-                            }))}>{achat ? "Verser l'huile dans le contenant" : form.dest === 'DIRECT'
-                              ? (Number(p.reste) > 0 ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
+                            onClick={() => {
+                              const fin = {
+                                huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
+                                tankId: form.tankId ? Number(form.tankId) : null,
+                                priseDirecte: !achat && form.dest === 'DIRECT',
+                                modePaiement: !achat && form.dest === 'DIRECT' && groupReste > 0 ? form.mode : null,
+                                reference: form.reference || null, remisA: form.remisA || null,
+                              };
+                              run(async () => (groupIds.length
+                                ? (await pressingService.finishGroup({ pressingIds: [p.id, ...groupIds], fin })).find((d) => d.id === p.id)
+                                : pressingService.finish(p.id, fin)));
+                            }}>{achat ? "Verser l'huile dans le contenant" : form.dest === 'DIRECT'
+                              ? (groupReste > 0 ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
                 </>
               ) : null}
               {panel === 'pay' ? (

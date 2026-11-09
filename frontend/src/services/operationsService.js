@@ -9,6 +9,7 @@ export const pressingService = {
   updateDate: (id, dateReception) => api.put(`/pressings/${id}/date`, { dateReception }),
   start: (id) => api.post(`/pressings/${id}/start`),
   finish: (id, body) => api.post(`/pressings/${id}/finish`, body),
+  finishGroup: (body) => api.post('/pressings/finish-group', body),
   returnOil: (id, body) => api.post(`/pressings/${id}/return`, body),
   pay: (id, body) => api.post(`/pressings/${id}/pay`, body),
   paySeller: (id, body) => api.post(`/pressings/${id}/pay-seller`, body),

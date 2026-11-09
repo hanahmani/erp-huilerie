@@ -21,6 +21,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -134,6 +135,54 @@ class ComptesClientsTest {
         accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("30"), null));
         assertThatThrownBy(() -> accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES,
                 new BigDecimal("1"), null))).isInstanceOf(BusinessException.class).hasMessageContaining("aucun service");
+    }
+
+    private PressingDto.Detail bulletin(Client c, String net) {
+        return service.receive(new PressingDto.ReceiveRequest(c.getId(), huileClients.getId(), null, null,
+                Pressing.OliveState.SAINES, new BigDecimal(net), BigDecimal.ZERO, new BigDecimal("0.100"), null,
+                null, null, null, null, Pressing.Mode.SERVICE, null));
+    }
+
+    @Test
+    void pressageGroupeRepartitLHuileAuProrataDuPoidsNet() {
+        PressingDto.Detail hier = bulletin(x, "200");
+        PressingDto.Detail matin = bulletin(x, "300");
+        PressingDto.Detail soir = bulletin(x, "300");
+        service.start(matin.id());                                 // reçus ou en cours : tous acceptés
+
+        List<PressingDto.Detail> faits = service.finishGroup(new PressingDto.GroupFinishRequest(
+                List.of(soir.id(), hier.id(), matin.id()), new PressingDto.FinishRequest(new BigDecimal("160"), null, null)));
+        assertThat(faits).extracting(PressingDto.Detail::huileObtenue)
+                .usingElementComparator(BigDecimal::compareTo)
+                .containsExactly(new BigDecimal("40"), new BigDecimal("60"), new BigDecimal("60"));
+        assertThat(faits).allSatisfy(d -> {
+            assertThat(d.statut()).isEqualTo(Pressing.Status.TERMINE);
+            assertThat(d.rendement()).isEqualByComparingTo("20.00");
+        });
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("160");
+    }
+
+    @Test
+    @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "STOCK_VIEW", "STOCK_ADJUST", "SALES_CREATE"})
+    void pressageGroupeEnPriseDirecteEtArrondi() {
+        PressingDto.Detail a = bulletin(x, "100");
+        PressingDto.Detail b = bulletin(x, "200");
+        List<PressingDto.Detail> faits = service.finishGroup(new PressingDto.GroupFinishRequest(List.of(a.id(), b.id()),
+                new PressingDto.FinishRequest(new BigDecimal("50"), null, null, true, PaymentMode.ESPECES, null, null)));
+        assertThat(faits.get(0).huileObtenue()).isEqualByComparingTo("16.667");
+        assertThat(faits.get(1).huileObtenue()).isEqualByComparingTo("33.333");     // le total reste exactement 50
+        assertThat(faits).allSatisfy(d -> assertThat(d.statut()).isEqualTo(Pressing.Status.REMIS));
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("30");
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void pressageGroupeRefuseDeuxClients() {
+        PressingDto.Detail a = bulletin(x, "100");
+        PressingDto.Detail b = bulletin(fx.client("Y", null), "100");
+        assertThatThrownBy(() -> service.finishGroup(new PressingDto.GroupFinishRequest(List.of(a.id(), b.id()),
+                new PressingDto.FinishRequest(new BigDecimal("40"), null, null))))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("même client");
     }
 
     @Test
