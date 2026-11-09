@@ -69,14 +69,14 @@ export default function PressingPage() {
       { header: 'Rendement', value: (p) => (p.rendement == null ? '' : Number(p.rendement)) },
       { header: 'À remettre', value: (p) => Number(p.huileARemettre) }, { header: 'Montant', value: (p) => Number(p.montant) },
       { header: 'Reste à payer', value: (p) => Number(p.reste) }, { header: 'Achat', value: (p) => (p.montantAchat == null ? '' : Number(p.montantAchat)) },
-      { header: 'Reste dû au vendeur', value: (p) => Number(p.resteVendeur) }, { header: 'Puits', value: (p) => p.tankCode || '' },
+      { header: 'Reste dû au vendeur', value: (p) => Number(p.resteVendeur) }, { header: 'Contenant', value: (p) => p.tankCode || '' },
       { header: 'Statut', value: (p) => pressingStatusLabel(p) },
     ], page.content);
   };
 
   return (
     <>
-      <PageHeader title="Pressage client" description="Bulletins de pressage : olives pressées pour le client (son huile reste sa propriété) ou achetées par l'huilerie (l'huile va dans un puits et se vend en caisse)."
+      <PageHeader title="Pressage client" description="Bulletins de pressage : olives pressées pour le client (son huile reste sa propriété) ou achetées par l'huilerie (l'huile va dans une pile, une citerne ou un fût et se vend en caisse)."
                   actions={(
                     <>
                       <Button variant="secondary" onClick={exportAll}><Download size={18} />Exporter</Button>
@@ -108,7 +108,7 @@ export default function PressingPage() {
                        { key: 'k', header: 'Poids net', align: 'right', render: (p) => formatQty(p.poidsNet, 'kg') },
                        { key: 'h', header: 'Huile', align: 'right', render: (p) => (p.huileObtenue != null ? formatQty(p.huileObtenue) : '—') },
                        { key: 'y', header: 'Rendement', align: 'right', render: (p) => (p.rendement != null ? `${Number(p.rendement).toFixed(1)} L/100 kg` : '—') },
-                       { key: 'r', header: 'À remettre / puits', align: 'right', render: (p) => (p.mode === 'ACHAT' ? (p.tankCode || '—') : Number(p.huileARemettre) ? <strong>{formatQty(p.huileARemettre)}</strong> : '—') },
+                       { key: 'r', header: 'À remettre / contenant', align: 'right', render: (p) => (p.mode === 'ACHAT' ? (p.tankCode || '—') : Number(p.huileARemettre) ? <strong>{formatQty(p.huileARemettre)}</strong> : '—') },
                        { key: 'm', header: 'Reste à payer', align: 'right', render: (p) => (p.mode === 'ACHAT'
                          ? (Number(p.resteVendeur) ? <span title="Dû au vendeur">{formatDT(p.resteVendeur)} <small className="muted">vendeur</small></span> : '—')
                          : Number(p.reste) ? formatDT(p.reste) : '—') },

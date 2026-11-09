@@ -121,7 +121,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                 <>
                   <dt>Achat</dt><dd>{formatDT(p.montantAchat)} <span className="muted">({formatDT(p.prixOlivesKg)}/kg)</span></dd>
                   <dt>Payé / reste au vendeur</dt><dd>{formatDT(p.montantRegle)} / <strong>{formatDT(p.resteVendeur)}</strong></dd>
-                  <dt>Puits</dt><dd>{p.tankCode ? <strong>{p.tankCode}</strong> : '—'}{p.tankNom ? ` · ${p.tankNom}` : ''}</dd>
+                  <dt>Contenant</dt><dd>{p.tankCode ? <strong>{p.tankCode}</strong> : '—'}{p.tankNom ? ` · ${p.tankNom}` : ''}</dd>
                 </>
               ) : (
                 <>
@@ -220,12 +220,12 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   <div className="form-grid">
                     <div className="field"><label>Huile obtenue ({p.unite}) *</label><input className="input" inputMode="decimal" autoFocus {...f('huile')} /></div>
                     {achat ? (
-                      <div className="field wide"><label>Contenant de l'huilerie (puits, citerne, fût…) *</label>
+                      <div className="field wide"><label>Contenant de l'huilerie (pile, citerne, fût) *</label>
                         <select className="select" {...f('tankId')}>
                           <option value="">Choisir…</option>
                           {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
                         </select>
-                        {!tanks.length ? <span className="hint">Aucun contenant actif : créez-en un dans Stock › Citernes / fûts / puits.</span> : null}</div>
+                        {!tanks.length ? <span className="hint">Aucun contenant actif : créez-en un dans Stock › Piles / citernes / fûts.</span> : null}</div>
                     ) : (
                       <>
                         <div className="field wide"><label>L'huile du client *</label>
@@ -242,7 +242,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                               {tanks.map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
                             </select>
                             <span className="hint">{tanks.length ? "L'huile reste à l'huilerie, sur le compte du client ; elle sort plus tard par une remise."
-                              : `Aucune citerne ni aucun fût réservé à ${p.clientNom} : créez-en dans Stock › Citernes / fûts / puits (propriétaire : ce client).`}</span></div>
+                              : `Aucune citerne ni aucun fût réservé à ${p.clientNom} : créez-en dans Stock › Piles / citernes / fûts (propriétaire : ce client).`}</span></div>
                         ) : null}
                         {form.dest === 'LOT' ? <p className="hint field wide">L'huile reste à l'huilerie, sur le compte du client, dans un lot propre à ce pressage.</p> : null}
                         {form.dest === 'DIRECT' ? (
@@ -269,7 +269,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                               priseDirecte: !achat && form.dest === 'DIRECT',
                               modePaiement: !achat && form.dest === 'DIRECT' && Number(p.reste) > 0 ? form.mode : null,
                               reference: form.reference || null, remisA: form.remisA || null,
-                            }))}>{achat ? "Verser l'huile dans le puits" : form.dest === 'DIRECT'
+                            }))}>{achat ? "Verser l'huile dans le contenant" : form.dest === 'DIRECT'
                               ? (Number(p.reste) > 0 ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
                 </>
               ) : null}

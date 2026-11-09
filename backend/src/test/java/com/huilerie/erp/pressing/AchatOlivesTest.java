@@ -54,7 +54,7 @@ class AchatOlivesTest {
     }
 
     private TankDto.Response puits(String code, String capacite) {
-        return tanks.create(new TankDto.Request(code, "Puits " + code, StorageTank.Type.PUITS, huileVrac.getId(),
+        return tanks.create(new TankDto.Request(code, "Puits " + code, StorageTank.Type.PILE, huileVrac.getId(),
                 new BigDecimal(capacite), null));
     }
 
@@ -150,7 +150,7 @@ class AchatOlivesTest {
         PressingDto.Detail p = achat();
         service.start(p.id());
         assertThatThrownBy(() -> service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("200"), null, null)))
-                .isInstanceOf(BusinessException.class).hasMessageContaining("puits");
+                .isInstanceOf(BusinessException.class).hasMessageContaining("pile");
     }
 
     @Test
@@ -197,7 +197,7 @@ class AchatOlivesTest {
     void capaciteNePeutPasDescendreSousLeContenu() {
         TankDto.Response puits = puits("PUITS-4", "1000");
         presserDans(achat(), puits.id(), "200");
-        assertThatThrownBy(() -> tanks.update(puits.id(), new TankDto.Request(null, "Puits 4", StorageTank.Type.PUITS,
+        assertThatThrownBy(() -> tanks.update(puits.id(), new TankDto.Request(null, "Puits 4", StorageTank.Type.PILE,
                 null, new BigDecimal("100"), null))).isInstanceOf(BusinessException.class);
     }
 }

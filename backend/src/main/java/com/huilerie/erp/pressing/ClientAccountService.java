@@ -274,12 +274,12 @@ public class ClientAccountService {
 
     /** Puits du client pour la fin d'un pressage à façon : réservé à ce client et contenant la même huile. */
     StorageTank clientTank(Pressing p, Long tankId) {
-        StorageTank t = tanks.findById(tankId).orElseThrow(() -> new NotFoundException("Puits introuvable."));
+        StorageTank t = tanks.findById(tankId).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
         if (t.getClient() == null || !t.getClient().getId().equals(p.getClient().getId())) {
-            throw new BusinessException("Le puits " + t.getCode() + " n'est pas réservé à " + p.getClient().getNom() + ".");
+            throw new BusinessException(t.getCode() + " n'est pas réservé à " + p.getClient().getNom() + ".");
         }
         if (!t.getArticle().getId().equals(p.getArticle().getId())) {
-            throw new BusinessException("Le puits " + t.getCode() + " contient « " + t.getArticle().getNom()
+            throw new BusinessException(t.getCode() + " contient « " + t.getArticle().getNom()
                     + " », pas « " + p.getArticle().getNom() + " ».");
         }
         return t;

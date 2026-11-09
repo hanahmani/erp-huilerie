@@ -25,7 +25,7 @@ export const MOVEMENT_TYPES = {
   INVENTAIRE_MOINS: 'Inventaire −',
   PRESSAGE_ENTREE: 'Pressage (huile client)',
   PRESSAGE_REMISE: 'Remise au client',
-  PRESSAGE_ACHAT: "Achat d'olives (huile en puits)",
+  PRESSAGE_ACHAT: "Achat d'olives (huile en contenant)",
   CONSOMMATION_PRODUCTION: 'Consommation production',
   PRODUCTION_SORTIE: 'Sortie de production',
   CONDITIONNEMENT_SORTIE: 'Conditionnement (sortie)',
@@ -57,9 +57,9 @@ export const PRESSING_STATUS = { RECU: 'Olives reçues', EN_COURS: 'Pressage en 
 export const PRESSING_STATUS_CLASS = { RECU: '', EN_COURS: 'badge-role', TERMINE: 'badge-warn', REMIS: 'badge-ok', ANNULE: 'badge-off' };
 export const PRESSING_MODES = { SERVICE: 'Pressage pour le client', ACHAT: "Achat d'olives" };
 /** Libellé du statut : un achat terminé n'a pas d'huile à remettre, elle est dans le puits. */
-export const pressingStatusLabel = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'Huile en puits' : PRESSING_STATUS[p.statut]);
+export const pressingStatusLabel = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'Huile stockée' : PRESSING_STATUS[p.statut]);
 export const pressingStatusClass = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'badge-ok' : PRESSING_STATUS_CLASS[p.statut]);
-export const TANK_TYPES = { PUITS: 'Puits', CITERNE: 'Citerne', FUT: 'Fût' };
+export const TANK_TYPES = { PILE: 'Pile', CITERNE: 'Citerne', FUT: 'Fût' };
 /** Fin d'un pressage à façon : où va l'huile du client. */
 export const OIL_DESTINATIONS = { TANK: 'Dans sa citerne / son fût', LOT: "À l'huilerie, sans contenant", DIRECT: 'Prise directe' };
 export const OLIVE_STATES = { SAINES: 'Saines', TOMBEES: 'Tombées (ramassées au sol)', ABIMEES: 'Abîmées' };

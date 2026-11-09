@@ -81,7 +81,7 @@ function OilTab({ clientId, clientNom, onChanged }) {
         <StatCard label="Service encore dû" value={formatDT(acc.montantDu)} tone={due ? 'warn' : undefined}
                   hint={due ? "À encaisser avant toute remise d'huile" : 'Rien à payer'} />
         {acc.puits.map((t) => (
-          <StatCard key={t.id} label={`Puits ${t.code}`} value={formatQty(t.quantite, acc.unite)}
+          <StatCard key={t.id} label={t.code} value={formatQty(t.quantite, acc.unite)}
                     hint={`${t.nom} · capacité ${formatQty(t.capacite, acc.unite)}`} />
         ))}
       </div>

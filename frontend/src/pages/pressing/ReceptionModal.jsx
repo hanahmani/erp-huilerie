@@ -97,7 +97,7 @@ export default function ReceptionModal({ onClose, onDone }) {
           ))}
         </div>
         <span className="hint">{achat
-          ? "L'huilerie achète les olives au kilo : après le pressage, l'huile sera versée dans un puits et vendue en caisse."
+          ? "L'huilerie achète les olives au kilo : après le pressage, l'huile sera versée dans une pile, une citerne ou un fût et vendue en caisse."
           : "Le client reprend son huile : elle reste sa propriété et n'est jamais vendue."}</span>
       </div>
       {!achat && settings && !settings.pressageArticleId

@@ -52,7 +52,7 @@ class ComptesClientsTest {
     }
 
     private TankDto.Response tank(String code, Article oil, Client owner) {
-        return tanks.create(new TankDto.Request(code, "Puits " + code, StorageTank.Type.PUITS, oil.getId(),
+        return tanks.create(new TankDto.Request(code, "Puits " + code, StorageTank.Type.PILE, oil.getId(),
                 new BigDecimal("5000"), owner == null ? null : owner.getId()));
     }
 

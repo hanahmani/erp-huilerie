@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Puits, citerne ou fût de stockage d'huile. Son contenu est un lot dont le numéro est le code du puits et qui ne peut
+ * Pile, citerne ou fût de stockage d'huile. Son contenu est un lot dont le numéro est le code du puits et qui ne peut
  * pas dépasser la capacité :
  * <ul>
  *   <li>puits de l'huilerie (client vide) : lot ENTREPRISE, huile achetée, vendue en caisse ;</li>
@@ -20,8 +20,8 @@ import java.time.Instant;
 @Table(name = "storage_tanks")
 public class StorageTank {
 
-    /** L'huile n'est stockée que dans un puits, une citerne ou un fût. */
-    public enum Type { PUITS, CITERNE, FUT }
+    /** L'huile n'est stockée que dans une pile, une citerne ou un fût. */
+    public enum Type { PILE, CITERNE, FUT }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

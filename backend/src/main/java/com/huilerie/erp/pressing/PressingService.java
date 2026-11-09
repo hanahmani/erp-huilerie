@@ -267,10 +267,10 @@ public class PressingService {
         BigDecimal pertes = Money.strict(r.pertesKg(), "Pertes");
         if (p.isPurchase()) {
             if (r.tankId() == null) {
-                throw new BusinessException("Choisissez le puits, la citerne ou le fût où l'huile est stockée.");
+                throw new BusinessException("Choisissez la pile, la citerne ou le fût où l'huile est stockée.");
             }
             if (tankRepository.findById(r.tankId()).map(t -> t.getClient() != null).orElse(false)) {
-                throw new BusinessException("Ce puits est réservé à un client : l'huile achetée va dans un puits de l'huilerie.");
+                throw new BusinessException("Ce contenant est réservé à un client : l'huile achetée va dans un contenant de l'huilerie.");
             }
             StorageTank tank = tanks.fill(r.tankId(), huile, MovementType.PRESSAGE_ACHAT,
                     "Achat olives " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());

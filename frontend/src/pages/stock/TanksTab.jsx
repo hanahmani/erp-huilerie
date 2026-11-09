@@ -21,7 +21,7 @@ import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
  */
 function TankModal({ tank, onClose, onSaved }) {
   const creating = !tank.id;
-  const [form, setForm] = useState({ code: tank.code || '', nom: tank.nom || '', type: tank.type || 'PUITS',
+  const [form, setForm] = useState({ code: tank.code || '', nom: tank.nom || '', type: tank.type || 'PILE',
     articleId: tank.articleId || '', capacite: tank.capacite != null ? String(tank.capacite) : '',
     owner: tank.clientId ? 'CLIENT' : 'HUILERIE', clientId: tank.clientId || '' });
   const fetchClients = useCallback((q) => clientService.list({ q, actif: true, size: 30 }), []);
@@ -57,7 +57,7 @@ function TankModal({ tank, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={creating ? 'Nouveau puits / citerne / fût' : `${TANK_TYPES[tank.type] || 'Contenant'} ${tank.code}`} onClose={onClose}
+    <Modal title={creating ? 'Nouvelle pile / citerne / fût' : `${TANK_TYPES[tank.type] || 'Contenant'} ${tank.code}`} onClose={onClose}
            footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
              <Button onClick={save} loading={saving} disabled={!valid}>Enregistrer</Button></>)}>
       <Alert type="error">{error}</Alert>
@@ -79,9 +79,9 @@ function TankModal({ tank, onClose, onSaved }) {
       ) : null}
       <div className="form-grid">
         <div className="field"><label>Code *</label>
-          <input className="input" value={form.code} onChange={set('code')} disabled={!creating} placeholder="Ex. PUITS-1" maxLength={30} />
+          <input className="input" value={form.code} onChange={set('code')} disabled={!creating} placeholder="Ex. PILE-1" maxLength={30} />
           <span className="hint">Affiché en caisse comme lot ; non modifiable.</span></div>
-        <div className="field"><label>Nom *</label><input className="input" value={form.nom} onChange={set('nom')} maxLength={100} placeholder="Ex. Puits 1 (sous-sol)" /></div>
+        <div className="field"><label>Nom *</label><input className="input" value={form.nom} onChange={set('nom')} maxLength={100} placeholder="Ex. Pile 1" /></div>
         <div className="field"><label>Type *</label>
           <select className="select" value={form.type} onChange={set('type')}>
             {Object.entries(TANK_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -167,14 +167,14 @@ export default function TanksTab({ canAdjust, reloadKey }) {
     <div className="panel">
       {canAdjust ? (
         <div className="panel-body" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button onClick={() => setEditing({})}><Plus size={18} />Nouvelle citerne / fût / puits</Button>
+          <Button onClick={() => setEditing({})}><Plus size={18} />Nouvelle pile / citerne / fût</Button>
         </div>
       ) : null}
       <Alert type="error">{error}</Alert>
       {!rows ? <div className="panel-body"><Spinner /></div> : (
         <DataTable rows={rows}
                    empty={<EmptyState icon={Container} title="Aucun contenant"
-                                      text="Créez vos puits, citernes et fûts : ceux de l'huilerie (huile achetée, vendue en caisse) et ceux des clients (leur huile conservée à l'huilerie)." />}
+                                      text="Créez vos piles, citernes et fûts : ceux de l'huilerie (huile achetée, vendue en caisse) et ceux des clients (leur huile conservée à l'huilerie)." />}
                    columns={[
                      { key: 'code', header: 'Code', render: (t) => <><strong>{t.code}</strong><div className="muted" style={{ fontSize: 12 }}>{t.nom}</div></> },
                      { key: 'type', header: 'Type', render: (t) => TANK_TYPES[t.type] },

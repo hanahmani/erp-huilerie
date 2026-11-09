@@ -53,21 +53,21 @@ public class TankService {
     @Transactional
     public TankDto.Response create(TankDto.Request r) {
         if (r.code() == null || r.code().isBlank()) {
-            throw new BusinessException("Le code du puits est obligatoire.");
+            throw new BusinessException("Le code du contenant est obligatoire.");
         }
         if (r.articleId() == null) {
-            throw new BusinessException("Choisissez l'huile stockée dans ce puits.");
+            throw new BusinessException("Choisissez l'huile stockée dans ce contenant.");
         }
         String code = r.code().trim().replaceAll("\\s+", " ").toUpperCase();
         if (tanks.existsByCodeIgnoreCase(code)) {
-            throw new BusinessException("Un puits porte déjà le code " + code + ".");
+            throw new BusinessException("Un contenant porte déjà le code " + code + ".");
         }
         Article article = articles.findById(r.articleId()).orElseThrow(() -> new NotFoundException("Article introuvable."));
         if (!article.isActif()) {
             throw new BusinessException("Cet article est désactivé.");
         }
         if (!article.isSuiviLot()) {
-            throw new BusinessException("L'huile d'un puits doit être un article suivi par lot.");
+            throw new BusinessException("L'huile d'un contenant doit être un article suivi par lot.");
         }
         if (lots.existsByArticleIdAndNumeroIgnoreCase(article.getId(), code)) {
             throw new BusinessException("Un lot " + code + " existe déjà pour cet article : choisissez un autre code.");
@@ -91,11 +91,11 @@ public class TankService {
     @PreAuthorize("hasAuthority('STOCK_ADJUST')")
     @Transactional
     public TankDto.Response update(Long id, TankDto.Request r) {
-        StorageTank t = tanks.lockById(id).orElseThrow(() -> new NotFoundException("Puits introuvable."));
+        StorageTank t = tanks.lockById(id).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
         BigDecimal capacite = Money.strict(r.capacite(), "Capacité");
         BigDecimal quantite = quantity(t);
         if (capacite.compareTo(quantite) < 0) {
-            throw new BusinessException("Le puits contient déjà " + quantite.toPlainString() + " : la capacité ne peut pas être inférieure.");
+            throw new BusinessException("Le contenant contient déjà " + quantite.toPlainString() + " : la capacité ne peut pas être inférieure.");
         }
         t.update(r.nom().trim(), r.type(), capacite);
         audit.log(SecurityUtils.username(), "TANK_UPDATE", "StorageTank", String.valueOf(id),
@@ -106,7 +106,7 @@ public class TankService {
     @PreAuthorize("hasAuthority('STOCK_ADJUST')")
     @Transactional
     public TankDto.Response setStatus(Long id, boolean actif) {
-        StorageTank t = tanks.findById(id).orElseThrow(() -> new NotFoundException("Puits introuvable."));
+        StorageTank t = tanks.findById(id).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
         t.setActif(actif);
         audit.log(SecurityUtils.username(), actif ? "ACTIVATE" : "DEACTIVATE", "StorageTank", String.valueOf(id), t.getCode());
         return toDto(t);
@@ -164,13 +164,13 @@ public class TankService {
     @Transactional(propagation = Propagation.MANDATORY)
     public StorageTank fill(Long tankId, BigDecimal quantite, MovementType type, String motif, String documentType,
                             Long documentId) {
-        StorageTank t = tanks.lockById(tankId).orElseThrow(() -> new NotFoundException("Puits introuvable."));
+        StorageTank t = tanks.lockById(tankId).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
         if (!t.isActif()) {
-            throw new BusinessException("Le puits " + t.getCode() + " est désactivé.");
+            throw new BusinessException(t.getCode() + " est désactivé.");
         }
         BigDecimal place = t.getCapacite().subtract(quantity(t));
         if (quantite.compareTo(place) > 0) {
-            throw new BusinessException("Le puits " + t.getCode() + " est plein : place restante "
+            throw new BusinessException(t.getCode() + " est plein : place restante "
                     + place.toPlainString() + " " + t.getArticle().getUnite().getCode() + ".");
         }
         stock.apply(t.getArticle(), t.getLot(), type, quantite, motif, documentType, documentId);
