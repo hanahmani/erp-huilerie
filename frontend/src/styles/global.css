@@ -142,7 +142,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 }
 .modal-head { padding: 18px 24px; border-bottom: 1px solid var(--beige-100); display: flex; justify-content: space-between; align-items: center; }
 .modal-body { padding: 20px 24px; }
-.modal-foot { padding: 14px 24px; border-top: 1px solid var(--beige-100); display: flex; justify-content: flex-end; gap: 8px; }
+.modal-foot { padding: 14px 24px; border-top: 1px solid var(--beige-100); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
