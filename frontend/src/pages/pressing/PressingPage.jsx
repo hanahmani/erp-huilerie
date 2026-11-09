@@ -15,7 +15,7 @@ import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/ta
 import ReceptionModal from './ReceptionModal';
 import PressingDetailModal from './PressingDetailModal';
 import ClientAccountModal from './ClientAccountModal';
-import { dayRange, formatDateTime, formatDT, formatQty } from '../../utils/format';
+import { dayRange, formatDateTime, formatDT, formatQty, formatYield } from '../../utils/format';
 import { PRESSING_MODES, PRESSING_STATUS, pressingStatusClass, pressingStatusLabel, toOptions } from '../../utils/labels';
 import { exportCsv } from '../../utils/exportCsv';
 
@@ -66,7 +66,8 @@ export default function PressingPage() {
       { header: 'Date', value: (p) => formatDateTime(p.dateReception) },
       { header: 'Opération', value: (p) => PRESSING_MODES[p.mode] }, { header: 'Client / vendeur', value: (p) => p.clientNom }, { header: 'Poids net (kg)', value: (p) => Number(p.poidsNet) },
       { header: 'Huile obtenue', value: (p) => (p.huileObtenue == null ? '' : Number(p.huileObtenue)) },
-      { header: 'Rendement', value: (p) => (p.rendement == null ? '' : Number(p.rendement)) },
+      { header: 'Rendement (huile ÷ olives)', value: (p) => (p.rendement == null ? '' : Number(p.rendement) / 100) },
+      { header: 'Rendement (%)', value: (p) => (p.rendement == null ? '' : Number(p.rendement)) },
       { header: 'À remettre', value: (p) => Number(p.huileARemettre) }, { header: 'Montant', value: (p) => Number(p.montant) },
       { header: 'Reste à payer', value: (p) => Number(p.reste) }, { header: 'Achat', value: (p) => (p.montantAchat == null ? '' : Number(p.montantAchat)) },
       { header: 'Reste dû au vendeur', value: (p) => Number(p.resteVendeur) }, { header: 'Contenant', value: (p) => p.tankCode || '' },
@@ -107,7 +108,7 @@ export default function PressingPage() {
                        { key: 'c', header: 'Client / vendeur', render: (p) => p.clientNom },
                        { key: 'k', header: 'Poids net', align: 'right', render: (p) => formatQty(p.poidsNet, 'kg') },
                        { key: 'h', header: 'Huile', align: 'right', render: (p) => (p.huileObtenue != null ? formatQty(p.huileObtenue) : '—') },
-                       { key: 'y', header: 'Rendement', align: 'right', render: (p) => (p.rendement != null ? `${Number(p.rendement).toFixed(1)} L/100 kg` : '—') },
+                       { key: 'y', header: 'Rendement', align: 'right', render: (p) => formatYield(p.rendement) },
                        { key: 'r', header: 'À remettre / contenant', align: 'right', render: (p) => (p.mode === 'ACHAT' ? (p.tankCode || '—') : Number(p.huileARemettre) ? <strong>{formatQty(p.huileARemettre)}</strong> : '—') },
                        { key: 'm', header: 'Reste à payer', align: 'right', render: (p) => (p.mode === 'ACHAT'
                          ? (Number(p.resteVendeur) ? <span title="Dû au vendeur">{formatDT(p.resteVendeur)} <small className="muted">vendeur</small></span> : '—')

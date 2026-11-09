@@ -1,5 +1,5 @@
 import { DocHeader } from '../../components/print/DocPrintDialog';
-import { formatDT, formatQty } from '../../utils/format';
+import { formatDT, formatQty, formatYield } from '../../utils/format';
 import { OLIVE_STATES, PAYMENT_MODES } from '../../utils/labels';
 
 const dt = (iso) => new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
@@ -49,7 +49,7 @@ export function ReturnTicket({ p, settings, format }) {
       <div className="ticket-totals">
         <Row k="Olives (net)" v={formatQty(p.poidsNet, 'kg')} />
         <Row k="Huile obtenue" v={formatQty(p.huileObtenue, p.unite)} strong />
-        <Row k="Rendement" v={p.rendement != null ? `${Number(p.rendement).toFixed(2)} ${p.unite}/100 kg` : null} />
+        <Row k="Rendement" v={p.rendement != null ? formatYield(p.rendement) : null} />
       </div>
       <table className="ticket-lines">
         <thead><tr><th>Remise</th><th className="r">Qté</th></tr></thead>

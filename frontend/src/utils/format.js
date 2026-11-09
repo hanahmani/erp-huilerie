@@ -54,3 +54,14 @@ export function toLocalInput(iso) {
 
 /** Valeur d'un champ datetime-local → date ISO. */
 export const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
+
+/**
+ * Rendement d'un pressage (huile ÷ olives nettes), à partir du rendement « pour 100 kg » renvoyé par le serveur :
+ * 1000 kg d'olives, 200 kg d'huile → « 0,200 · 20,00 % ».
+ */
+export function formatYield(rendement) {
+  if (rendement == null) return '—';
+  const pct = Number(rendement);
+  const ratio = (pct / 100).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return `${ratio} · ${pct.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+}

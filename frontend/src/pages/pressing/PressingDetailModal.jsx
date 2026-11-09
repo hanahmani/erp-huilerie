@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { pressingService } from '../../services/operationsService';
 import { tankService } from '../../services/stockService';
 import { settingsService } from '../../services/settingsService';
-import { formatDateTime, formatDT, formatQty, fromLocalInput, toLocalInput } from '../../utils/format';
+import { formatDateTime, formatDT, formatQty, formatYield, fromLocalInput, toLocalInput } from '../../utils/format';
 import { OIL_DESTINATIONS, OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, TANK_TYPES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
@@ -130,7 +130,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                 </>
               )}
               <dt>Huile obtenue</dt><dd>{p.huileObtenue != null ? <><strong>{formatQty(p.huileObtenue, p.unite)}</strong>{litres(p.huileObtenue)}</> : '—'}</dd>
-              <dt>Rendement</dt><dd>{p.rendement != null ? `${Number(p.rendement).toFixed(2)} ${p.unite} / 100 kg` : '—'}</dd>
+              <dt>Rendement</dt><dd>{p.rendement != null ? <><strong>{formatYield(p.rendement)}</strong> <span className="muted">({formatQty(p.huileObtenue, p.unite)} ÷ {formatQty(p.poidsNet, 'kg')})</span></> : '—'}</dd>
               {!achat ? (
                 <>
                   <dt>Remis / à remettre</dt><dd>{formatQty(p.huileRemise, p.unite)} / <strong>{formatQty(p.huileARemettre, p.unite)}</strong>{litres(p.huileARemettre)}</dd>
