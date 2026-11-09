@@ -7,14 +7,18 @@ import { clientService } from '../../services/clientService';
 import { catalogService } from '../../services/catalogService';
 import { settingsService } from '../../services/settingsService';
 import { pressingService } from '../../services/operationsService';
-import { formatDT, formatQty } from '../../utils/format';
+import { formatDT, formatQty, fromLocalInput, toLocalInput } from '../../utils/format';
 import { OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES } from '../../utils/labels';
 import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 
+/** Tarif du pressage à façon proposé quand Paramètres n'en définit pas : 200 millimes (0,200 DT) le kg. */
+const DEFAULT_TARIF_MILLIMES = 200;
+
 /** Bulletin de pressage : réception et pesée des olives, pressées pour le client ou achetées par l'huilerie. */
 export default function ReceptionModal({ onClose, onDone }) {
-  const [form, setForm] = useState({ clientId: '', articleId: '', variete: '', provenance: '', etatOlives: 'SAINES', poidsBrut: '', tare: '0', tarifKg: '', notes: '',
-    blNumero: '', transporteur: '', vehicule: '', adresse: '', mode: 'SERVICE', prixMillimes: '', avance: '', modeAvance: 'ESPECES' });
+  const [form, setForm] = useState({ clientId: '', articleId: '', variete: '', provenance: '', etatOlives: 'SAINES', poidsBrut: '', tare: '0', tarifMillimes: String(DEFAULT_TARIF_MILLIMES), notes: '',
+    blNumero: '', transporteur: '', vehicule: '', adresse: '', mode: 'SERVICE', prixMillimes: '', avance: '', modeAvance: 'ESPECES',
+    dateReception: toLocalInput() });
   const [avanceDispo, setAvanceDispo] = useState(0);   // avances déjà versées au vendeur choisi, en millimes
   const [clientAdresse, setClientAdresse] = useState('');   // adresse proposée par la fiche client
   const [settings, setSettings] = useState(null);
@@ -25,7 +29,8 @@ export default function ReceptionModal({ onClose, onDone }) {
   useEffect(() => {
     settingsService.get().then((s) => {
       setSettings(s);
-      setForm((f) => ({ ...f, tarifKg: s.tarifPressageKg != null ? String(s.tarifPressageKg) : '', articleId: s.pressageArticleId ?? '' }));
+      setForm((f) => ({ ...f, tarifMillimes: s.tarifPressageKg != null ? String(toMillimes(s.tarifPressageKg)) : f.tarifMillimes,
+        articleId: s.pressageArticleId ?? '' }));
     }).catch(() => {});
     catalogService.articles({ actif: true, size: 100 }).then((p) => setOilArticles(p.content.filter((a) => a.suiviLot))).catch(() => {});
   }, []);
@@ -49,12 +54,16 @@ export default function ReceptionModal({ onClose, onDone }) {
   // Prix d'achat saisi en millimes entiers (900 = 0,900 DT le kg), enregistré en dinars.
   const prixValid = /^\d+$/.test(form.prixMillimes.trim());
   const prixM = prixValid ? Number(form.prixMillimes.trim()) : 0;
+  // Tarif du service, en millimes entiers aussi (200 = 0,200 DT le kg).
+  const tarifValid = /^\d+$/.test(form.tarifMillimes.trim());
+  const tarifM = tarifValid ? Number(form.tarifMillimes.trim()) : 0;
   const netM = toMillimes(form.poidsBrut) - toMillimes(form.tare);
-  const montantM = Math.round((netM * (achat ? prixM : toMillimes(form.tarifKg))) / 1000);
+  const montantM = Math.round((netM * (achat ? prixM : tarifM)) / 1000);
   const deduitM = achat ? Math.min(avanceDispo, montantM) : 0;
   const avanceM = achat ? toMillimes(form.avance) : 0;
   const resteM = montantM - deduitM - avanceM;
-  const valid = form.clientId && netM > 0 && (achat ? prixValid && resteM >= 0 : form.articleId && form.tarifKg !== '');
+  const dateValid = !!form.dateReception && new Date(form.dateReception) <= new Date(Date.now() + 5 * 60000);
+  const valid = form.clientId && netM > 0 && dateValid && (achat ? prixValid && resteM >= 0 : form.articleId && tarifValid);
 
   const submit = async () => {
     setSaving(true);
@@ -63,11 +72,11 @@ export default function ReceptionModal({ onClose, onDone }) {
       onDone(await pressingService.receive({
         clientId: Number(form.clientId), articleId: achat ? null : Number(form.articleId), variete: form.variete || null,
         provenance: form.provenance || null, etatOlives: form.etatOlives, poidsBrut: normalizeDecimal(form.poidsBrut),
-        tare: normalizeDecimal(form.tare) || '0', tarifKg: achat ? null : normalizeDecimal(form.tarifKg), notes: form.notes || null,
+        tare: normalizeDecimal(form.tare) || '0', tarifKg: achat ? null : fromMillimes(tarifM), notes: form.notes || null,
         mode: form.mode, prixOlivesKg: achat ? fromMillimes(prixM) : null,
         avance: achat && avanceM > 0 ? fromMillimes(avanceM) : null, modeAvance: achat && avanceM > 0 ? form.modeAvance : null,
         blNumero: form.blNumero || null, transporteur: form.transporteur || null, vehicule: form.vehicule || null,
-        adresse: form.adresse || null,
+        adresse: form.adresse || null, dateReception: fromLocalInput(form.dateReception),
       }));
     } catch (e) {
       setError(e.message);
@@ -91,8 +100,8 @@ export default function ReceptionModal({ onClose, onDone }) {
           ? "L'huilerie achète les olives au kilo : après le pressage, l'huile sera versée dans un puits et vendue en caisse."
           : "Le client reprend son huile : elle reste sa propriété et n'est jamais vendue."}</span>
       </div>
-      {!achat && settings && (!settings.pressageArticleId || settings.tarifPressageKg == null)
-        ? <Alert type="info">Astuce : définissez le tarif au kilo et l'article « huile des clients » dans Paramètres pour les préremplir.</Alert> : null}
+      {!achat && settings && !settings.pressageArticleId
+        ? <Alert type="info">Astuce : définissez l'article « huile des clients » dans Paramètres pour le préremplir.</Alert> : null}
       <RemoteSelect label="Client" required value={form.clientId} onChange={chooseClient}
                     fetcher={fetchClients} toOption={toClient} hint="Le client doit exister dans Clients (agriculteur ou particulier)." />
       <div className="form-grid">
@@ -104,6 +113,10 @@ export default function ReceptionModal({ onClose, onDone }) {
             </select>
             <span className="hint">Article suivi par lot ; l'huile restera la propriété du client.</span></div>
         ) : null}
+        <div className="field"><label>Date de réception *</label>
+          <input className="input" type="datetime-local" value={form.dateReception} onChange={set('dateReception')} max={toLocalInput()} />
+          {form.dateReception && !dateValid ? <span className="error">La date ne peut pas être dans le futur.</span>
+            : <span className="hint">Maintenant par défaut ; modifiable.</span>}</div>
         <div className="field"><label>État des olives *</label>
           <select className="select" value={form.etatOlives} onChange={set('etatOlives')}>
             {Object.entries(OLIVE_STATES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -117,7 +130,10 @@ export default function ReceptionModal({ onClose, onDone }) {
               <input className="input" inputMode="numeric" value={form.prixMillimes} onChange={set('prixMillimes')} placeholder="Ex. 900" />
               {form.prixMillimes && !prixValid ? <span className="error">En millimes, sans virgule : 900 pour 0,900 DT.</span>
                 : <span className="hint">{prixValid ? `= ${formatDT(fromMillimes(prixM))} le kg` : '900 millimes = 0,900 DT le kg'}</span>}</div>
-          : <div className="field"><label>Tarif du service (DT / kg) *</label><input className="input" inputMode="decimal" value={form.tarifKg} onChange={set('tarifKg')} /></div>}
+          : <div className="field"><label>Tarif du service (millimes / kg d'olives) *</label>
+              <input className="input" inputMode="numeric" value={form.tarifMillimes} onChange={set('tarifMillimes')} placeholder={String(DEFAULT_TARIF_MILLIMES)} />
+              {form.tarifMillimes && !tarifValid ? <span className="error">En millimes, sans virgule : 200 pour 0,200 DT.</span>
+                : <span className="hint">{tarifValid ? `= ${formatDT(fromMillimes(tarifM))} le kg ; modifiable` : '200 millimes = 0,200 DT le kg'}</span>}</div>}
         {achat ? (
           <>
             <div className="field"><label>Avance payée aujourd'hui (DT)</label>

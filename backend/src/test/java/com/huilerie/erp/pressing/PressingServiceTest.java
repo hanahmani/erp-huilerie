@@ -90,6 +90,14 @@ class PressingServiceTest {
     }
 
     @Test
+    void tarifParDefautDe200MillimesSiAucunNEstSaisi() {
+        PressingDto.Detail p = service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
+                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), null, null, null, null, null, null, null, null));
+        assertThat(p.tarifKg()).isEqualByComparingTo("0.200");
+        assertThat(p.montant()).isEqualByComparingTo("100.000");
+    }
+
+    @Test
     void tareSuperieureAuBrutRefusee() {
         assertThatThrownBy(() -> service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
                 Pressing.OliveState.SAINES, new BigDecimal("10"), new BigDecimal("10"), new BigDecimal("0.3"), null, null, null, null, null, null, null)))

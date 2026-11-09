@@ -16,7 +16,7 @@ import DataTable from '../../components/tables/DataTable';
 import Pagination from '../../components/tables/Pagination';
 import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/tables/Toolbar';
 import EntityFormModal from '../../components/forms/EntityFormModal';
-import { formatDateTime, formatDT } from '../../utils/format';
+import { formatDateTime, formatDT, fromLocalInput, toLocalInput as toLocalValue } from '../../utils/format';
 import { EMPLOYEE_PAYMENT_TYPES, PAYMENT_MODES, toOptions } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
 
@@ -32,14 +32,8 @@ function duration(minutes) {
   return `${Math.floor(minutes / 60)} h ${pad(minutes % 60)}`;
 }
 
-/** ISO → valeur d'un champ datetime-local (heure locale du poste). */
-function toLocalInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
+/** ISO → valeur d'un champ datetime-local ; vide si la date est absente. */
+const toLocalInput = (iso) => (iso ? toLocalValue(iso) : '');
 
 /** Reste dû : positif = à payer à l'employé, négatif = avance à récupérer. */
 function Reste({ value }) {

@@ -44,6 +44,8 @@ public class PressingService {
     public static final String DOC_TYPE = "PRESSAGE";
     /** Séquence permanente des bulletins de pressage (000001, 000002…). */
     public static final String BULLETIN_SEQUENCE = "BULLETIN_PRESSAGE";
+    /** Tarif du pressage à façon quand aucun n'est saisi ni défini dans Paramètres : 0,200 DT par kg d'olives net. */
+    public static final BigDecimal TARIF_PAR_DEFAUT = new BigDecimal("0.200");
 
     private final PressingRepository pressings;
     private final ClientRepository clients;
@@ -127,10 +129,7 @@ public class PressingService {
                 throw new BusinessException("L'article de l'huile des clients doit être suivi par lot.");
             }
             tarif = r.tarifKg() != null ? Money.strict(r.tarifKg(), "Tarif")
-                    : cfg == null || cfg.getTarifPressageKg() == null ? null : cfg.getTarifPressageKg();
-            if (tarif == null) {
-                throw new BusinessException("Indiquez le tarif du pressage au kilo (ou définissez-le dans Paramètres).");
-            }
+                    : cfg == null || cfg.getTarifPressageKg() == null ? TARIF_PAR_DEFAUT : cfg.getTarifPressageKg();
         }
         BigDecimal montant = net.multiply(tarif).setScale(Money.SCALE, RoundingMode.HALF_UP);
         Pressing p = new Pressing(numbers.nextYearly("PRESSAGE", "PRS"), numbers.nextPlain(BULLETIN_SEQUENCE, 6),
@@ -142,6 +141,9 @@ public class PressingService {
         String adresse = Text.clean(r.adresse());
         p.setTransport(Text.clean(r.blNumero()), Text.clean(r.transporteur()), vehicle(r.vehicule()),
                 adresse != null ? adresse : Text.clean(client.getAdresse()));
+        if (r.dateReception() != null) {
+            p.setDateReception(receptionDate(r.dateReception()));
+        }
         p = pressings.save(p);
         audit.log(SecurityUtils.username(), purchase ? "PRESSING_PURCHASE" : "PRESSING_RECEIVE", "Pressing",
                 String.valueOf(p.getId()), p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString()
@@ -159,7 +161,7 @@ public class PressingService {
         return PressingDto.Detail.from(p);
     }
 
-    /** Correction du bulletin (bon de livraison, transporteur, véhicule, adresse) avant le pressage. */
+    /** Correction du bulletin (date de réception, bon de livraison, transporteur, véhicule, adresse) avant le pressage. */
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
     @Transactional
     public PressingDto.Detail updateTransport(Long id, PressingDto.TransportRequest r) {
@@ -169,9 +171,39 @@ public class PressingService {
         }
         p.setTransport(Text.clean(r.blNumero()), Text.clean(r.transporteur()), vehicle(r.vehicule()),
                 Text.clean(r.adresse()));
+        if (r.dateReception() != null) {
+            p.setDateReception(receptionDate(r.dateReception()));
+        }
         audit.log(SecurityUtils.username(), "PRESSING_UPDATE", "Pressing", String.valueOf(id),
                 "Bulletin " + p.getNumeroBulletin());
         return PressingDto.Detail.from(p);
+    }
+
+    /**
+     * Correction de la date de réception, à tout moment (même après le pressage) : elle ne change ni le stock ni la caisse.
+     * Elle ne peut pas être postérieure au début du pressage.
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public PressingDto.Detail updateDate(Long id, Instant dateReception) {
+        Pressing p = lock(id);
+        Instant date = receptionDate(dateReception);
+        if (p.getDateDebut() != null && date.isAfter(p.getDateDebut())) {
+            throw new BusinessException("La date de réception ne peut pas être après le début du pressage.");
+        }
+        Instant ancienne = p.getDateReception();
+        p.setDateReception(date);
+        audit.log(SecurityUtils.username(), "PRESSING_UPDATE_DATE", "Pressing", String.valueOf(id),
+                "Bulletin " + p.getNumeroBulletin() + " : " + ancienne + " → " + date);
+        return PressingDto.Detail.from(p);
+    }
+
+    /** Date de réception saisie : jamais dans le futur (quelques minutes de tolérance pour l'horloge du poste). */
+    private static Instant receptionDate(Instant date) {
+        if (date.isAfter(Instant.now().plus(java.time.Duration.ofMinutes(5)))) {
+            throw new BusinessException("La date de réception ne peut pas être dans le futur.");
+        }
+        return date;
     }
 
     /** Immatriculation en majuscules, espaces superflus retirés. */

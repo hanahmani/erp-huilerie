@@ -95,6 +95,40 @@ class BulletinPressageTest {
     }
 
     @Test
+    void dateDeReceptionParDefautModifiableMaisPasDansLeFutur() {
+        java.time.Instant avant = java.time.Instant.now().minusSeconds(1);
+        PressingDto.Detail auto = receive("500", "0", null, null, null, null);
+        assertThat(auto.dateReception()).isAfter(avant);
+
+        java.time.Instant hier = java.time.Instant.parse("2026-01-10T08:30:00Z");
+        PressingDto.Detail saisie = service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null, null,
+                Pressing.OliveState.SAINES, new BigDecimal("500"), BigDecimal.ZERO, new BigDecimal("0.200"), null,
+                null, null, null, null, null, null, null, null, hier));
+        assertThat(saisie.dateReception()).isEqualTo(hier);
+
+        java.time.Instant corrigee = java.time.Instant.parse("2026-01-11T07:00:00Z");
+        assertThat(service.updateTransport(saisie.id(), new PressingDto.TransportRequest(null, null, null, null, corrigee))
+                .dateReception()).isEqualTo(corrigee);
+        assertThat(service.updateTransport(saisie.id(), new PressingDto.TransportRequest(null, null, null, null))
+                .dateReception()).isEqualTo(corrigee);              // date absente : inchangée
+
+        assertThatThrownBy(() -> service.updateTransport(saisie.id(), new PressingDto.TransportRequest(null, null, null, null,
+                java.time.Instant.now().plusSeconds(3600)))).isInstanceOf(BusinessException.class).hasMessageContaining("futur");
+    }
+
+    @Test
+    void dateModifiableApresLeDebutDuPressageMaisPasApres() {
+        PressingDto.Detail p = receive("500", "0", null, null, null, null);
+        service.start(p.id());
+        service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("80"), null, null));
+
+        java.time.Instant hier = java.time.Instant.now().minus(java.time.Duration.ofDays(1));
+        assertThat(service.updateDate(p.id(), hier).dateReception()).isEqualTo(hier);
+        assertThatThrownBy(() -> service.updateDate(p.id(), java.time.Instant.now().plusSeconds(60)))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("début du pressage");
+    }
+
+    @Test
     void rechercheParBulletinEtVehicule() {
         receive("500", "0", null, null, "77 TU 1234", null);
         receive("300", "0", null, null, null, null);

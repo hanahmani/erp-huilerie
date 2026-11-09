@@ -43,3 +43,14 @@ export function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+/** Date ISO (ou maintenant si absente) → valeur d'un champ datetime-local, à l'heure locale du poste. */
+export function toLocalInput(iso) {
+  const d = iso ? new Date(iso) : new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** Valeur d'un champ datetime-local → date ISO. */
+export const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);

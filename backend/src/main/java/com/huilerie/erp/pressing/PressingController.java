@@ -48,6 +48,11 @@ public class PressingController {
         return service.updateTransport(id, r);
     }
 
+    @PutMapping("/{id}/date")
+    public PressingDto.Detail updateDate(@PathVariable Long id, @Valid @RequestBody PressingDto.DateRequest r) {
+        return service.updateDate(id, r.dateReception());
+    }
+
     @PostMapping("/{id}/start")
     public PressingDto.Detail start(@PathVariable Long id) {
         return service.start(id);

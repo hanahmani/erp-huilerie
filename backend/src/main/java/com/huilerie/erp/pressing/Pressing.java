@@ -237,6 +237,11 @@ public class Pressing {
         finish(tank.getLot(), huile, pertes);
     }
 
+    /** Date de réception des olives (corrigible tant que le pressage n'a pas commencé). */
+    void setDateReception(Instant dateReception) {
+        this.dateReception = dateReception;
+    }
+
     void start() {
         statut = Status.EN_COURS;
         dateDebut = Instant.now();

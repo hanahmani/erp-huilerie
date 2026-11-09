@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, BookUser, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
+import { Ban, BookUser, CalendarClock, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { pressingService } from '../../services/operationsService';
 import { tankService } from '../../services/stockService';
 import { settingsService } from '../../services/settingsService';
-import { formatDateTime, formatDT, formatQty } from '../../utils/format';
+import { formatDateTime, formatDT, formatQty, fromLocalInput, toLocalInput } from '../../utils/format';
 import { OLIVE_STATES, PAYMENT_MODES, PRESSING_MODES, pressingStatusClass, pressingStatusLabel } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
 import { ReceptionTicket, ReturnTicket } from './PressingTickets';
@@ -83,7 +83,8 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
              <>
                <Button variant="secondary" onClick={() => setPrint('bulletin')}><Printer size={16} />Imprimer le bulletin</Button>
                {!achat ? <Button variant="secondary" onClick={() => setPrint('reception')}><Printer size={16} />Bon de pesée</Button> : null}
-               {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
+               {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { dateReception: toLocalInput(p.dateReception), blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
+               {manage && p.statut !== 'RECU' ? <Button variant="secondary" onClick={() => open('date', { dateReception: toLocalInput(p.dateReception) })}><CalendarClock size={16} />Modifier la date</Button> : null}
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
                {onOpenAccount ? <Button variant="secondary" onClick={() => account(achat ? 'seller' : 'oil')}><BookUser size={16} />Compte du client</Button> : null}
                {manage && ['RECU', 'EN_COURS'].includes(p.statut) && !cashPaid ? <Button variant="danger" onClick={() => open('cancel')}><Ban size={16} />Annuler</Button> : null}
@@ -164,16 +165,30 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                 <>
                   <h2 style={{ marginBottom: 12 }}>Corriger le bulletin n° {p.numeroBulletin}</h2>
                   <div className="form-grid">
+                    <div className="field"><label>Date de réception *</label><input className="input" type="datetime-local" max={toLocalInput()} {...f('dateReception')} /></div>
                     <div className="field"><label>N° bon de livraison</label><input className="input" maxLength={50} autoFocus {...f('blNumero')} /></div>
                     <div className="field"><label>Transporteur</label><input className="input" maxLength={120} {...f('transporteur')} /></div>
                     <div className="field"><label>N° véhicule</label><input className="input" maxLength={30} style={{ textTransform: 'uppercase' }} {...f('vehicule')} /></div>
                     <div className="field"><label>Adresse</label><input className="input" maxLength={255} {...f('adresse')} /></div>
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
-                    <Button loading={busy} onClick={() => run(() => pressingService.updateTransport(p.id, {
+                    <Button loading={busy} disabled={!form.dateReception} onClick={() => run(() => pressingService.updateTransport(p.id, {
                       blNumero: form.blNumero || null, transporteur: form.transporteur || null,
                       vehicule: form.vehicule || null, adresse: form.adresse || null,
+                      dateReception: fromLocalInput(form.dateReception),
                     }))}>Enregistrer</Button></div>
+                </>
+              ) : null}
+              {panel === 'date' ? (
+                <>
+                  <h2 style={{ marginBottom: 12 }}>Date de réception du bulletin n° {p.numeroBulletin}</h2>
+                  <div className="form-grid">
+                    <div className="field"><label>Date de réception *</label>
+                      <input className="input" type="datetime-local" autoFocus max={toLocalInput(p.dateDebut || undefined)} {...f('dateReception')} />
+                      {p.dateDebut ? <span className="hint">Au plus tard le début du pressage ({formatDateTime(p.dateDebut)}).</span> : null}</div>
+                  </div>
+                  <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
+                    <Button loading={busy} disabled={!form.dateReception} onClick={() => run(() => pressingService.updateDate(p.id, fromLocalInput(form.dateReception)))}>Enregistrer</Button></div>
                 </>
               ) : null}
               {panel === 'finish' ? (

@@ -37,16 +37,31 @@ public final class PressingDto {
             Pressing.Mode mode,
             @DecimalMin(value = "0", message = "Le prix d'achat ne peut pas être négatif.") BigDecimal prixOlivesKg,
             @DecimalMin(value = "0", message = "L'avance ne peut pas être négative.") BigDecimal avance,
-            PaymentMode modeAvance) {
+            PaymentMode modeAvance,
+            /** Date de réception des olives ; maintenant si absente. */
+            Instant dateReception) {
 
-        /** Bulletin sans avance payée le jour même. */
+        /** Bulletin daté de maintenant. */
+        public ReceiveRequest(Long clientId, Long articleId, String variete, String provenance,
+                              Pressing.OliveState etatOlives, BigDecimal poidsBrut, BigDecimal tare, BigDecimal tarifKg,
+                              String notes, String blNumero, String transporteur, String vehicule, String adresse,
+                              Pressing.Mode mode, BigDecimal prixOlivesKg, BigDecimal avance, PaymentMode modeAvance) {
+            this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, avance, modeAvance, null);
+        }
+
+        /** Bulletin daté de maintenant, sans avance payée le jour même. */
         public ReceiveRequest(Long clientId, Long articleId, String variete, String provenance,
                               Pressing.OliveState etatOlives, BigDecimal poidsBrut, BigDecimal tare, BigDecimal tarifKg,
                               String notes, String blNumero, String transporteur, String vehicule, String adresse,
                               Pressing.Mode mode, BigDecimal prixOlivesKg) {
             this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
-                    transporteur, vehicule, adresse, mode, prixOlivesKg, null, null);
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, null, null, null);
         }
+    }
+
+    /** Nouvelle date de réception des olives. */
+    public record DateRequest(@NotNull(message = "La date de réception est obligatoire.") Instant dateReception) {
     }
 
     /** Correction des informations de transport du bulletin (statut RECU uniquement). */
@@ -54,7 +69,13 @@ public final class PressingDto {
             @Size(max = 50, message = "N° de bon de livraison : 50 caractères au maximum.") String blNumero,
             @Size(max = 120, message = "Transporteur : 120 caractères au maximum.") String transporteur,
             @Size(max = 30, message = "N° de véhicule : 30 caractères au maximum.") String vehicule,
-            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse) {
+            @Size(max = 255, message = "Adresse : 255 caractères au maximum.") String adresse,
+            /** Nouvelle date de réception ; inchangée si absente. */
+            Instant dateReception) {
+
+        public TransportRequest(String blNumero, String transporteur, String vehicule, String adresse) {
+            this(blNumero, transporteur, vehicule, adresse, null);
+        }
     }
 
     /**
