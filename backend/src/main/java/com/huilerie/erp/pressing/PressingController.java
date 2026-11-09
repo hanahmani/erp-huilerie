@@ -104,4 +104,10 @@ public class PressingController {
     public PressingDto.Detail cancel(@PathVariable Long id, @Valid @RequestBody PressingDto.CancelRequest r) {
         return service.cancel(id, r.motif());
     }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
 }

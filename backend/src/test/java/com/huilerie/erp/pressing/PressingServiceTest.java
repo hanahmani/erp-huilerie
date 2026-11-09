@@ -97,6 +97,31 @@ class PressingServiceTest {
     }
 
     @Test
+    void suppressionDUnBulletinNonPresse() {
+        PressingDto.Detail recu = receive();
+        service.delete(recu.id());
+        assertThatThrownBy(() -> service.get(recu.id())).isInstanceOf(com.huilerie.erp.common.exception.NotFoundException.class);
+
+        PressingDto.Detail annule = receive();
+        service.cancel(annule.id(), "erreur");
+        service.delete(annule.id());
+        assertThatThrownBy(() -> service.get(annule.id())).isInstanceOf(com.huilerie.erp.common.exception.NotFoundException.class);
+    }
+
+    @Test
+    @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "SALES_CREATE"})
+    void suppressionRefuseeSiPayeOuTermine() {
+        PressingDto.Detail paye = receive();
+        service.pay(paye.id(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("50"), null));
+        assertThatThrownBy(() -> service.delete(paye.id())).isInstanceOf(BusinessException.class).hasMessageContaining("payé");
+
+        PressingDto.Detail fini = receive();
+        service.start(fini.id());
+        service.finish(fini.id(), new PressingDto.FinishRequest(new BigDecimal("90"), null, null));
+        assertThatThrownBy(() -> service.delete(fini.id())).isInstanceOf(BusinessException.class).hasMessageContaining("terminé");
+    }
+
+    @Test
     void annulationImpossibleApresLaFin() {
         PressingDto.Detail p = receive();
         service.start(p.id());

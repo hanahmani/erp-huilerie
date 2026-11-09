@@ -326,6 +326,30 @@ public class PressingService {
         return PressingDto.Detail.from(p);
     }
 
+    /**
+     * Suppression définitive d'un bulletin saisi par erreur : possible tant que l'huile n'est pas entrée en stock
+     * (reçu, en cours ou annulé) et que rien n'a été encaissé ni payé en caisse. Les avances déduites sont rendues
+     * au vendeur (déjà fait si le pressage était annulé).
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public void delete(Long id) {
+        Pressing p = lock(id);
+        if (p.getStatut() == Pressing.Status.TERMINE || p.getStatut() == Pressing.Status.REMIS) {
+            throw new BusinessException("Un pressage terminé ne peut pas être supprimé : son huile est déjà en stock.");
+        }
+        boolean cashPaid = p.getReglementsVendeur().stream().anyMatch(sp -> sp.getAdvance() == null);
+        if (p.getMontantPaye().signum() > 0 || cashPaid) {
+            throw new BusinessException("Ce pressage a déjà été payé : il ne peut pas être supprimé.");
+        }
+        if (p.getStatut() != Pressing.Status.ANNULE) {
+            accounts.releaseAdvances(p);
+        }
+        pressings.delete(p);
+        audit.log(SecurityUtils.username(), "PRESSING_DELETE", "Pressing", String.valueOf(id),
+                p.getNumero() + " bulletin " + p.getNumeroBulletin() + " (" + p.getClient().getNom() + ")");
+    }
+
     private Pressing lock(Long id) {
         return pressings.lockById(id).orElseThrow(() -> new NotFoundException("Pressage introuvable."));
     }

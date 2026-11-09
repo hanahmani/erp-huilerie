@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, BookUser, CheckCircle2, HandCoins, Pencil, Play, Printer, Undo2 } from 'lucide-react';
+import { Ban, BookUser, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -58,6 +58,11 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
     setError('');
     try { setP(await fn()); setPanel(null); setForm({}); onChanged?.(); } catch (e) { setError(e.message); } finally { setBusy(false); }
   };
+  const remove = async () => {
+    setBusy(true);
+    setError('');
+    try { await pressingService.remove(p.id); onChanged?.(); onClose(); } catch (e) { setError(e.message); setBusy(false); }
+  };
   const open = (name, defaults = {}) => { setPanel(name); setForm(defaults); setError(''); };
   const f = (k) => ({ value: form[k] ?? '', onChange: (e) => setForm({ ...form, [k]: e.target.value }) });
 
@@ -82,6 +87,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
                {onOpenAccount ? <Button variant="secondary" onClick={() => account(achat ? 'seller' : 'oil')}><BookUser size={16} />Compte du client</Button> : null}
                {manage && ['RECU', 'EN_COURS'].includes(p.statut) && !cashPaid ? <Button variant="danger" onClick={() => open('cancel')}><Ban size={16} />Annuler</Button> : null}
+               {manage && ['RECU', 'EN_COURS', 'ANNULE'].includes(p.statut) && !cashPaid ? <Button variant="danger" onClick={() => open('delete')}><Trash2 size={16} />Supprimer</Button> : null}
                {!achat && canPay && p.statut !== 'ANNULE' && Number(p.reste) > 0 ? <Button variant="secondary" onClick={() => open('pay', { mode: 'ESPECES', montant: String(p.reste) })}><HandCoins size={16} />Encaisser</Button> : null}
                {manage && p.statut === 'RECU' ? <Button loading={busy} onClick={() => run(() => pressingService.start(p.id))}><Play size={16} />Démarrer le pressage</Button> : null}
                {manage && p.statut === 'EN_COURS' ? <Button onClick={() => open('finish')}><CheckCircle2 size={16} />Terminer le pressage</Button> : null}
@@ -222,6 +228,14 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   </div>
                   <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
                     <Button loading={busy} disabled={!toMillimes(form.montant)} onClick={() => run(() => pressingService.paySeller(p.id, { mode: form.mode, montant: normalizeDecimal(form.montant), reference: form.reference || null }))}>Payer</Button></div>
+                </>
+              ) : null}
+              {panel === 'delete' ? (
+                <>
+                  <h2 style={{ marginBottom: 8 }}>Supprimer le bulletin n° {p.numeroBulletin} ?</h2>
+                  <p className="muted">Le pressage {p.numero} de {p.clientNom} sera supprimé définitivement{achat && p.reglementsVendeur.length ? " ; l'avance déduite est rendue au vendeur" : ''}. Cette action est irréversible.</p>
+                  <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Ne pas supprimer</Button>
+                    <Button variant="danger" loading={busy} onClick={remove}><Trash2 size={16} />Supprimer définitivement</Button></div>
                 </>
               ) : null}
               {panel === 'cancel' ? (

@@ -11,6 +11,7 @@ export const pressingService = {
   pay: (id, body) => api.post(`/pressings/${id}/pay`, body),
   paySeller: (id, body) => api.post(`/pressings/${id}/pay-seller`, body),
   cancel: (id, motif) => api.post(`/pressings/${id}/cancel`, { motif }),
+  remove: (id) => api.delete(`/pressings/${id}`),
   accounts: () => api.get('/pressings/accounts'),
   oilAccount: (clientId) => api.get(`/pressings/clients/${clientId}/oil`),
   returnToClient: (clientId, body) => api.post(`/pressings/clients/${clientId}/return`, body),

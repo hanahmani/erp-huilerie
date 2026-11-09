@@ -174,4 +174,14 @@ class ComptesClientsTest {
         service.cancel(a.id(), "Erreur de pesée");                 // seule l'avance avait été déduite : annulation permise
         assertThat(accounts.sellerAccount(x.getId()).avanceDisponible()).isEqualByComparingTo("1000");
     }
+
+    @Test
+    void avanceRendueSiAchatSupprime() {
+        accounts.giveAdvance(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("1000"), null));
+        PressingDto.Detail a = achat(null);
+        assertThat(accounts.sellerAccount(x.getId()).avanceDisponible()).isEqualByComparingTo("100");
+
+        service.delete(a.id());
+        assertThat(accounts.sellerAccount(x.getId()).avanceDisponible()).isEqualByComparingTo("1000");
+    }
 }
