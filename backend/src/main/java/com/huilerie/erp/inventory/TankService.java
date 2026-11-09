@@ -17,7 +17,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Puits et silos de stockage d'huile. Chaque puits porte un lot (même numéro que le code) : ENTREPRISE pour un puits
+ * Puits, citernes et fûts de stockage d'huile. Chaque puits porte un lot (même numéro que le code) : ENTREPRISE pour un puits
  * de l'huilerie (ventes en caisse), CLIENT pour un puits réservé à un client (remises). La capacité n'est jamais dépassée.
  */
 @Service
@@ -110,6 +110,51 @@ public class TankService {
         t.setActif(actif);
         audit.log(SecurityUtils.username(), actif ? "ACTIVATE" : "DEACTIVATE", "StorageTank", String.valueOf(id), t.getCode());
         return toDto(t);
+    }
+
+    /**
+     * Transvasement d'un contenant de l'huilerie vers un autre (ex. le reste d'un fût versé dans une citerne) : même huile,
+     * sans dépasser le contenu de l'un ni la place de l'autre.
+     * Retourne les deux contenants mis à jour (source puis destination).
+     */
+    @PreAuthorize("hasAuthority('STOCK_ADJUST')")
+    @Transactional
+    public List<TankDto.Response> transfer(Long fromId, Long toId, BigDecimal quantite) {
+        if (fromId.equals(toId)) {
+            throw new BusinessException("Choisissez un autre contenant de destination.");
+        }
+        // Verrouillage dans l'ordre des identifiants pour éviter les interblocages.
+        StorageTank first = tanks.lockById(Math.min(fromId, toId)).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
+        StorageTank second = tanks.lockById(Math.max(fromId, toId)).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
+        StorageTank from = first.getId().equals(fromId) ? first : second;
+        StorageTank to = from == first ? second : first;
+        if (!from.isActif() || !to.isActif()) {
+            throw new BusinessException("Le contenant " + (from.isActif() ? to : from).getCode() + " est désactivé.");
+        }
+        if (!from.getArticle().getId().equals(to.getArticle().getId())) {
+            throw new BusinessException(to.getCode() + " contient « " + to.getArticle().getNom() + " », pas « "
+                    + from.getArticle().getNom() + " » : transvasement impossible.");
+        }
+        // L'huile d'un client est rattachée au contenant de son pressage (ses remises y sont prises) : elle ne bouge pas.
+        if (from.getClient() != null || to.getClient() != null) {
+            throw new BusinessException("Seule l'huile de l'huilerie se transvase : l'huile d'un client reste dans son contenant.");
+        }
+        BigDecimal q = Money.strict(quantite, "Quantité");
+        String unite = from.getArticle().getUnite().getCode();
+        BigDecimal contenu = quantity(from);
+        if (q.compareTo(contenu) > 0) {
+            throw new BusinessException(from.getCode() + " ne contient que " + contenu.toPlainString() + " " + unite + ".");
+        }
+        BigDecimal place = to.getCapacite().subtract(quantity(to));
+        if (q.compareTo(place) > 0) {
+            throw new BusinessException(to.getCode() + " est plein : place restante " + place.toPlainString() + " " + unite + ".");
+        }
+        String motif = "Transvasement " + from.getCode() + " → " + to.getCode();
+        stock.apply(from.getArticle(), from.getLot(), MovementType.TRANSFERT_SORTIE, q, motif, "TRANSVASEMENT", from.getId());
+        stock.apply(to.getArticle(), to.getLot(), MovementType.TRANSFERT_ENTREE, q, motif, "TRANSVASEMENT", to.getId());
+        audit.log(SecurityUtils.username(), "TANK_TRANSFER", "StorageTank", String.valueOf(from.getId()),
+                motif + " : " + q.toPlainString() + " " + unite);
+        return List.of(toDto(from), toDto(to));
     }
 
     /**

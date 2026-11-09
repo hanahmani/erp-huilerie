@@ -105,6 +105,36 @@ class AchatOlivesTest {
     }
 
     @Test
+    void huileAcheteeEnFutVendueAuDetailPuisLeResteVerseDansLaCiterne() {
+        TankDto.Response fut = tanks.create(new TankDto.Request("FUT-1", "Fût 1", StorageTank.Type.FUT, huileVrac.getId(),
+                new BigDecimal("220"), null));
+        TankDto.Response citerne = tanks.create(new TankDto.Request("CIT-1", "Citerne 1", StorageTank.Type.CITERNE,
+                huileVrac.getId(), new BigDecimal("5000"), null));
+        presserDans(achat(), fut.id(), "200");
+
+        sales.createQuickSale(new SaleDto.QuickSaleRequest("vente-fut-1", null, null,
+                List.of(new SaleDto.LineRequest(huileVrac.getId(), fut.lotId(), new BigDecimal("5"), null, false)),
+                List.of(new SaleDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("60")))));
+        assertThat(contenu("FUT-1")).isEqualByComparingTo("195");
+
+        assertThatThrownBy(() -> tanks.transfer(fut.id(), citerne.id(), new BigDecimal("196")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("ne contient que");
+        List<TankDto.Response> apres = tanks.transfer(fut.id(), citerne.id(), new BigDecimal("195"));
+        assertThat(apres.get(0).quantite()).isEqualByComparingTo("0");
+        assertThat(contenu("CIT-1")).isEqualByComparingTo("195");
+    }
+
+    @Test
+    void lHuileDUnClientNeSeTransvasePas() {
+        TankDto.Response a = tanks.create(new TankDto.Request("CIT-A", "Citerne A", StorageTank.Type.CITERNE, huileVrac.getId(),
+                new BigDecimal("500"), null));
+        TankDto.Response duClient = tanks.create(new TankDto.Request("FUT-V", "Fût du vendeur", StorageTank.Type.FUT,
+                huileVrac.getId(), new BigDecimal("500"), vendeur.getId()));
+        assertThatThrownBy(() -> tanks.transfer(a.id(), duClient.id(), new BigDecimal("1")))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("huilerie");
+    }
+
+    @Test
     void puitsPleinRefuse() {
         TankDto.Response puits = puits("SILO-2", "150");
         PressingDto.Detail p = achat();

@@ -28,6 +28,13 @@ public final class TankDto {
             Long clientId) {
     }
 
+    /** Transvasement vers un autre contenant, dans l'unité de l'huile (kg en général). */
+    public record TransferRequest(
+            @NotNull(message = "Choisissez le contenant de destination.") Long versId,
+            @NotNull(message = "La quantité est obligatoire.")
+            @DecimalMin(value = "0.001", message = "La quantité doit être positive.") BigDecimal quantite) {
+    }
+
     public record Response(Long id, String code, String nom, StorageTank.Type type, Long articleId, String articleNom,
                            String unite, Long lotId, String lotNumero, BigDecimal capacite, BigDecimal quantite,
                            BigDecimal placeRestante, boolean bloque, boolean actif, Long clientId, String clientNom) {

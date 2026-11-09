@@ -220,12 +220,12 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   <div className="form-grid">
                     <div className="field"><label>Huile obtenue ({p.unite}) *</label><input className="input" inputMode="decimal" autoFocus {...f('huile')} /></div>
                     {achat ? (
-                      <div className="field wide"><label>Puits / silo de stockage *</label>
+                      <div className="field wide"><label>Contenant de l'huilerie (puits, citerne, fût…) *</label>
                         <select className="select" {...f('tankId')}>
                           <option value="">Choisir…</option>
                           {tanks.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.nom} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
                         </select>
-                        {!tanks.length ? <span className="hint">Aucun puits actif : créez-en un dans Stock › Citernes / fûts / puits.</span> : null}</div>
+                        {!tanks.length ? <span className="hint">Aucun contenant actif : créez-en un dans Stock › Citernes / fûts / puits.</span> : null}</div>
                     ) : (
                       <>
                         <div className="field wide"><label>L'huile du client *</label>

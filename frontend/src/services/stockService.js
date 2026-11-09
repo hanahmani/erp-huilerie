@@ -13,6 +13,7 @@ export const tankService = {
   list: () => api.get('/stock/tanks'),
   save: (id, body) => (id ? api.put(`/stock/tanks/${id}`, body) : api.post('/stock/tanks', body)),
   setStatus: (id, actif) => api.patch(`/stock/tanks/${id}/status`, { actif }),
+  transfer: (id, body) => api.post(`/stock/tanks/${id}/transfer`, body),
 };
 
 export const inventoryService = {

@@ -23,7 +23,10 @@ public enum MovementType {
     ANNULATION_PLUS(1, false),
     ANNULATION_MOINS(-1, false),
     LIVRAISON(-1, false),
-    RETOUR_CLIENT(1, false);
+    RETOUR_CLIENT(1, false),
+    /** Transvasement d'un contenant (fût, citerne, puits…) vers un autre : sortie de l'un, entrée dans l'autre. */
+    TRANSFERT_SORTIE(-1, false),
+    TRANSFERT_ENTREE(1, false);
 
     private final int sens;
     private final boolean manual;

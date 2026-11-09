@@ -32,6 +32,8 @@ export const MOVEMENT_TYPES = {
   CONDITIONNEMENT_ENTREE: 'Conditionnement (entrée)',
   ANNULATION_PLUS: 'Annulation +',
   ANNULATION_MOINS: 'Annulation −',
+  TRANSFERT_SORTIE: 'Transvasement (sortie)',
+  TRANSFERT_ENTREE: 'Transvasement (entrée)',
 };
 export const MANUAL_MOVEMENTS = ['STOCK_INITIAL', 'ENTREE', 'SORTIE', 'AJUSTEMENT_PLUS', 'AJUSTEMENT_MOINS'];
 
@@ -57,7 +59,7 @@ export const PRESSING_MODES = { SERVICE: 'Pressage pour le client', ACHAT: "Acha
 /** Libellé du statut : un achat terminé n'a pas d'huile à remettre, elle est dans le puits. */
 export const pressingStatusLabel = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'Huile en puits' : PRESSING_STATUS[p.statut]);
 export const pressingStatusClass = (p) => (p.mode === 'ACHAT' && p.statut === 'TERMINE' ? 'badge-ok' : PRESSING_STATUS_CLASS[p.statut]);
-export const TANK_TYPES = { PUITS: 'Puits', SILO: 'Silo', CUVE: 'Cuve', CITERNE: 'Citerne', FUT: 'Fût', AUTRE: 'Autre' };
+export const TANK_TYPES = { PUITS: 'Puits', CITERNE: 'Citerne', FUT: 'Fût' };
 /** Fin d'un pressage à façon : où va l'huile du client. */
 export const OIL_DESTINATIONS = { TANK: 'Dans sa citerne / son fût', LOT: "À l'huilerie, sans contenant", DIRECT: 'Prise directe' };
 export const OLIVE_STATES = { SAINES: 'Saines', TOMBEES: 'Tombées (ramassées au sol)', ABIMEES: 'Abîmées' };

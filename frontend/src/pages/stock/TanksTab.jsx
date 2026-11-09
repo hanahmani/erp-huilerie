@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import RemoteSelect from '../../components/forms/RemoteSelect';
 import { clientService } from '../../services/clientService';
-import { Container, Pencil, Plus } from 'lucide-react';
+import { ArrowRightLeft, Container, Pencil, Plus } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import Spinner from '../../components/common/Spinner';
@@ -13,7 +13,7 @@ import { tankService } from '../../services/stockService';
 import { catalogService } from '../../services/catalogService';
 import { formatQty } from '../../utils/format';
 import { TANK_TYPES } from '../../utils/labels';
-import { normalizeDecimal, toMillimes } from '../../utils/money';
+import { fromMillimes, normalizeDecimal, toMillimes } from '../../utils/money';
 
 /**
  * Création ou modification d'un puits ; le code, l'huile stockée et le propriétaire sont fixés à la création.
@@ -57,7 +57,7 @@ function TankModal({ tank, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={creating ? 'Nouveau contenant (citerne, fût, puits…)' : `${TANK_TYPES[tank.type] || 'Contenant'} ${tank.code}`} onClose={onClose}
+    <Modal title={creating ? 'Nouveau puits / citerne / fût' : `${TANK_TYPES[tank.type] || 'Contenant'} ${tank.code}`} onClose={onClose}
            footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
              <Button onClick={save} loading={saving} disabled={!valid}>Enregistrer</Button></>)}>
       <Alert type="error">{error}</Alert>
@@ -102,10 +102,59 @@ function TankModal({ tank, onClose, onSaved }) {
   );
 }
 
+/** Transvasement de l'huile de l'huilerie d'un contenant vers un autre (ex. le reste d'un fût dans une citerne). */
+function TransferModal({ from, tanks, onClose, onDone }) {
+  const targets = tanks.filter((t) => t.id !== from.id && t.actif && !t.clientId && t.articleId === from.articleId);
+  const [versId, setVersId] = useState(targets.length === 1 ? String(targets[0].id) : '');
+  const [quantite, setQuantite] = useState(String(from.quantite));
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const to = targets.find((t) => String(t.id) === versId);
+  const qM = toMillimes(quantite);
+  const tooMuch = qM > toMillimes(from.quantite);
+  const noRoom = to && qM > toMillimes(to.placeRestante);
+
+  const submit = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await tankService.transfer(from.id, { versId: Number(versId), quantite: normalizeDecimal(quantite) });
+      onDone();
+    } catch (e) {
+      setError(e.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={`Transvaser ${TANK_TYPES[from.type]?.toLowerCase() ?? ''} ${from.code}`} onClose={onClose}
+           footer={(<><Button variant="secondary" onClick={onClose}>Annuler</Button>
+             <Button onClick={submit} loading={saving} disabled={!to || !qM || tooMuch || noRoom}><ArrowRightLeft size={16} />Transvaser</Button></>)}>
+      <Alert type="error">{error}</Alert>
+      <p className="muted" style={{ marginBottom: 12 }}>{from.nom} · {from.articleNom} · contient <strong>{formatQty(from.quantite, from.unite)}</strong></p>
+      <div className="field"><label>Vers *</label>
+        <select className="select" value={versId} onChange={(e) => setVersId(e.target.value)}>
+          <option value="">Choisir…</option>
+          {targets.map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
+        </select>
+        {!targets.length ? <span className="hint">Aucun autre contenant actif de l'huilerie ne contient « {from.articleNom} ».</span> : null}</div>
+      <div className="field"><label>Quantité ({from.unite}) *</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="input" inputMode="decimal" value={quantite} onChange={(e) => setQuantite(e.target.value)} />
+          <Button variant="secondary" onClick={() => setQuantite(String(from.quantite))}>Tout</Button>
+        </div>
+        {tooMuch ? <span className="error">Au plus {formatQty(from.quantite, from.unite)}.</span>
+          : noRoom ? <span className="error">{to.code} n'a que {formatQty(to.placeRestante, to.unite)} de place.</span>
+            : <span className="hint">{qM && qM === toMillimes(from.quantite) ? `${from.code} sera vide.` : `Reste dans ${from.code} : ${formatQty(fromMillimes(Math.max(toMillimes(from.quantite) - qM, 0)), from.unite)}`}</span>}</div>
+    </Modal>
+  );
+}
+
 export default function TanksTab({ canAdjust, reloadKey }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(null);
+  const [moving, setMoving] = useState(null);
 
   const load = useCallback(() => tankService.list().then(setRows).catch((e) => setError(e.message)), []);
   useEffect(() => { load(); }, [load, reloadKey]);
@@ -125,7 +174,7 @@ export default function TanksTab({ canAdjust, reloadKey }) {
       {!rows ? <div className="panel-body"><Spinner /></div> : (
         <DataTable rows={rows}
                    empty={<EmptyState icon={Container} title="Aucun contenant"
-                                      text="Créez vos puits et silos (huile achetée, vendue en caisse) et les citernes ou fûts des clients (leur huile conservée à l'huilerie)." />}
+                                      text="Créez vos puits, citernes et fûts : ceux de l'huilerie (huile achetée, vendue en caisse) et ceux des clients (leur huile conservée à l'huilerie)." />}
                    columns={[
                      { key: 'code', header: 'Code', render: (t) => <><strong>{t.code}</strong><div className="muted" style={{ fontSize: 12 }}>{t.nom}</div></> },
                      { key: 'type', header: 'Type', render: (t) => TANK_TYPES[t.type] },
@@ -146,6 +195,7 @@ export default function TanksTab({ canAdjust, reloadKey }) {
                        key: 'a', header: '', align: 'right',
                        render: (t) => (
                          <div className="actions" onClick={(e) => e.stopPropagation()}>
+                           {!t.clientId && t.actif && Number(t.quantite) > 0 ? <Button variant="secondary" onClick={() => setMoving(t)}><ArrowRightLeft size={14} />Transvaser</Button> : null}
                            <Button variant="secondary" onClick={() => setEditing(t)}><Pencil size={14} />Modifier</Button>
                            <Button variant="secondary" onClick={() => toggle(t)}>{t.actif ? 'Désactiver' : 'Réactiver'}</Button>
                          </div>
@@ -153,6 +203,7 @@ export default function TanksTab({ canAdjust, reloadKey }) {
                      }] : []),
                    ]} />
       )}
+      {moving ? <TransferModal from={moving} tanks={rows} onClose={() => setMoving(null)} onDone={() => { setMoving(null); load(); }} /> : null}
       {editing ? <TankModal tank={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} /> : null}
     </div>
   );

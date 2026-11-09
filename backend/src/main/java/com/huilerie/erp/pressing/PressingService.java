@@ -267,7 +267,7 @@ public class PressingService {
         BigDecimal pertes = Money.strict(r.pertesKg(), "Pertes");
         if (p.isPurchase()) {
             if (r.tankId() == null) {
-                throw new BusinessException("Choisissez le puits ou le silo où l'huile est stockée.");
+                throw new BusinessException("Choisissez le puits, la citerne ou le fût où l'huile est stockée.");
             }
             if (tankRepository.findById(r.tankId()).map(t -> t.getClient() != null).orElse(false)) {
                 throw new BusinessException("Ce puits est réservé à un client : l'huile achetée va dans un puits de l'huilerie.");

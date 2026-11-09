@@ -34,6 +34,11 @@ public class TankController {
         return service.update(id, r);
     }
 
+    @PostMapping("/{id}/transfer")
+    public List<TankDto.Response> transfer(@PathVariable Long id, @Valid @RequestBody TankDto.TransferRequest r) {
+        return service.transfer(id, r.versId(), r.quantite());
+    }
+
     @PatchMapping("/{id}/status")
     public TankDto.Response status(@PathVariable Long id, @Valid @RequestBody StatusRequest r) {
         return service.setStatus(id, r.actif());
