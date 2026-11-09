@@ -115,6 +115,28 @@ class ComptesClientsTest {
     }
 
     @Test
+    void paiementDuServiceSurLeCompteImputeAuxPressagesLesPlusAnciens() {
+        PressingDto.Detail p1 = pressage(null, "150");             // 100 DT de service chacun
+        PressingDto.Detail p2 = pressage(null, "120");
+        assertThat(accounts.oilAccount(x.getId()).montantDu()).isEqualByComparingTo("200");
+
+        accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("50"), null));
+        PressingDto.OilAccount compte = accounts.payService(x.getId(),
+                new PressingDto.PaymentRequest(PaymentMode.CHEQUE, new BigDecimal("120"), "CH-77"));
+        assertThat(compte.montantDu()).isEqualByComparingTo("30");
+        assertThat(service.get(p1.id()).reste()).isEqualByComparingTo("0");
+        assertThat(service.get(p2.id()).reste()).isEqualByComparingTo("30");
+        assertThat(compte.paiements()).hasSize(3);                 // 50 + (50 sur p1, 70 sur p2)
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("170");
+
+        assertThatThrownBy(() -> accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES,
+                new BigDecimal("31"), null))).isInstanceOf(BusinessException.class).hasMessageContaining("dépasse");
+        accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("30"), null));
+        assertThatThrownBy(() -> accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES,
+                new BigDecimal("1"), null))).isInstanceOf(BusinessException.class).hasMessageContaining("aucun service");
+    }
+
+    @Test
     void priseDirecteSansCiterne() {
         PressingDto.Detail p = recu();
         TankDto.Response citerne = tanks.create(new TankDto.Request("CIT-X", "Citerne de X", StorageTank.Type.CITERNE,

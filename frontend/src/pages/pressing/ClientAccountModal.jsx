@@ -17,6 +17,7 @@ function OilTab({ clientId, clientNom, onChanged }) {
   const { can } = useAuth();
   const [acc, setAcc] = useState(null);
   const [form, setForm] = useState({ quantite: '', enLitres: true, remisA: '' });
+  const [pay, setPay] = useState({ mode: 'ESPECES', montant: '', reference: '' });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,6 +52,27 @@ function OilTab({ clientId, clientNom, onChanged }) {
     }
   };
 
+  const canPay = can(['PRESSING_MANAGE', 'SALES_CREATE']);
+  const payM = toMillimes(pay.montant);
+  const submitPay = async () => {
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const next = await pressingService.payService(clientId, {
+        mode: pay.mode, montant: normalizeDecimal(pay.montant), reference: pay.reference || null,
+      });
+      setAcc(next);
+      setPay({ mode: pay.mode, montant: '', reference: '' });
+      setMessage(`Paiement de ${formatDT(fromMillimes(payM))} enregistré${Number(next.montantDu) > 0 ? ` ; reste dû ${formatDT(next.montantDu)}` : ' : le service est entièrement payé'}.`);
+      onChanged?.();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <div className="stats">
@@ -67,10 +89,33 @@ function OilTab({ clientId, clientNom, onChanged }) {
       <Alert type="error">{error}</Alert>
       {message ? <Alert type="success">{message}</Alert> : null}
 
+      {canPay && due ? (
+        <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
+          <h2 style={{ marginBottom: 12 }}>Encaisser le service</h2>
+          <div className="form-grid">
+            <div className="field"><label>Montant (DT) *</label>
+              <input className="input" inputMode="decimal" value={pay.montant} onChange={(e) => setPay({ ...pay, montant: e.target.value })} />
+              {payM > toMillimes(acc.montantDu) ? <span className="error">Au plus {formatDT(acc.montantDu)}.</span>
+                : <span className="hint">Dû : {formatDT(acc.montantDu)} · paiement partiel possible</span>}</div>
+            <div className="field"><label>Mode</label>
+              <select className="select" value={pay.mode} onChange={(e) => setPay({ ...pay, mode: e.target.value })}>
+                {Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select></div>
+            <div className="field wide"><label>Référence</label>
+              <input className="input" maxLength={80} value={pay.reference} placeholder="N° de chèque, virement…" onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></div>
+          </div>
+          <span className="hint">Imputé sur les pressages non payés, les plus anciens d'abord ; entrée en caisse maintenant.</span>
+          <div className="actions">
+            <Button variant="secondary" onClick={() => setPay({ ...pay, montant: String(acc.montantDu) })}>Tout le reste</Button>
+            <Button loading={busy} disabled={!payM || payM > toMillimes(acc.montantDu)} onClick={submitPay}><HandCoins size={16} />Encaisser</Button>
+          </div>
+        </div>
+      ) : null}
+
       {can('PRESSING_MANAGE') && Number(acc.solde) > 0 ? (
         <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
           <h2 style={{ marginBottom: 12 }}>Remettre de l'huile à {clientNom}</h2>
-          {due ? <Alert type="info">Encaissez d'abord le service ({formatDT(acc.montantDu)}) depuis le bulletin du pressage.</Alert> : null}
+          {due ? <Alert type="info">Encaissez d'abord le service ({formatDT(acc.montantDu)}) ci-dessus.</Alert> : null}
           <div className="form-grid">
             <div className="field"><label>Quantité *</label>
               <input className="input" inputMode="decimal" value={form.quantite} autoFocus
@@ -109,6 +154,25 @@ function OilTab({ clientId, clientNom, onChanged }) {
           </table>
         </div>
       ) : <p className="muted">Aucun pressage à façon terminé pour ce client.</p>}
+
+      <div className="grid-2" style={{ marginTop: 16 }}>
+        <div><h2 style={{ marginBottom: 8 }}>Service par pressage</h2>
+          {acc.services.length ? <table className="table"><tbody>{acc.services.map((x) => (
+            <tr key={x.id}>
+              <td><strong>{x.numero}</strong> <span className="muted">bulletin {x.numeroBulletin}</span>
+                <div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {formatQty(x.poidsNet, 'kg')} · {PRESSING_STATUS[x.statut]}</div></td>
+              <td className="num">{formatDT(x.montant)}<div className="muted" style={{ fontSize: 12 }}>{Number(x.reste) > 0 ? `reste ${formatDT(x.reste)}` : 'payé'}</div></td>
+            </tr>
+          ))}</tbody></table> : <p className="muted">Aucun pressage à façon.</p>}</div>
+        <div><h2 style={{ marginBottom: 8 }}>Paiements du service</h2>
+          {acc.paiements.length ? <table className="table"><tbody>{acc.paiements.map((x) => (
+            <tr key={x.numero}>
+              <td><strong>{x.numero}</strong> <span className="muted">{x.pressingNumero}</span>
+                <div className="muted" style={{ fontSize: 12 }}>{formatDateTime(x.date)} · {PAYMENT_MODES[x.mode]}{x.reference ? ` · ${x.reference}` : ''}</div></td>
+              <td className="num">{formatDT(x.montant)}</td>
+            </tr>
+          ))}</tbody></table> : <p className="muted">Aucun paiement.</p>}</div>
+      </div>
     </>
   );
 }

@@ -154,8 +154,64 @@ public class ClientAccountService {
                 .toList();
         BigDecimal litres = "kg".equalsIgnoreCase(unite) || unite == null
                 ? solde.divide(density, Money.SCALE, RoundingMode.HALF_UP) : null;
+        List<PressingDto.ServiceLine> services = new ArrayList<>();
+        List<PressingDto.ServicePaymentLine> paiements = new ArrayList<>();
+        for (Pressing p : list) {
+            if (p.getStatut() == Pressing.Status.ANNULE) {
+                continue;
+            }
+            services.add(new PressingDto.ServiceLine(p.getId(), p.getNumero(), p.getNumeroBulletin(), p.getDateReception(),
+                    p.getStatut(), p.getPoidsNet(), p.getMontant(), p.getMontantPaye(), p.reste()));
+            for (Pressing.Payment x : p.getPaiements()) {
+                paiements.add(new PressingDto.ServicePaymentLine(x.getNumero(), x.getDate(), x.getMode(), x.getMontant(),
+                        x.getReference(), p.getNumero(), p.getNumeroBulletin(), x.getUsername()));
+            }
+        }
+        paiements.sort(Comparator.comparing(PressingDto.ServicePaymentLine::date).reversed());
         return new PressingDto.OilAccount(c.getId(), c.getNom(), c.getCode(), unite == null ? "kg" : unite, solde,
-                litres, density, du, puits, mouvements);
+                litres, density, du, puits, mouvements, services, paiements);
+    }
+
+    /**
+     * Paiement du service sur le compte du client (pressage à façon), sans passer par un bulletin : le montant est
+     * imputé sur ses pressages non payés, les plus anciens d'abord, sans dépasser le total dû.
+     * Une ligne de paiement et une entrée en caisse par pressage réglé.
+     */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE') or hasAuthority('SALES_CREATE')")
+    @Transactional
+    public PressingDto.OilAccount payService(Long clientId, PressingDto.PaymentRequest r) {
+        Client c = client(clientId);
+        List<Pressing> unpaid = pressings.lockUnpaidServiceOf(clientId);
+        BigDecimal due = unpaid.stream().map(Pressing::reste).reduce(Money.zero(), BigDecimal::add);
+        if (due.signum() == 0) {
+            throw new BusinessException(c.getNom() + " n'a aucun service de pressage à payer.");
+        }
+        BigDecimal amount = Money.strict(r.montant(), "Montant");
+        if (amount.compareTo(due) > 0) {
+            throw new BusinessException("Le paiement dépasse le service dû par " + c.getNom() + " ("
+                    + due.toPlainString() + " DT).");
+        }
+        String reference = Text.clean(r.reference());
+        BigDecimal left = amount;
+        List<String> parts = new ArrayList<>();
+        for (Pressing p : unpaid) {
+            if (left.signum() == 0) {
+                break;
+            }
+            BigDecimal part = left.min(p.reste());
+            p.getPaiements().size();
+            String numero = numbers.nextYearly("PAIEMENT_PRESSAGE", "PPR");
+            p.addPayment(numero, r.mode(), part, reference, SecurityUtils.username());
+            pressings.saveAndFlush(p);
+            finance.record(CashMovementType.ENCAISSEMENT, r.mode(), part,
+                    "Pressage " + p.getNumero() + " (" + c.getNom() + ") — règlement du compte", PressingService.DOC_TYPE,
+                    p.getId());
+            parts.add(numero + " " + p.getNumero() + " " + part.toPlainString() + " DT");
+            left = left.subtract(part);
+        }
+        audit.log(SecurityUtils.username(), "PRESSING_ACCOUNT_PAYMENT", "Client", String.valueOf(clientId),
+                amount.toPlainString() + " DT : " + String.join(", ", parts));
+        return oilAccount(clientId);
     }
 
     /** Remise sur le solde global du client : prise sur ses pressages, les plus anciens d'abord. */

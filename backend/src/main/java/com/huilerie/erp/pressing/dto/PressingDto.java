@@ -191,7 +191,17 @@ public final class PressingDto {
      */
     public record OilAccount(Long clientId, String clientNom, String clientCode, String unite, BigDecimal solde,
                              BigDecimal soldeLitres, BigDecimal densite, BigDecimal montantDu, List<TankLine> puits,
-                             List<OilMovement> mouvements) {
+                             List<OilMovement> mouvements, List<ServiceLine> services, List<ServicePaymentLine> paiements) {
+    }
+
+    /** Service d'un pressage à façon du client : montant, déjà payé, reste dû. */
+    public record ServiceLine(Long id, String numero, String numeroBulletin, Instant date, Pressing.Status statut,
+                              BigDecimal poidsNet, BigDecimal montant, BigDecimal paye, BigDecimal reste) {
+    }
+
+    /** Paiement du service, imputé sur un pressage. */
+    public record ServicePaymentLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, String reference,
+                                     String pressingNumero, String numeroBulletin, String username) {
     }
 
     public record AdvanceLine(String numero, Instant date, PaymentMode mode, BigDecimal montant, BigDecimal impute,

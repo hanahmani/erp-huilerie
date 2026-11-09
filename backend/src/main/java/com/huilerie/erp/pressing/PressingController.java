@@ -84,6 +84,11 @@ public class PressingController {
         return accounts.returnToClient(clientId, r);
     }
 
+    @PostMapping("/clients/{clientId}/pay")
+    public PressingDto.OilAccount payService(@PathVariable Long clientId, @Valid @RequestBody PressingDto.PaymentRequest r) {
+        return accounts.payService(clientId, r);
+    }
+
     @GetMapping("/clients/{clientId}/seller")
     public PressingDto.SellerAccount sellerAccount(@PathVariable Long clientId) {
         return accounts.sellerAccount(clientId);

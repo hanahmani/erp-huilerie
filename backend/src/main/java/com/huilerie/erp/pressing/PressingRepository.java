@@ -42,6 +42,17 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
             """)
     List<Pressing> lockOilOf(@Param("clientId") Long clientId);
 
+    /** Pressages à façon non annulés d'un client dont le service reste à payer, les plus anciens d'abord, verrouillés. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select p from Pressing p where p.client.id = :clientId
+              and p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE
+              and p.statut <> com.huilerie.erp.pressing.Pressing.Status.ANNULE
+              and p.montantPaye < p.montant
+            order by p.dateReception, p.id
+            """)
+    List<Pressing> lockUnpaidServiceOf(@Param("clientId") Long clientId);
+
     List<Pressing> findByClientIdAndModeOrderByIdAsc(Long clientId, Pressing.Mode mode);
 
     /** Par client : huile à remettre, service encore dû, reste dû au vendeur (achats). */

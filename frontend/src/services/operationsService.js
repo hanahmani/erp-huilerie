@@ -16,6 +16,7 @@ export const pressingService = {
   accounts: () => api.get('/pressings/accounts'),
   oilAccount: (clientId) => api.get(`/pressings/clients/${clientId}/oil`),
   returnToClient: (clientId, body) => api.post(`/pressings/clients/${clientId}/return`, body),
+  payService: (clientId, body) => api.post(`/pressings/clients/${clientId}/pay`, body),
   sellerAccount: (clientId) => api.get(`/pressings/clients/${clientId}/seller`),
   giveAdvance: (clientId, body) => api.post(`/pressings/clients/${clientId}/advances`, body),
 };
