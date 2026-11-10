@@ -42,13 +42,14 @@ public class StorageTank {
     @JoinColumn(name = "article_id", nullable = false, updatable = false)
     private Article article;
 
-    /** Puits réservé à un client (pressage à façon) ; vide : puits de l'huilerie. */
+    /** Puits réservé à un client (pressage à façon) ; vide : puits de l'huilerie. Change seulement quand il est vide. */
     @ManyToOne
-    @JoinColumn(name = "client_id", updatable = false)
+    @JoinColumn(name = "client_id")
     private com.huilerie.erp.clients.Client client;
 
+    /** Lot en cours ; remplacé par un nouveau lot à chaque changement de propriétaire (l'ancien garde son historique). */
     @OneToOne(optional = false)
-    @JoinColumn(name = "lot_id", nullable = false, unique = true, updatable = false)
+    @JoinColumn(name = "lot_id", nullable = false, unique = true)
     private StockLot lot;
 
     /** Capacité dans l'unité de l'article (litres en général). */
@@ -80,6 +81,11 @@ public class StorageTank {
         this.nom = nom;
         this.type = type;
         this.capacite = capacite;
+    }
+
+    void changeOwner(com.huilerie.erp.clients.Client client, StockLot lot) {
+        this.client = client;
+        this.lot = lot;
     }
 
     void setActif(boolean actif) {

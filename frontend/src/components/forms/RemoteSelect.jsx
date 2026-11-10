@@ -4,11 +4,13 @@ import { useEffect, useId, useState } from 'react';
  * Liste déroulante alimentée par l'API avec recherche (articles, clients…).
  * fetcher(q) renvoie une page { content } ; toOption(item) => { value, label }.
  */
-export default function RemoteSelect({ label, value, onChange, fetcher, toOption, placeholder = 'Choisir…', required, hint }) {
+/** initialOption : { value, label } de la valeur déjà choisie, affichée même si elle n'est pas dans les résultats. */
+export default function RemoteSelect({ label, value, onChange, fetcher, toOption, placeholder = 'Choisir…', required, hint,
+  initialOption }) {
   const id = useId();
   const [q, setQ] = useState('');
   const [options, setOptions] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(initialOption ?? null);
 
   useEffect(() => {
     let alive = true;

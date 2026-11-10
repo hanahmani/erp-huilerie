@@ -51,6 +51,12 @@ public class ClientAccountService {
     private final SettingsService settings;
     private final DocumentNumberService numbers;
     private final AuditService audit;
+    private com.huilerie.erp.inventory.TankService tankService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setTankService(com.huilerie.erp.inventory.TankService tankService) {
+        this.tankService = tankService;
+    }
 
     public ClientAccountService(PressingRepository pressings, ClientOilReturnRepository returns,
                                 SellerAdvanceRepository advances, ClientRepository clients, StorageTankRepository tanks,
@@ -251,6 +257,7 @@ public class ClientAccountService {
         ClientOilReturn ret = returns.save(new ClientOilReturn(numbers.nextYearly("REMISE_HUILE", "RMH"), c, q, litres,
                 remisA, SecurityUtils.username()));
         BigDecimal left = q;
+        java.util.Set<Long> touchedTanks = new java.util.LinkedHashSet<>();
         for (Pressing p : withOil) {
             if (left.signum() == 0) {
                 break;
@@ -260,17 +267,25 @@ public class ClientAccountService {
             stock.apply(p.getArticle(), p.getLot(), MovementType.PRESSAGE_REMISE, part,
                     "Remise " + ret.getNumero() + " à " + remisA, PressingService.DOC_TYPE, p.getId());
             p.addReturn(ret, part);
+            if (p.getTank() != null) {
+                touchedTanks.add(p.getTank().getId());
+            }
             left = left.subtract(part);
         }
+        // Contenant vidé par cette remise : rendu à l'huilerie, réutilisable.
+        touchedTanks.forEach(tankService::releaseIfEmpty);
         audit.log(SecurityUtils.username(), "PRESSING_RETURN", "Client", String.valueOf(c.getId()),
                 ret.getNumero() + " " + q.toPlainString() + (litres == null ? "" : " (" + litres.toPlainString() + " L)"));
         return ret;
     }
 
-    /** Puits du client pour la fin d'un pressage à façon : réservé à ce client et contenant la même huile. */
+    /**
+     * Contenant pour la fin d'un pressage à façon : réservé à ce client, ou contenant de l'huilerie (vide) qui lui sera
+     * réservé ; il doit contenir la même huile.
+     */
     StorageTank clientTank(Pressing p, Long tankId) {
         StorageTank t = tanks.findById(tankId).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
-        if (t.getClient() == null || !t.getClient().getId().equals(p.getClient().getId())) {
+        if (t.getClient() != null && !t.getClient().getId().equals(p.getClient().getId())) {
             throw new BusinessException(t.getCode() + " n'est pas réservé à " + p.getClient().getNom() + ".");
         }
         if (!t.getArticle().getId().equals(p.getArticle().getId())) {

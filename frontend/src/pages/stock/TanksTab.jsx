@@ -39,8 +39,10 @@ function TankModal({ tank, onClose, onSaved }) {
   }, [creating]);
 
   const forClient = form.owner === 'CLIENT';
-  const valid = form.nom.trim() && toMillimes(form.capacite) > 0
-    && (!creating || (form.code.trim() && form.articleId && (!forClient || form.clientId)));
+  // Le propriétaire se choisit à la création, ou plus tard quand le contenant est vide (un nouveau lot est ouvert).
+  const ownerEditable = creating || Number(tank.quantite) === 0;
+  const valid = form.nom.trim() && toMillimes(form.capacite) > 0 && (!forClient || form.clientId)
+    && (!creating || (form.code.trim() && form.articleId));
   const save = async () => {
     setSaving(true);
     setError('');
@@ -48,7 +50,7 @@ function TankModal({ tank, onClose, onSaved }) {
       onSaved(await tankService.save(tank.id, {
         code: creating ? form.code.trim() : null, nom: form.nom.trim(), type: form.type,
         articleId: creating ? Number(form.articleId) : null, capacite: normalizeDecimal(form.capacite),
-        clientId: creating && forClient ? Number(form.clientId) : null,
+        clientId: forClient ? Number(form.clientId) : null,
       }));
     } catch (e) {
       setError(e.message);
@@ -63,19 +65,20 @@ function TankModal({ tank, onClose, onSaved }) {
       <Alert type="error">{error}</Alert>
       <div className="field">
         <label>Propriétaire *</label>
-        {creating ? (
+        {ownerEditable ? (
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <label className="check"><input type="radio" name="owner" value="HUILERIE" checked={!forClient} onChange={set('owner')} />L'huilerie</label>
             <label className="check"><input type="radio" name="owner" value="CLIENT" checked={forClient} onChange={set('owner')} />Un client</label>
           </div>
-        ) : <input className="input" value={tank.clientNom || "L'huilerie"} disabled />}
+        ) : <input className="input" value={`${tank.clientNom || "L'huilerie"} — non modifiable tant qu'il contient de l'huile`} disabled />}
         <span className="hint">{forClient
           ? "Réservé à ce client : l'huile de ses pressages à façon y est versée, puis lui est remise. Jamais vendue."
           : "Huile achetée par l'huilerie : versée après un achat d'olives, vendue en caisse."}</span>
       </div>
-      {creating && forClient ? (
+      {ownerEditable && forClient ? (
         <RemoteSelect label="Client" required value={form.clientId} onChange={(id) => setForm((f) => ({ ...f, clientId: id }))}
-                      fetcher={fetchClients} toOption={toClient} />
+                      fetcher={fetchClients} toOption={toClient}
+                      initialOption={tank.clientId ? { value: tank.clientId, label: tank.clientNom } : undefined} />
       ) : null}
       <div className="form-grid">
         <div className="field"><label>Code *</label>

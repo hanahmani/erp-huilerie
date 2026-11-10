@@ -331,4 +331,47 @@ class ComptesClientsTest {
         service.delete(a.id());
         assertThat(accounts.sellerAccount(x.getId()).avanceDisponible()).isEqualByComparingTo("1000");
     }
+
+    private TankDto.Response tankById(Long id) {
+        return tanks.list().stream().filter(t -> t.id().equals(id)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void futVideDeLHuilerieReserveAuClientALaFinDuPressage() {
+        TankDto.Response fut = tank("FUT-1", huileClients, null);
+        PressingDto.Detail p = pressage(fut.id(), "200");
+        TankDto.Response apres = tankById(fut.id());
+        assertThat(apres.clientId()).isEqualTo(x.getId());
+        assertThat(apres.lotNumero()).isEqualTo("FUT-1-2");            // nouveau lot, au nom du client
+        assertThat(apres.quantite()).isEqualByComparingTo("200");
+        assertThat(p.tankCode()).isEqualTo("FUT-1");
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("200");
+        // Remise partielle : le fût reste au client.
+        accounts.returnToClient(x.getId(), new PressingDto.ClientReturnRequest(new BigDecimal("150"), false, null));
+        assertThat(tankById(fut.id()).clientId()).isEqualTo(x.getId());
+        // Le client reprend le reste : le fût vide est rendu automatiquement à l'huilerie, avec un nouveau lot.
+        accounts.returnToClient(x.getId(), new PressingDto.ClientReturnRequest(new BigDecimal("50"), false, null));
+        TankDto.Response libere = tankById(fut.id());
+        assertThat(libere.clientId()).isNull();
+        assertThat(libere.lotNumero()).isEqualTo("FUT-1-3");
+        // Réutilisable : réservé à la main à un autre client.
+        Client y = fx.client("Y", null);
+        TankDto.Response pourY = tanks.update(fut.id(), new TankDto.Request(null, "Fût 1", StorageTank.Type.FUT, null,
+                new BigDecimal("5000"), y.getId()));
+        assertThat(pourY.clientId()).isEqualTo(y.getId());
+        assertThat(pourY.lotNumero()).isEqualTo("FUT-1-4");
+    }
+
+    @Test
+    void contenantNonVideNeChangePasDeProprietaire() {
+        TankDto.Response pile = tank("PILE-H", huileClients, null);
+        PressingDto.Detail a = achat(null);
+        service.start(a.id());
+        service.finish(a.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null, pile.id()));
+        assertThatThrownBy(() -> pressage(pile.id(), "50"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("videz-le");
+        assertThatThrownBy(() -> tanks.update(pile.id(), new TankDto.Request(null, "Pile", StorageTank.Type.PILE, null,
+                new BigDecimal("5000"), x.getId()))).isInstanceOf(BusinessException.class).hasMessageContaining("videz-le");
+        assertThat(tankById(pile.id()).clientId()).isNull();
+    }
 }

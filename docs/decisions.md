@@ -58,3 +58,8 @@
     (figé) ; reste dû = somme des TJM − paiements (salaire, journées, avance), négatif si les avances dépassent.
     Chaque paiement est une sortie de caisse. Congés et absences supprimés (migration V13).
 28. **Notifications** : calculées à la demande à partir des données ; seul l'état « lu » est stocké.
+29. **Contenants (piles, citernes, fûts)** : propriétaire choisi à la création (huilerie ou client) et modifiable
+    seulement quand le contenant est vide. À la fin d'un pressage à façon, un contenant vide de l'huilerie peut être
+    choisi : il est alors réservé au client. Chaque changement de propriétaire ouvre un nouveau lot (`CODE-2`, `CODE-3`…)
+    au nom du nouveau propriétaire ; l'ancien lot, vide, garde son historique. L'huile d'un contenant client n'est
+    jamais vendable.

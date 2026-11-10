@@ -358,7 +358,7 @@ public class PressingService {
                 p.finishPurchase(tank, huile, perte);
                 where = " dans " + tank.getCode();
             } else if (r.tankId() != null) {
-                StorageTank own = accounts.clientTank(p, r.tankId());
+                StorageTank own = tanks.reserveFor(accounts.clientTank(p, r.tankId()).getId(), p.getClient());
                 tanks.fill(own.getId(), huile, MovementType.PRESSAGE_ENTREE,
                         "Pressage " + p.getNumero() + " — " + p.getClient().getNom(), DOC_TYPE, p.getId());
                 p.finishInTank(own, huile, perte);

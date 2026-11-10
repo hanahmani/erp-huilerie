@@ -48,7 +48,9 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
   useEffect(() => {
     if (panel !== 'finish' || !p) return;
     tankService.list().then((l) => setTanks(l.filter((t) => t.actif && (achat
-      ? !t.clientId : t.clientId === p.clientId && t.articleId === p.articleId)))).catch((e) => setError(e.message));
+      ? !t.clientId
+      // Pressage à façon : contenants du client, ou contenants vides de l'huilerie (réservés au client à la fin).
+      : t.articleId === p.articleId && (t.clientId === p.clientId || (!t.clientId && Number(t.quantite) === 0)))))).catch((e) => setError(e.message));
   }, [panel, achat, p]);
   // Autres bulletins du même client encore à presser (même type) : pressage groupé possible.
   const [others, setOthers] = useState([]);
@@ -282,10 +284,18 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                           <div className="field wide"><label>Citerne / fût du client *</label>
                             <select className="select" {...f('tankId')}>
                               <option value="">Choisir…</option>
-                              {tanks.map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
+                              {tanks.filter((t) => t.clientId).map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · contient {formatQty(t.quantite, t.unite)} · place restante {formatQty(t.placeRestante, t.unite)}</option>)}
+                              {tanks.some((t) => !t.clientId) ? (
+                                <optgroup label={`Vides, à réserver à ${p.clientNom}`}>
+                                  {tanks.filter((t) => !t.clientId).map((t) => <option key={t.id} value={t.id}>{TANK_TYPES[t.type]} {t.code} — {t.nom} · vide · capacité {formatQty(t.capacite, t.unite)}</option>)}
+                                </optgroup>
+                              ) : null}
                             </select>
-                            <span className="hint">{tanks.length ? "L'huile reste à l'huilerie, sur le compte du client ; elle sort plus tard par une remise."
-                              : `Aucune citerne ni aucun fût réservé à ${p.clientNom} : créez-en dans Stock › Piles / citernes / fûts (propriétaire : ce client).`}</span></div>
+                            <span className="hint">{!tanks.length
+                              ? `Aucun contenant réservé à ${p.clientNom} ni aucun contenant vide : créez-en dans Stock › Piles / citernes / fûts.`
+                              : tanks.find((t) => String(t.id) === String(form.tankId) && !t.clientId)
+                                ? `${tanks.find((t) => String(t.id) === String(form.tankId)).code} sera réservé à ${p.clientNom} : son huile n'est pas vendable et en sort par une remise.`
+                                : "L'huile reste à l'huilerie, sur le compte du client ; elle sort plus tard par une remise."}</span></div>
                         ) : null}
                         {form.dest === 'LOT' ? <p className="hint field wide">L'huile reste à l'huilerie, sur le compte du client, dans un lot propre à ce pressage.</p> : null}
                         {form.dest === 'DIRECT' ? (

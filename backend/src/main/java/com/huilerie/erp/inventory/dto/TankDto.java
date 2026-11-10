@@ -15,8 +15,9 @@ public final class TankDto {
     }
 
     /**
-     * articleId, code et clientId : pris en compte à la création seulement (ils définissent le lot du puits).
-     * clientId renseigné : puits réservé à ce client (huile de ses pressages à façon).
+     * articleId et code : pris en compte à la création seulement.
+     * clientId renseigné : puits réservé à ce client (huile de ses pressages à façon) ; vide : puits de l'huilerie.
+     * En modification, changer clientId n'est possible que si le contenant est vide (un nouveau lot est ouvert).
      */
     public record Request(
             @Pattern(regexp = "^[A-Za-z0-9][A-Za-z0-9 _-]{0,29}$", message = "Code : lettres, chiffres, espace, - ou _ (30 au maximum).") String code,

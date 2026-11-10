@@ -72,13 +72,7 @@ public class TankService {
         if (lots.existsByArticleIdAndNumeroIgnoreCase(article.getId(), code)) {
             throw new BusinessException("Un lot " + code + " existe déjà pour cet article : choisissez un autre code.");
         }
-        com.huilerie.erp.clients.Client client = null;
-        if (r.clientId() != null) {
-            client = clients.findById(r.clientId()).orElseThrow(() -> new NotFoundException("Client introuvable."));
-            if (!client.isActif()) {
-                throw new BusinessException("Ce client est désactivé.");
-            }
-        }
+        com.huilerie.erp.clients.Client client = r.clientId() == null ? null : activeClient(r.clientId());
         StockLot lot = lots.save(client == null ? new StockLot(article, code, LotOwner.ENTREPRISE, null)
                 : new StockLot(article, code, LotOwner.CLIENT, client));
         StorageTank t = tanks.save(new StorageTank(code, r.nom().trim(), r.type(), article, client, lot,
@@ -98,6 +92,10 @@ public class TankService {
             throw new BusinessException("Le contenant contient déjà " + quantite.toPlainString() + " : la capacité ne peut pas être inférieure.");
         }
         t.update(r.nom().trim(), r.type(), capacite);
+        Long current = t.getClient() == null ? null : t.getClient().getId();
+        if (!java.util.Objects.equals(current, r.clientId())) {
+            changeOwner(t, r.clientId() == null ? null : activeClient(r.clientId()));
+        }
         audit.log(SecurityUtils.username(), "TANK_UPDATE", "StorageTank", String.valueOf(id),
                 t.getCode() + " " + capacite.toPlainString());
         return toDto(t);
@@ -175,6 +173,69 @@ public class TankService {
         }
         stock.apply(t.getArticle(), t.getLot(), type, quantite, motif, documentType, documentId);
         return t;
+    }
+
+    /**
+     * Réserve un contenant vide de l'huilerie au client, dans la transaction de l'appelant (fin d'un pressage à façon).
+     * Déjà réservé à ce client : rien à faire. Retourne le contenant verrouillé.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public StorageTank reserveFor(Long tankId, com.huilerie.erp.clients.Client client) {
+        StorageTank t = tanks.lockById(tankId).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
+        if (t.getClient() != null && t.getClient().getId().equals(client.getId())) {
+            return t;
+        }
+        if (t.getClient() != null) {
+            throw new BusinessException(t.getCode() + " est réservé à " + t.getClient().getNom() + ".");
+        }
+        if (!t.isActif()) {
+            throw new BusinessException(t.getCode() + " est désactivé.");
+        }
+        changeOwner(t, client);
+        return t;
+    }
+
+    /**
+     * Contenant d'un client vidé par une remise : rendu à l'huilerie (nouveau lot ENTREPRISE), réutilisable pour un autre
+     * client ou pour l'huile de l'huilerie. Sans effet s'il appartient déjà à l'huilerie ou contient encore de l'huile.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void releaseIfEmpty(Long tankId) {
+        StorageTank t = tanks.lockById(tankId).orElseThrow(() -> new NotFoundException("Contenant introuvable."));
+        if (t.getClient() != null && quantity(t).signum() == 0) {
+            changeOwner(t, null);
+        }
+    }
+
+    /**
+     * Change le propriétaire d'un contenant vide (huilerie ↔ client, ou d'un client à un autre). Un nouveau lot est
+     * ouvert pour le nouveau propriétaire : l'ancien lot, vide, garde l'historique de l'ancien propriétaire.
+     */
+    private void changeOwner(StorageTank t, com.huilerie.erp.clients.Client client) {
+        BigDecimal contenu = quantity(t);
+        if (contenu.signum() != 0) {
+            throw new BusinessException(t.getCode() + " contient encore " + contenu.toPlainString() + " "
+                    + t.getArticle().getUnite().getCode() + " : videz-le avant de changer de propriétaire.");
+        }
+        String numero = t.getCode();
+        for (int i = 2; lots.existsByArticleIdAndNumeroIgnoreCase(t.getArticle().getId(), numero); i++) {
+            numero = t.getCode() + "-" + i;
+        }
+        StockLot lot = lots.save(client == null ? new StockLot(t.getArticle(), numero, LotOwner.ENTREPRISE, null)
+                : new StockLot(t.getArticle(), numero, LotOwner.CLIENT, client));
+        String avant = t.getClient() == null ? "l'huilerie" : t.getClient().getNom();
+        t.changeOwner(client, lot);
+        tanks.flush();
+        audit.log(SecurityUtils.username(), "TANK_OWNER", "StorageTank", String.valueOf(t.getId()),
+                t.getCode() + " : " + avant + " → " + (client == null ? "l'huilerie" : client.getNom()) + " (lot " + numero + ")");
+    }
+
+    private com.huilerie.erp.clients.Client activeClient(Long clientId) {
+        com.huilerie.erp.clients.Client c = clients.findById(clientId).orElseThrow(() -> new NotFoundException("Client introuvable."));
+        if (!c.isActif()) {
+            throw new BusinessException("Ce client est désactivé.");
+        }
+        return c;
     }
 
     private BigDecimal quantity(StorageTank t) {
