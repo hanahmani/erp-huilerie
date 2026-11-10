@@ -7,7 +7,6 @@ import com.huilerie.erp.common.SecurityUtils;
 import com.huilerie.erp.common.Text;
 import com.huilerie.erp.common.exception.BusinessException;
 import com.huilerie.erp.common.exception.NotFoundException;
-import com.huilerie.erp.common.numbering.DocumentNumberService;
 import com.huilerie.erp.common.response.PageResponse;
 import com.huilerie.erp.sales.SaleRepository;
 import org.springframework.data.domain.PageRequest;
@@ -21,7 +20,6 @@ public class ClientService {
 
     private final ClientRepository clients;
     private final SaleRepository sales;
-    private final DocumentNumberService numbers;
     private final AuditService audit;
     private com.huilerie.erp.salesdocs.SalesDocumentRepository invoices;
 
@@ -34,11 +32,9 @@ public class ClientService {
         return Money.ofAny(sales.outstandingByClient(clientId)).add(Money.ofAny(invoices.outstandingByClient(clientId)));
     }
 
-    public ClientService(ClientRepository clients, SaleRepository sales, DocumentNumberService numbers,
-                         AuditService audit) {
+    public ClientService(ClientRepository clients, SaleRepository sales, AuditService audit) {
         this.clients = clients;
         this.sales = sales;
-        this.numbers = numbers;
         this.audit = audit;
     }
 
@@ -66,7 +62,7 @@ public class ClientService {
         Client c;
         if (id == null) {
             c = new Client();
-            c.setCode(numbers.nextCode("CLIENT", "CLI"));
+            c.setCode(nextAutoCode());
         } else {
             c = client(id);
         }
@@ -91,6 +87,24 @@ public class ClientService {
         c.setActif(actif);
         audit.log(SecurityUtils.username(), actif ? "ACTIVATE" : "DEACTIVATE", "Client", String.valueOf(id), null);
         return ClientDto.Response.from(c, due(id));
+    }
+
+    private static final java.util.regex.Pattern CODE_AUTO = java.util.regex.Pattern.compile("(?i)CLI-0*(\\d{1,9})");
+
+    /**
+     * Code automatique = plus grand numéro CLI- existant + 1 (CLI-000001 pour le premier client).
+     * Pas de compteur stocké : les codes suivent les clients réellement présents, sans trou si le dernier
+     * client est supprimé ou après une renumérotation.
+     */
+    private String nextAutoCode() {
+        long max = 0;
+        for (String code : clients.findCodesStartingWith("CLI-")) {
+            java.util.regex.Matcher m = CODE_AUTO.matcher(code);
+            if (m.matches()) {
+                max = Math.max(max, Long.parseLong(m.group(1)));
+            }
+        }
+        return String.format("CLI-%06d", max + 1);
     }
 
     public Client client(Long id) {

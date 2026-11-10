@@ -10,6 +10,9 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
 
     long countByActifTrue();
 
+    @Query("select c.code from Client c where c.code like concat(:prefix, '%')")
+    java.util.List<String> findCodesStartingWith(@Param("prefix") String prefix);
+
     @Query("""
             select c from Client c
             where (:q is null or lower(c.nom) like concat('%', :q, '%')
