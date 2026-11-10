@@ -22,8 +22,10 @@ public class ClientController {
                                                    @RequestParam(required = false) ClientType type,
                                                    @RequestParam(required = false) Boolean actif,
                                                    @RequestParam(defaultValue = "0") int page,
-                                                   @RequestParam(defaultValue = "20") int size) {
-        return service.search(q, type, actif, page, size);
+                                                   @RequestParam(defaultValue = "20") int size,
+                                                   @RequestParam(defaultValue = "code") String sort,
+                                                   @RequestParam(defaultValue = "asc") String dir) {
+        return service.search(q, type, actif, page, size, sort, dir);
     }
 
     @GetMapping("/{id}")

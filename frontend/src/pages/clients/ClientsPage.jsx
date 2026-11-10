@@ -23,10 +23,11 @@ export default function ClientsPage() {
       description="Clients de l'huilerie : particuliers, agriculteurs et professionnels, avec leur solde dû."
       emptyText="Ajoutez le premier client. Les ventes au comptoir n'en ont pas besoin."
       fetcher={clientService.list}
+      defaultSort={{ key: 'code', dir: 'asc' }}
       filters={[{ key: 'type', label: 'Type', allLabel: 'Tous les types', options: toOptions(CLIENT_TYPES) }]}
       columns={[
-        { key: 'code', header: 'Code', render: (c) => <span className="muted">{c.code}</span> },
-        { key: 'nom', header: 'Nom', render: (c) => <strong>{c.nom}</strong> },
+        { key: 'code', header: 'Code', sortable: true, render: (c) => <span className="muted">{c.code}</span> },
+        { key: 'nom', header: 'Nom', sortable: true, render: (c) => <strong>{c.nom}</strong> },
         { key: 'type', header: 'Type', render: (c) => CLIENT_TYPES[c.type] },
         { key: 'telephone', header: 'Téléphone', render: (c) => c.telephone || '—' },
         { key: 'plafond', header: 'Plafond', align: 'right', render: (c) => (c.plafondCredit != null ? formatDT(c.plafondCredit) : '—') },

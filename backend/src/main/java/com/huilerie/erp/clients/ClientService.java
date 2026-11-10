@@ -40,10 +40,18 @@ public class ClientService {
 
     @PreAuthorize("hasAuthority('CLIENT_VIEW')")
     @Transactional(readOnly = true)
-    public PageResponse<ClientDto.Response> search(String q, ClientType type, Boolean actif, int page, int size) {
-        PageRequest pr = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), Sort.by("nom"));
+    public PageResponse<ClientDto.Response> search(String q, ClientType type, Boolean actif, int page, int size,
+                                                   String sort, String dir) {
+        PageRequest pr = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), sortOf(sort, dir));
         return PageResponse.of(clients.search(Text.search(q), type, actif, pr),
                 c -> ClientDto.Response.from(c, due(c.getId())));
+    }
+
+    /** Colonnes triables de la liste (liste blanche) ; par défaut : code croissant. L'id départage les égalités. */
+    private static Sort sortOf(String sort, String dir) {
+        String field = "nom".equals(sort) ? "nom" : "code";
+        Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        return Sort.by(direction, field).and(Sort.by(direction, "id"));
     }
 
     @PreAuthorize("hasAuthority('CLIENT_VIEW')")

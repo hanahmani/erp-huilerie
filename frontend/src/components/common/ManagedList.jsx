@@ -21,10 +21,17 @@ import EntityFormModal from '../forms/EntityFormModal';
 export default function ManagedList({
   title, description, icon, entityLabel, createLabel, managePermission,
   fetcher, columns, filters = [], fields, toForm, onSave, onStatus, emptyText, extraActions,
+  defaultSort,                                        // ex. { key: 'code', dir: 'asc' } : tri côté serveur
 }) {
   const { can } = useAuth();
   const canManage = can(managePermission);
-  const list = usePagedList(fetcher, { actif: 'true' });
+  const list = usePagedList(fetcher, { actif: 'true', ...(defaultSort ? { sort: defaultSort.key, dir: defaultSort.dir } : {}) });
+  const sort = defaultSort ? { key: list.filters.sort, dir: list.filters.dir } : undefined;
+  // Clic sur un en-tête : même colonne → inverse le sens ; autre colonne → tri croissant.
+  const onSort = (key) => {
+    list.setPage(0);
+    list.setFilters((f) => ({ ...f, sort: key, dir: f.sort === key && f.dir === 'asc' ? 'desc' : 'asc' }));
+  };
   const [editing, setEditing] = useState(null);      // {} = création, objet = modification
   const [toggling, setToggling] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -90,6 +97,7 @@ export default function ManagedList({
         </Toolbar>
         {list.loading && !list.data.content.length ? <div className="panel-body"><Spinner /></div> : (
           <DataTable columns={fullColumns} rows={list.data.content}
+                     sort={sort} onSort={defaultSort ? onSort : undefined}
                      onRowClick={canManage ? (r) => setEditing(r) : undefined}
                      empty={<EmptyState icon={icon} title={`Aucun résultat`}
                                         text={list.filters.q ? 'Aucun élément ne correspond à la recherche.' : emptyText}
