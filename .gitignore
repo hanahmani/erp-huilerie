@@ -20,3 +20,6 @@ Thumbs.db
 
 # Sauvegardes de la base (scripts/sauvegarde.sh)
 sauvegardes/
+
+# Journal des sauvegardes planifiées (scripts/installer-sauvegarde.sh)
+logs/
