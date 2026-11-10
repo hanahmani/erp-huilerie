@@ -33,8 +33,8 @@ import java.util.List;
 /**
  * Bulletin de pressage.
  * SERVICE : l'huile obtenue entre dans un lot appartenant au client (le puits qui lui est réservé, sinon un lot propre
- * au pressage), jamais vendable, et n'en sort que par une remise ; le service est facturé au kilo d'olives net et doit
- * être payé avant la remise. Les remises se font sur le compte d'huile du client ({@link ClientAccountService}).
+ * au pressage), jamais vendable, et n'en sort que par une remise ; le service est facturé au kilo d'olives net ; l'huile peut
+ * être remise avant le paiement, le service restant alors dû sur le compte du client. Les remises se font sur le compte d'huile du client ({@link ClientAccountService}).
  * ACHAT : l'huilerie achète les olives au kilo net ; l'huile obtenue est versée dans un puits (vendable en caisse)
  * et le vendeur est payé, en une ou plusieurs fois, jusqu'au montant d'achat ; ses avances en sont déduites.
  */
@@ -377,14 +377,10 @@ public class PressingService {
                     p.getNumero() + " : " + huile.toPlainString() + " " + p.getArticle().getUnite().getCode() + where);
         }
         if (!first.isPurchase() && r.priseDirecte()) {
-            // Le client emporte son huile : le reste du service est encaissé maintenant, puis toute l'huile est remise.
-            BigDecimal due = group.stream().map(Pressing::reste).reduce(Money.zero(), BigDecimal::add);
-            if (due.signum() > 0 && r.modePaiement() == null) {
-                throw new BusinessException("Prise directe : choisissez le mode de paiement du service ("
-                        + due.toPlainString() + " DT).");
-            }
+            // Le client emporte son huile. Avec un mode de paiement, le reste du service est encaissé maintenant ;
+            // sans mode, il reste dû sur le compte du client (à crédit).
             for (Pressing p : group) {
-                if (p.reste().signum() > 0) {
+                if (r.modePaiement() != null && p.reste().signum() > 0) {
                     recordPayment(p, r.modePaiement(), p.reste(), Text.clean(r.reference()));
                 }
             }
@@ -393,7 +389,7 @@ public class PressingService {
         }
     }
 
-    /** Remise de l'huile d'un seul pressage (en une ou plusieurs fois), après paiement complet du service. */
+    /** Remise de l'huile d'un seul pressage (en une ou plusieurs fois), payé ou non. */
     @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
     @Transactional
     public PressingDto.Detail returnOil(Long id, PressingDto.ReturnRequest r) {

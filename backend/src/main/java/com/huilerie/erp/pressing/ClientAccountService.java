@@ -225,18 +225,13 @@ public class ClientAccountService {
 
     /**
      * Sort l'huile des pressages donnés (déjà verrouillés), FIFO, sous un seul numéro de remise.
-     * Refus si le service de l'un de ces pressages n'est pas entièrement payé.
+     * Le paiement du service n'est pas exigé : ce qui n'est pas payé reste dû sur le compte du client.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     ClientOilReturn giveOil(Client c, List<Pressing> sources, BigDecimal quantite, boolean enLitres, String remisAInput) {
         List<Pressing> withOil = sources.stream().filter(p -> p.huileARemettre().signum() > 0).toList();
         if (withOil.isEmpty()) {
             throw new BusinessException(c.getNom() + " n'a pas d'huile à reprendre.");
-        }
-        BigDecimal due = withOil.stream().map(Pressing::reste).reduce(Money.zero(), BigDecimal::add);
-        if (due.signum() > 0) {
-            throw new BusinessException("Le service n'est pas entièrement payé (reste " + due.toPlainString()
-                    + " DT) : encaissez-le avant de remettre l'huile.");
         }
         BigDecimal q = Money.strict(quantite, "Quantité");
         BigDecimal litres = null;

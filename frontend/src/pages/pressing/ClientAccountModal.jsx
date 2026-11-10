@@ -80,7 +80,7 @@ function OilTab({ clientId, clientNom, onChanged }) {
         <StatCard label="Huile à remettre" value={formatQty(acc.solde, acc.unite)}
                   hint={kg && acc.soldeLitres != null ? `≈ ${formatQty(acc.soldeLitres, 'L')} (1 L = ${Number(acc.densite).toLocaleString('fr-FR')} kg)` : null} />
         <StatCard label="Service encore dû" value={formatDT(acc.montantDu)} tone={due ? 'warn' : undefined}
-                  hint={due ? "À encaisser avant toute remise d'huile" : 'Rien à payer'} />
+                  hint={due ? 'À encaisser' : 'Rien à payer'} />
         {acc.puits.map((t) => (
           <StatCard key={t.id} label={t.code} value={formatQty(t.quantite, acc.unite)}
                     hint={`${t.nom} · capacité ${formatQty(t.capacite, acc.unite)}`} />
@@ -116,7 +116,7 @@ function OilTab({ clientId, clientNom, onChanged }) {
       {can('PRESSING_MANAGE') && Number(acc.solde) > 0 ? (
         <div className="panel" style={{ padding: 16, marginBottom: 16 }}>
           <h2 style={{ marginBottom: 12 }}>Remettre de l'huile à {clientNom}</h2>
-          {due ? <Alert type="info">Encaissez d'abord le service ({formatDT(acc.montantDu)}) ci-dessus.</Alert> : null}
+          {due ? <Alert type="info">Service non payé ({formatDT(acc.montantDu)}) : la remise reste possible, le montant restera dû sur le compte du client.</Alert> : null}
           <div className="form-grid">
             <div className="field"><label>Quantité *</label>
               <input className="input" inputMode="decimal" value={form.quantite} autoFocus
@@ -133,7 +133,7 @@ function OilTab({ clientId, clientNom, onChanged }) {
               <input className="input" value={form.remisA} placeholder={clientNom} onChange={(e) => setForm({ ...form, remisA: e.target.value })} /></div>
           </div>
           <div className="actions">
-            <Button loading={busy} disabled={!qM || due} onClick={submit}><Undo2 size={16} />Valider la remise</Button>
+            <Button loading={busy} disabled={!qM} onClick={submit}><Undo2 size={16} />Valider la remise</Button>
           </div>
         </div>
       ) : null}

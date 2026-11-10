@@ -41,8 +41,8 @@
     Export CSV compatible Excel (séparateur « ; »), PDF via l'impression du navigateur.
 20. **Valorisation du stock** au dernier prix d'achat saisi sur l'article ; les articles sans prix sont signalés.
 21. **Pressage client** : facturé au kilo d'olives net (tarif par défaut dans les paramètres). L'huile obtenue entre
-    dans un lot `CLIENT` portant le numéro du pressage. La remise de l'huile exige que le service soit entièrement
-    payé. L'option « part d'huile retenue en paiement » n'est pas encore gérée.
+    dans un lot `CLIENT` portant le numéro du pressage. L'huile peut être remise avant le paiement du service
+    (y compris en prise directe) : le reste dû est suivi sur le compte du client. L'option « part d'huile retenue en paiement » n'est pas encore gérée.
 22. **Production** : seules les olives de l'huilerie (lots `ENTREPRISE`) sont triturées ici. Les olives sortent du
     stock au démarrage ; l'huile et les sous-produits entrent à la fin. Rendement = litres pour 100 kg d'olives.
     Le classement par acidité (≤ 0,8 / ≤ 2 / ≤ 3,3 %) est indicatif ; le lot peut rester bloqué jusqu'à l'analyse.

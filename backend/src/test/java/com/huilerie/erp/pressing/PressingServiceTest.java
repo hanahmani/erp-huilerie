@@ -72,16 +72,12 @@ class PressingServiceTest {
 
     @Test
     @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "SALES_CREATE"})
-    void remiseApresPaiementSeulementPuisSoldee() {
+    void remiseEnPlusieursFoisMemeSansPaiement() {
         PressingDto.Detail p = receive();
         service.start(p.id());
         service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("100"), null, null));
 
-        assertThatThrownBy(() -> service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("10"), null)))
-                .isInstanceOf(BusinessException.class).hasMessageContaining("payé");
-
-        service.pay(p.id(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("150"), null));
-        service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("60"), null));
+        service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("60"), null));   // service pas encore payé
         assertThatThrownBy(() -> service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("41"), null)))
                 .isInstanceOf(BusinessException.class);
         PressingDto.Detail end = service.returnOil(p.id(), new PressingDto.ReturnRequest(new BigDecimal("40"), "Fils du client"));

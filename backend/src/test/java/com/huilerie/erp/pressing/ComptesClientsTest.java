@@ -102,9 +102,6 @@ class ComptesClientsTest {
     @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "STOCK_VIEW", "STOCK_ADJUST", "SALES_CREATE"})
     void priseDirecteEncaisseLeServiceEtRemetToutLHuile() {
         PressingDto.Detail p = recu();
-        assertThatThrownBy(() -> service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null, null,
-                true, null, null, null))).isInstanceOf(BusinessException.class).hasMessageContaining("mode de paiement");
-
         PressingDto.Detail fini = service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null, null,
                 true, PaymentMode.ESPECES, null, "Fils de X"));
         assertThat(fini.statut()).isEqualTo(Pressing.Status.REMIS);
@@ -249,12 +246,27 @@ class ComptesClientsTest {
     }
 
     @Test
-    void remiseRefuseeTantQueLeServiceNestPasPaye() {
+    void remiseSansPaiementLeServiceResteDu() {
         pressage(tank("P3", huileClients, x).id(), "200");
-        assertThatThrownBy(() -> accounts.returnToClient(x.getId(),
-                new PressingDto.ClientReturnRequest(new BigDecimal("10"), false, null)))
-                .isInstanceOf(BusinessException.class).hasMessageContaining("payé");
+        accounts.returnToClient(x.getId(), new PressingDto.ClientReturnRequest(new BigDecimal("10"), false, null));
+        assertThat(accounts.oilAccount(x.getId()).solde()).isEqualByComparingTo("190");
         assertThat(accounts.oilAccount(x.getId()).montantDu()).isEqualByComparingTo("100.000");
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    @WithMockUser(username = "peseur", authorities = {"PRESSING_VIEW", "PRESSING_MANAGE", "STOCK_VIEW", "STOCK_ADJUST", "SALES_CREATE"})
+    void priseDirecteSansPaiementLeServiceResteDu() {
+        PressingDto.Detail p = recu();
+        PressingDto.Detail fini = service.finish(p.id(), new PressingDto.FinishRequest(new BigDecimal("150"), null, null,
+                true, null, null, null));
+        assertThat(fini.statut()).isEqualTo(Pressing.Status.REMIS);
+        assertThat(fini.huileARemettre()).isEqualByComparingTo("0");
+        assertThat(fini.reste()).isEqualByComparingTo("100");
+        assertThat(cash.total(CashMovementType.ENCAISSEMENT, null, null, null)).isEqualByComparingTo("0");
+        // Le service se paie plus tard, sur le compte du client.
+        accounts.payService(x.getId(), new PressingDto.PaymentRequest(PaymentMode.ESPECES, new BigDecimal("100"), null));
+        assertThat(service.get(p.id()).reste()).isEqualByComparingTo("0");
     }
 
     @Test

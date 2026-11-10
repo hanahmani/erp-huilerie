@@ -113,7 +113,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
       {!p ? <Spinner /> : (
         <>
           {p.statut === 'ANNULE' ? <Alert type="error">Annulé : {p.motifAnnulation}</Alert> : null}
-          {!achat && p.statut === 'TERMINE' && Number(p.reste) > 0 ? <Alert type="info">Encaissez le service ({formatDT(p.reste)}) avant de remettre l'huile.</Alert> : null}
+          {!achat && p.statut === 'TERMINE' && Number(p.reste) > 0 ? <Alert type="info">Service non payé ({formatDT(p.reste)}) : il reste dû sur le compte du client.</Alert> : null}
           <div className="grid-2">
             <dl className="kv">
               <dt>Opération</dt><dd><strong>{PRESSING_MODES[p.mode]}</strong></dd>
@@ -294,11 +294,12 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                             {groupReste > 0 ? (
                               <>
                                 <div className="field"><label>Paiement du service ({formatDT(fromMillimes(Math.round(groupReste * 1000)))}) *</label>
-                                  <select className="select" {...f('mode')}>{Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-                                <div className="field"><label>Référence</label><input className="input" maxLength={80} {...f('reference')} placeholder="N° de chèque, virement…" /></div>
+                                  <select className="select" {...f('mode')}>{Object.entries(PAYMENT_MODES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                                    <option value="CREDIT">Non payé (reste dû)</option></select></div>
+                                {form.mode !== 'CREDIT' ? <div className="field"><label>Référence</label><input className="input" maxLength={80} {...f('reference')} placeholder="N° de chèque, virement…" /></div> : null}
                               </>
                             ) : null}
-                            <p className="hint field wide">Le client emporte toute son huile maintenant{groupReste > 0 ? ` ; le service (${formatDT(fromMillimes(Math.round(groupReste * 1000)))}) est encaissé en même temps` : ''}.</p>
+                            <p className="hint field wide">Le client emporte toute son huile maintenant{groupReste > 0 ? ` ; le service (${formatDT(fromMillimes(Math.round(groupReste * 1000)))}) ${form.mode === 'CREDIT' ? 'reste dû sur son compte' : 'est encaissé en même temps'}` : ''}.</p>
                           </>
                         ) : null}
                       </>
@@ -311,14 +312,14 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                                 huileObtenue: normalizeDecimal(form.huile), pertesKg: null,
                                 tankId: form.tankId ? Number(form.tankId) : null,
                                 priseDirecte: !achat && form.dest === 'DIRECT',
-                                modePaiement: !achat && form.dest === 'DIRECT' && groupReste > 0 ? form.mode : null,
+                                modePaiement: !achat && form.dest === 'DIRECT' && groupReste > 0 && form.mode !== 'CREDIT' ? form.mode : null,
                                 reference: form.reference || null, remisA: form.remisA || null,
                               };
                               run(async () => (groupIds.length
                                 ? (await pressingService.finishGroup({ pressingIds: [p.id, ...groupIds], fin })).find((d) => d.id === p.id)
                                 : pressingService.finish(p.id, fin)));
                             }}>{achat ? "Verser l'huile dans le contenant" : form.dest === 'DIRECT'
-                              ? (groupReste > 0 ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
+                              ? (groupReste > 0 && form.mode !== 'CREDIT' ? "Encaisser et remettre l'huile" : "Remettre l'huile au client") : "Enregistrer l'huile du client"}</Button></div>
                 </>
               ) : null}
               {panel === 'pay' ? (
