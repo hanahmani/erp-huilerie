@@ -98,6 +98,21 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
             """)
     List<Object[]> stats(@Param("from") Instant from, @Param("to") Instant to);
 
+    /**
+     * Olives reçues sur la période, hors annulés : [kg achetés, montant payé aux vendeurs,
+     * kg pressés en service, montant du service].
+     */
+    @Query("""
+            select coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.ACHAT then p.poidsNet else 0 end), 0),
+                   coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.ACHAT then p.montantAchat else 0 end), 0),
+                   coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE then p.poidsNet else 0 end), 0),
+                   coalesce(sum(case when p.mode = com.huilerie.erp.pressing.Pressing.Mode.SERVICE then p.montant else 0 end), 0)
+            from Pressing p
+            where p.statut <> com.huilerie.erp.pressing.Pressing.Status.ANNULE
+              and p.dateReception >= :from and p.dateReception < :to
+            """)
+    List<Object[]> olivesByMode(@Param("from") Instant from, @Param("to") Instant to);
+
     /** Rendement par variété sur les pressages terminés. */
     @Query("""
             select coalesce(p.variete, '(non précisée)'), count(p), sum(p.poidsNet), sum(p.huileObtenue)

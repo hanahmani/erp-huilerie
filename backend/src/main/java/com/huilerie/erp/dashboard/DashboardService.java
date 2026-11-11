@@ -138,7 +138,14 @@ public class DashboardService {
                 salesView ? Money.ofAny(invoices.totalOutstanding()) : null,
                 salesView ? Money.ofAny(invoices.invoicedBetween(today.withDayOfMonth(1), today)) : null,
                 SecurityUtils.has("HR_VIEW") ? employees.countByActifTrue() : null,
-                SecurityUtils.has("HR_VIEW") ? workDays.countByJourAndHeureFinIsNull(today) : null);
+                SecurityUtils.has("HR_VIEW") ? workDays.countByJourAndHeureFinIsNull(today) : null,
+                pressingView ? olives(monthStart, dayEnd) : null,
+                pressingView ? olives(dayStart, dayEnd) : null);
+    }
+
+    private DashboardResponse.Olives olives(Instant from, Instant to) {
+        Object[] r = pressings.olivesByMode(from, to).get(0);
+        return new DashboardResponse.Olives(Money.ofAny(r[0]), Money.ofAny(r[1]), Money.ofAny(r[2]), Money.ofAny(r[3]));
     }
 
     /** Espèces théoriques de la caisse ouverte (fond + entrées − sorties en espèces). */

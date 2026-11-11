@@ -18,7 +18,12 @@ public record DashboardResponse(
         BigDecimal depensesMois, Boolean caisseOuverte, BigDecimal especesEnCaisse,
         Long pressagesEnCours, BigDecimal huileClientsARemettre, BigDecimal pressagesImpayes,
         Long triturationsEnCours, BigDecimal huileProduiteMois, BigDecimal rendementMois,
-        BigDecimal facturesImpayees, BigDecimal facturationMois, Long employesActifs, Long employesAuTravail) {
+        BigDecimal facturesImpayees, BigDecimal facturationMois, Long employesActifs, Long employesAuTravail,
+        Olives olivesMois, Olives olivesJour) {
+
+    /** Olives reçues sur une période : achetées (kg, montant payé) et pressées en service (kg, montant du service). */
+    public record Olives(BigDecimal achatKg, BigDecimal achatMontant, BigDecimal serviceKg, BigDecimal serviceMontant) {
+    }
 
     public record DayTotal(String jour, BigDecimal total) {
     }

@@ -5,6 +5,8 @@ import com.huilerie.erp.TestUsers;
 import com.huilerie.erp.catalog.Article;
 import com.huilerie.erp.clients.Client;
 import com.huilerie.erp.common.exception.BusinessException;
+import com.huilerie.erp.dashboard.DashboardService;
+import com.huilerie.erp.dashboard.dto.DashboardResponse;
 import com.huilerie.erp.finance.CashMovementRepository;
 import com.huilerie.erp.finance.CashMovementType;
 import com.huilerie.erp.finance.PaymentMode;
@@ -41,6 +43,7 @@ class AchatOlivesTest {
     @Autowired TestUsers testUsers;
     @Autowired PressingRepository pressings;
     @Autowired CashMovementRepository cash;
+    @Autowired DashboardService dashboard;
 
     Client vendeur;
     Article huileVrac;
@@ -72,6 +75,25 @@ class AchatOlivesTest {
 
     private BigDecimal contenu(String code) {
         return tanks.list().stream().filter(t -> t.code().equals(code)).findFirst().orElseThrow().quantite();
+    }
+
+    @Test
+    @WithMockUser(username = "peseur", authorities = {"DASHBOARD_VIEW", "PRESSING_VIEW", "PRESSING_MANAGE"})
+    void tableauDeBordTotaliseOlivesAcheteesEtPresseesEnService() {
+        DashboardResponse.Olives avant = dashboard.build().olivesMois();
+        achat();
+        service.receive(new PressingDto.ReceiveRequest(vendeur.getId(), huileVrac.getId(), null, null,
+                Pressing.OliveState.SAINES, new BigDecimal("520"), new BigDecimal("20"), new BigDecimal("0.300"),
+                null, null, null, null, null, null, null));
+        PressingDto.Detail annule = achat();
+        service.cancel(annule.id(), "erreur");
+
+        DashboardResponse r = dashboard.build();
+        assertThat(r.olivesMois().achatKg().subtract(avant.achatKg())).isEqualByComparingTo("1000");
+        assertThat(r.olivesMois().achatMontant().subtract(avant.achatMontant())).isEqualByComparingTo("900.000");
+        assertThat(r.olivesMois().serviceKg().subtract(avant.serviceKg())).isEqualByComparingTo("500");
+        assertThat(r.olivesMois().serviceMontant().subtract(avant.serviceMontant())).isEqualByComparingTo("150.000");
+        assertThat(r.olivesJour().achatKg()).isGreaterThanOrEqualTo(new BigDecimal("1000"));
     }
 
     @Test

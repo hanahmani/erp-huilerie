@@ -53,6 +53,18 @@ export default function DashboardPage() {
             {data.nbLotsBloques != null ? <StatCard label="Lots bloqués" value={data.nbLotsBloques} tone={data.nbLotsBloques ? 'warn' : undefined} /> : null}
             {data.pressagesEnCours != null ? <StatCard label="Pressages en cours" value={data.pressagesEnCours} /> : null}
             {data.huileClientsARemettre != null ? <StatCard label="Huile des clients à remettre" value={formatQty(data.huileClientsARemettre, 'L')} tone={Number(data.huileClientsARemettre) ? 'warn' : undefined} /> : null}
+            {data.olivesMois ? (
+              <>
+                <StatCard label="Olives achetées ce mois" value={formatQty(data.olivesMois.achatKg, 'kg')}
+                  hint={`Aujourd'hui : ${formatQty(data.olivesJour.achatKg, 'kg')}`} />
+                <StatCard label="Payé pour les olives ce mois" value={formatDT(data.olivesMois.achatMontant)}
+                  hint={`Aujourd'hui : ${formatDT(data.olivesJour.achatMontant)}`} />
+                <StatCard label="Olives pressées (service) ce mois" value={formatQty(data.olivesMois.serviceKg, 'kg')}
+                  hint={`Aujourd'hui : ${formatQty(data.olivesJour.serviceKg, 'kg')}`} />
+                <StatCard label="Montant du service ce mois" value={formatDT(data.olivesMois.serviceMontant)}
+                  hint={`Aujourd'hui : ${formatDT(data.olivesJour.serviceMontant)}`} />
+              </>
+            ) : null}
             {data.pressagesImpayes != null && Number(data.pressagesImpayes) ? <StatCard label="Pressages non payés" value={formatDT(data.pressagesImpayes)} tone="warn" /> : null}
             {data.huileProduiteMois != null ? <StatCard label="Huile produite ce mois" value={formatQty(data.huileProduiteMois, 'L')} hint={data.rendementMois != null ? `Rendement ${Number(data.rendementMois).toFixed(2)} L/100 kg` : undefined} /> : null}
             {data.triturationsEnCours != null && data.triturationsEnCours ? <StatCard label="Triturations à faire ou en cours" value={data.triturationsEnCours} /> : null}
