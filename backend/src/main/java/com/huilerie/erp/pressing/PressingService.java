@@ -144,6 +144,7 @@ public class PressingService {
         if (r.dateReception() != null) {
             p.setDateReception(receptionDate(r.dateReception()));
         }
+        p.setNumeroCarnet(carnet(r.numeroCarnet(), null));
         p = pressings.save(p);
         audit.log(SecurityUtils.username(), purchase ? "PRESSING_PURCHASE" : "PRESSING_RECEIVE", "Pressing",
                 String.valueOf(p.getId()), p.getNumero() + " bulletin " + p.getNumeroBulletin() + " " + net.toPlainString()
@@ -227,6 +228,36 @@ public class PressingService {
         audit.log(SecurityUtils.username(), "PRESSING_UPDATE_DATE", "Pressing", String.valueOf(id),
                 "Bulletin " + p.getNumeroBulletin() + " : " + ancienne + " → " + date);
         return PressingDto.Detail.from(p);
+    }
+
+    /** N° du bulletin papier dans le carnet, modifiable à tout statut (n'agit ni sur le stock ni sur la caisse). */
+    @PreAuthorize("hasAuthority('PRESSING_MANAGE')")
+    @Transactional
+    public PressingDto.Detail updateCarnet(Long id, String numeroCarnet) {
+        Pressing p = lock(id);
+        String carnet = carnet(numeroCarnet, id);
+        String ancien = p.getNumeroCarnet();
+        if (java.util.Objects.equals(ancien, carnet)) {
+            return PressingDto.Detail.from(p);
+        }
+        p.setNumeroCarnet(carnet);
+        audit.log(SecurityUtils.username(), "PRESSING_UPDATE_CARNET", "Pressing", String.valueOf(id),
+                "Bulletin " + p.getNumeroBulletin() + " : n° carnet " + (ancien == null ? "—" : ancien) + " → "
+                        + (carnet == null ? "—" : carnet));
+        return PressingDto.Detail.from(p);
+    }
+
+    /** N° de carnet nettoyé (vide → aucun) ; refusé s'il est déjà porté par un autre bulletin. */
+    private String carnet(String saisie, Long id) {
+        String carnet = Text.clean(saisie);
+        if (carnet == null) {
+            return null;
+        }
+        pressings.findByCarnet(carnet, id).stream().findFirst().ifPresent(autre -> {
+            throw new BusinessException("Le n° carnet " + carnet + " est déjà sur le bulletin " + autre.getNumeroBulletin()
+                    + " (" + autre.getClient().getNom() + ").");
+        });
+        return carnet;
     }
 
     /** Date de réception saisie : jamais dans le futur (quelques minutes de tolérance pour l'horloge du poste). */

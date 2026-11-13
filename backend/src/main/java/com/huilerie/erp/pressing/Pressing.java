@@ -96,6 +96,10 @@ public class Pressing {
     @Column(length = 120)
     private String provenance;
 
+    /** N° du bulletin papier correspondant dans le carnet de bulletins (saisi à la main). */
+    @Column(name = "numero_carnet", length = 20)
+    private String numeroCarnet;
+
     /** N° du bon de livraison apporté par le client. */
     @Column(name = "bl_numero", length = 50)
     private String blNumero;
@@ -223,6 +227,11 @@ public class Pressing {
         return montantAchat == null ? BigDecimal.ZERO.setScale(3) : montantAchat.subtract(montantRegle);
     }
 
+    /** N° du carnet ; modifiable à tout moment (unicité vérifiée par le service). */
+    void setNumeroCarnet(String numeroCarnet) {
+        this.numeroCarnet = numeroCarnet;
+    }
+
     /** Informations de transport du bulletin ; modifiables tant que les olives sont seulement reçues. */
     void setTransport(String blNumero, String transporteur, String vehicule, String adresse) {
         this.blNumero = blNumero;
@@ -313,6 +322,7 @@ public class Pressing {
     public Long getId() { return id; }
     public String getNumero() { return numero; }
     public String getNumeroBulletin() { return numeroBulletin; }
+    public String getNumeroCarnet() { return numeroCarnet; }
     public String getBlNumero() { return blNumero; }
     public String getTransporteur() { return transporteur; }
     public String getVehicule() { return vehicule; }

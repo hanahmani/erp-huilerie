@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Ban, BadgeDollarSign, BookUser, CalendarClock, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
+import { Ban, BadgeDollarSign, BookOpen, BookUser, CalendarClock, CheckCircle2, HandCoins, Pencil, Play, Printer, Trash2, Undo2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
@@ -99,6 +99,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                {!achat ? <Button variant="secondary" onClick={() => setPrint('reception')}><Printer size={16} />Bon de pesée</Button> : null}
                {manage && p.statut === 'RECU' ? <Button variant="secondary" onClick={() => open('transport', { dateReception: toLocalInput(p.dateReception), blNumero: p.blNumero || '', transporteur: p.transporteur || '', vehicule: p.vehicule || '', adresse: p.adresse || '' })}><Pencil size={16} />Corriger le bulletin</Button> : null}
                {manage && p.statut !== 'ANNULE' ? <Button variant="secondary" onClick={() => open('price', { prix: String(toMillimes(achat ? p.prixOlivesKg : p.tarifKg)) })}><BadgeDollarSign size={16} />{achat ? "Modifier le prix d'achat" : 'Modifier le tarif'}</Button> : null}
+               {manage ? <Button variant="secondary" onClick={() => open('carnet', { numeroCarnet: p.numeroCarnet || '' })}><BookOpen size={16} />N° carnet</Button> : null}
                {manage && p.statut !== 'RECU' ? <Button variant="secondary" onClick={() => open('date', { dateReception: toLocalInput(p.dateReception) })}><CalendarClock size={16} />Modifier la date</Button> : null}
                {p.remises.length ? <Button variant="secondary" onClick={() => setPrint('return')}><Printer size={16} />Bon de remise</Button> : null}
                {onOpenAccount ? <Button variant="secondary" onClick={() => account(achat ? 'seller' : 'oil')}><BookUser size={16} />Compte du client</Button> : null}
@@ -126,6 +127,7 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
               <dt>État</dt><dd>{OLIVE_STATES[p.etatOlives]}</dd>
               <dt>Pesée</dt><dd>{formatQty(p.poidsBrut, 'kg')} − {formatQty(p.tare, 'kg')} = <strong>{formatQty(p.poidsNet, 'kg')}</strong></dd>
               <dt>Bulletin</dt><dd><strong>N° {p.numeroBulletin}</strong></dd>
+              <dt>N° carnet</dt><dd>{p.numeroCarnet || '—'}</dd>
               <dt>Adresse</dt><dd>{p.adresse || '—'}</dd>
               <dt>Bon de livraison</dt><dd>{p.blNumero || '—'}</dd>
               <dt>Transport</dt><dd>{p.transporteur || '—'}{p.vehicule ? ` · ${p.vehicule}` : ''}</dd>
@@ -218,6 +220,18 @@ export default function PressingDetailModal({ id, initial, initialPrint, onClose
                   </>
                 );
               })() : null}
+              {panel === 'carnet' ? (
+                <>
+                  <h2 style={{ marginBottom: 12 }}>N° carnet du bulletin n° {p.numeroBulletin}</h2>
+                  <div className="form-grid">
+                    <div className="field"><label>N° carnet</label>
+                      <input className="input" maxLength={20} autoFocus {...f('numeroCarnet')} />
+                      <span className="hint">N° du bulletin papier dans le carnet. Laisser vide pour l'effacer.</span></div>
+                  </div>
+                  <div className="actions"><Button variant="secondary" onClick={() => setPanel(null)}>Fermer</Button>
+                    <Button loading={busy} onClick={() => run(() => pressingService.updateCarnet(p.id, (form.numeroCarnet || '').trim() || null))}>Enregistrer</Button></div>
+                </>
+              ) : null}
               {panel === 'date' ? (
                 <>
                   <h2 style={{ marginBottom: 12 }}>Date de réception du bulletin n° {p.numeroBulletin}</h2>

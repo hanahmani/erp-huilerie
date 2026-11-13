@@ -23,6 +23,7 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
             select p from Pressing p join p.client c
             where (:q is null or lower(p.numero) like concat('%', :q, '%') or lower(c.nom) like concat('%', :q, '%')
                    or c.telephone like concat('%', :q, '%') or p.numeroBulletin like concat('%', :q, '%')
+                   or lower(p.numeroCarnet) like concat('%', :q, '%')
                    or lower(p.vehicule) like concat('%', :q, '%'))
               and (:statut is null or p.statut = :statut)
               and (:clientId is null or c.id = :clientId)
@@ -52,6 +53,10 @@ public interface PressingRepository extends JpaRepository<Pressing, Long> {
             order by p.dateReception, p.id
             """)
     List<Pressing> lockUnpaidServiceOf(@Param("clientId") Long clientId);
+
+    /** Bulletin portant déjà ce n° de carnet (comparaison sans tenir compte de la casse). */
+    @Query("select p from Pressing p where lower(p.numeroCarnet) = lower(:carnet) and (:id is null or p.id <> :id)")
+    List<Pressing> findByCarnet(@Param("carnet") String carnet, @Param("id") Long exceptId);
 
     List<Pressing> findByClientIdAndModeOrderByIdAsc(Long clientId, Pressing.Mode mode);
 

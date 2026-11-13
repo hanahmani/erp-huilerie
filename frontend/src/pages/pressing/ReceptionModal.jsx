@@ -17,7 +17,7 @@ const DEFAULT_TARIF_MILLIMES = 200;
 /** Bulletin de pressage : réception et pesée des olives, pressées pour le client ou achetées par l'huilerie. */
 export default function ReceptionModal({ onClose, onDone }) {
   const [form, setForm] = useState({ clientId: '', articleId: '', variete: '', provenance: '', etatOlives: 'SAINES', poidsBrut: '', tare: '0', tarifMillimes: String(DEFAULT_TARIF_MILLIMES), notes: '',
-    blNumero: '', transporteur: '', vehicule: '', adresse: '', mode: 'SERVICE', prixMillimes: '', avance: '', modeAvance: 'ESPECES',
+    numeroCarnet: '', blNumero: '', transporteur: '', vehicule: '', adresse: '', mode: 'SERVICE', prixMillimes: '', avance: '', modeAvance: 'ESPECES',
     dateReception: toLocalInput() });
   const [avanceDispo, setAvanceDispo] = useState(0);   // avances déjà versées au vendeur choisi, en millimes
   const [clientAdresse, setClientAdresse] = useState('');   // adresse proposée par la fiche client
@@ -75,6 +75,7 @@ export default function ReceptionModal({ onClose, onDone }) {
         tare: normalizeDecimal(form.tare) || '0', tarifKg: achat ? null : fromMillimes(tarifM), notes: form.notes || null,
         mode: form.mode, prixOlivesKg: achat ? fromMillimes(prixM) : null,
         avance: achat && avanceM > 0 ? fromMillimes(avanceM) : null, modeAvance: achat && avanceM > 0 ? form.modeAvance : null,
+        numeroCarnet: form.numeroCarnet.trim() || null,
         blNumero: form.blNumero || null, transporteur: form.transporteur || null, vehicule: form.vehicule || null,
         adresse: form.adresse || null, dateReception: fromLocalInput(form.dateReception),
       }));
@@ -146,6 +147,8 @@ export default function ReceptionModal({ onClose, onDone }) {
           </>
         ) : null}
         <div className="field"><label>Observations</label><input className="input" value={form.notes} onChange={set('notes')} /></div>
+        <div className="field"><label>N° carnet</label><input className="input" maxLength={20} value={form.numeroCarnet} onChange={set('numeroCarnet')} />
+          <span className="hint">N° du bulletin papier dans le carnet.</span></div>
         <div className="field"><label>N° bon de livraison</label><input className="input" maxLength={50} value={form.blNumero} onChange={set('blNumero')} /></div>
         <div className="field"><label>Transporteur</label><input className="input" maxLength={120} value={form.transporteur} onChange={set('transporteur')} /></div>
         <div className="field"><label>N° véhicule</label><input className="input" maxLength={30} value={form.vehicule} onChange={set('vehicule')}

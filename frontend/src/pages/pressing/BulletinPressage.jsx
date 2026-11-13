@@ -34,7 +34,7 @@ export default function BulletinPressage({ p, settings, format }) {
     <div className={`ticket ticket-${format} bulletin`}>
       <DocHeader settings={settings} />
       <div className="ticket-flag">BULLETIN DE PRESSAGE N° {p.numeroBulletin}</div>
-      <div className="bulletin-date">Reçu le {dt(p.dateReception)} · Pressage {p.numero}</div>
+      <div className="bulletin-date">Reçu le {dt(p.dateReception)} · Pressage {p.numero}{p.numeroCarnet ? ` · Carnet n° ${p.numeroCarnet}` : ''}</div>
       <div className="bulletin-date"><strong>{PRESSING_MODES[p.mode] || PRESSING_MODES.SERVICE}</strong></div>
 
       <div className="bulletin-grid">

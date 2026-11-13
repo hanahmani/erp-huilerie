@@ -70,6 +70,27 @@ class BulletinPressageTest {
     }
 
     @Test
+    void numeroCarnetSaisiALaReceptionModifiableATousStatutsEtUnique() {
+        PressingDto.Detail p = service.receive(new PressingDto.ReceiveRequest(client.getId(), huileClient.getId(), null,
+                null, Pressing.OliveState.SAINES, new BigDecimal("500"), BigDecimal.ZERO, new BigDecimal("0.200"), null,
+                null, null, null, null, null, null, null, null, null, "  A-1651 "));
+        assertThat(p.numeroCarnet()).isEqualTo("A-1651");
+
+        PressingDto.Detail autre = receive("300", "0", null, null, null, null);
+        assertThat(autre.numeroCarnet()).isNull();
+        assertThatThrownBy(() -> service.updateCarnet(autre.id(), "a-1651"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("bulletin " + p.numeroBulletin());
+
+        service.start(p.id());   // modifiable même après le début du pressage
+        assertThat(service.updateCarnet(p.id(), "A-1651").numeroCarnet()).isEqualTo("A-1651");
+        assertThat(service.updateCarnet(p.id(), "1700").numeroCarnet()).isEqualTo("1700");
+        assertThat(service.updateCarnet(autre.id(), "A-1651").numeroCarnet()).isEqualTo("A-1651");
+        assertThat(service.search("1700", null, null, null, null, 0, 20).content())
+                .extracting(PressingDto.Summary::id).containsExactly(p.id());
+        assertThat(service.updateCarnet(p.id(), "  ").numeroCarnet()).isNull();
+    }
+
+    @Test
     void adressePreRemplieDepuisLeClientEtVehiculeEnMajuscules() {
         PressingDto.Detail p = receive("500", "20", "  BL-778 ", "Transport Jaziri", " 123 tu  4567 ", "  ");
         assertThat(p.adresse()).isEqualTo("Route de Tunis km 4, Sfax");

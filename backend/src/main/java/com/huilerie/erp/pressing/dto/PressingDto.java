@@ -40,7 +40,19 @@ public final class PressingDto {
             @DecimalMin(value = "0", message = "L'avance ne peut pas être négative.") BigDecimal avance,
             PaymentMode modeAvance,
             /** Date de réception des olives ; maintenant si absente. */
-            Instant dateReception) {
+            Instant dateReception,
+            /** N° du bulletin papier dans le carnet ; facultatif. */
+            @Size(max = 20, message = "N° carnet : 20 caractères au maximum.") String numeroCarnet) {
+
+        /** Sans n° de carnet. */
+        public ReceiveRequest(Long clientId, Long articleId, String variete, String provenance,
+                              Pressing.OliveState etatOlives, BigDecimal poidsBrut, BigDecimal tare, BigDecimal tarifKg,
+                              String notes, String blNumero, String transporteur, String vehicule, String adresse,
+                              Pressing.Mode mode, BigDecimal prixOlivesKg, BigDecimal avance, PaymentMode modeAvance,
+                              Instant dateReception) {
+            this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, avance, modeAvance, dateReception, null);
+        }
 
         /** Bulletin daté de maintenant. */
         public ReceiveRequest(Long clientId, Long articleId, String variete, String provenance,
@@ -48,7 +60,7 @@ public final class PressingDto {
                               String notes, String blNumero, String transporteur, String vehicule, String adresse,
                               Pressing.Mode mode, BigDecimal prixOlivesKg, BigDecimal avance, PaymentMode modeAvance) {
             this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
-                    transporteur, vehicule, adresse, mode, prixOlivesKg, avance, modeAvance, null);
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, avance, modeAvance, null, null);
         }
 
         /** Bulletin daté de maintenant, sans avance payée le jour même. */
@@ -57,13 +69,17 @@ public final class PressingDto {
                               String notes, String blNumero, String transporteur, String vehicule, String adresse,
                               Pressing.Mode mode, BigDecimal prixOlivesKg) {
             this(clientId, articleId, variete, provenance, etatOlives, poidsBrut, tare, tarifKg, notes, blNumero,
-                    transporteur, vehicule, adresse, mode, prixOlivesKg, null, null, null);
+                    transporteur, vehicule, adresse, mode, prixOlivesKg, null, null, null, null);
         }
     }
 
     /** Nouveau prix au kg d'olives net : prix d'achat (ACHAT) ou tarif du service (SERVICE). */
     public record PriceRequest(@NotNull(message = "Le prix est obligatoire.")
                                @DecimalMin(value = "0", message = "Le prix ne peut pas être négatif.") BigDecimal prixKg) {
+    }
+
+    /** N° du bulletin papier dans le carnet ; vide pour l'effacer. */
+    public record CarnetRequest(@Size(max = 20, message = "N° carnet : 20 caractères au maximum.") String numeroCarnet) {
     }
 
     /** Nouvelle date de réception des olives. */
@@ -149,7 +165,7 @@ public final class PressingDto {
                          String numeroBulletin, String blNumero, String transporteur, String vehicule, String adresse,
                          Pressing.Mode mode, BigDecimal prixOlivesKg, BigDecimal montantAchat, BigDecimal montantRegle,
                          BigDecimal resteVendeur, Long tankId, String tankCode, String tankNom,
-                         List<PaymentLine> reglementsVendeur) {
+                         List<PaymentLine> reglementsVendeur, String numeroCarnet) {
 
         public static Detail from(Pressing p) {
             var a = p.getArticle();
@@ -171,19 +187,21 @@ public final class PressingDto {
                     t == null ? null : t.getId(), t == null ? null : t.getCode(), t == null ? null : t.getNom(),
                     p.getReglementsVendeur().stream().map(x -> new PaymentLine(x.getNumero(), x.getDate(), x.getMode(),
                             x.getMontant(), x.getReference(), x.getUsername(),
-                            x.getAdvance() == null ? null : x.getAdvance().getNumero())).toList());
+                            x.getAdvance() == null ? null : x.getAdvance().getNumero())).toList(),
+                    p.getNumeroCarnet());
         }
     }
 
     public record Summary(Long id, String numero, Pressing.Status statut, String clientNom, Instant dateReception,
                           BigDecimal poidsNet, BigDecimal huileObtenue, BigDecimal huileARemettre, BigDecimal rendement,
                           BigDecimal montant, BigDecimal reste, String numeroBulletin, String vehicule,
-                          Pressing.Mode mode, BigDecimal montantAchat, BigDecimal resteVendeur, String tankCode) {
+                          Pressing.Mode mode, BigDecimal montantAchat, BigDecimal resteVendeur, String tankCode,
+                          String numeroCarnet) {
         public static Summary from(Pressing p) {
             return new Summary(p.getId(), p.getNumero(), p.getStatut(), p.getClient().getNom(), p.getDateReception(),
                     p.getPoidsNet(), p.getHuileObtenue(), p.huileARemettre(), p.rendement(), p.getMontant(), p.reste(),
                     p.getNumeroBulletin(), p.getVehicule(), p.getMode(), p.getMontantAchat(), p.resteVendeur(),
-                    p.getTank() == null ? null : p.getTank().getCode());
+                    p.getTank() == null ? null : p.getTank().getCode(), p.getNumeroCarnet());
         }
     }
 

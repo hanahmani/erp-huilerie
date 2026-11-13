@@ -53,6 +53,11 @@ public class PressingController {
         return service.updatePrice(id, r.prixKg());
     }
 
+    @PutMapping("/{id}/carnet")
+    public PressingDto.Detail updateCarnet(@PathVariable Long id, @Valid @RequestBody PressingDto.CarnetRequest r) {
+        return service.updateCarnet(id, r.numeroCarnet());
+    }
+
     @PutMapping("/{id}/date")
     public PressingDto.Detail updateDate(@PathVariable Long id, @Valid @RequestBody PressingDto.DateRequest r) {
         return service.updateDate(id, r.dateReception());

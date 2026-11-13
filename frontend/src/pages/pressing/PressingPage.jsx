@@ -63,6 +63,7 @@ export default function PressingPage() {
     const page = await fetcher({ ...list.filters, page: 0, size: 100 });
     exportCsv('pressages', [
       { header: 'N°', value: (p) => p.numero }, { header: 'Bulletin', value: (p) => p.numeroBulletin },
+      { header: 'N° carnet', value: (p) => p.numeroCarnet || '' },
       { header: 'Date', value: (p) => formatDateTime(p.dateReception) },
       { header: 'Opération', value: (p) => PRESSING_MODES[p.mode] }, { header: 'Client / vendeur', value: (p) => p.clientNom }, { header: 'Poids net (kg)', value: (p) => Number(p.poidsNet) },
       { header: 'Huile obtenue', value: (p) => (p.huileObtenue == null ? '' : Number(p.huileObtenue)) },
@@ -91,7 +92,7 @@ export default function PressingPage() {
       <Alert type="error">{list.error}</Alert>
       <div className="panel">
         <Toolbar>
-          <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="N°, bulletin, client, téléphone, véhicule" />
+          <SearchBox value={list.filters.q} onChange={(v) => list.updateFilter('q', v)} placeholder="N°, bulletin, carnet, client, téléphone, véhicule" />
           <FilterSelect label="Statut" allLabel="Tous les statuts" value={list.filters.statut} options={toOptions(PRESSING_STATUS)}
                         onChange={(v) => list.updateFilter('statut', v)} />
           <DateInput label="Du" value={list.filters.fromDate} onChange={(v) => list.updateFilter('fromDate', v)} />
@@ -103,6 +104,7 @@ export default function PressingPage() {
                      columns={[
                        { key: 'n', header: 'N°', render: (p) => <strong>{p.numero}</strong> },
                        { key: 'b', header: 'Bulletin', render: (p) => p.numeroBulletin },
+                       { key: 'cn', header: 'Carnet', render: (p) => p.numeroCarnet || '—' },
                        { key: 'd', header: 'Reçu le', render: (p) => formatDateTime(p.dateReception) },
                        { key: 'o', header: 'Opération', render: (p) => (p.mode === 'ACHAT' ? <span className="badge badge-role">Achat</span> : 'Service') },
                        { key: 'c', header: 'Client / vendeur', render: (p) => p.clientNom },
