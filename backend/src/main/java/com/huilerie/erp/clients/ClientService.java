@@ -101,19 +101,23 @@ public class ClientService {
     private static final java.util.regex.Pattern CODE_AUTO = java.util.regex.Pattern.compile("(?i)CLI-0*(\\d{1,9})");
 
     /**
-     * Code automatique = plus grand numéro CLI- existant + 1 (CLI-000001 pour le premier client).
-     * Pas de compteur stocké : les codes suivent les clients réellement présents, sans trou si le dernier
-     * client est supprimé ou après une renumérotation.
+     * Code automatique = plus petit numéro CLI- libre (CLI-000001 pour le premier client).
+     * Pas de compteur stocké : les codes suivent les clients réellement présents. Un numéro déjà attribué
+     * plus loin (ex. CLI-000052 donné à la main) est simplement sauté quand la série l'atteint.
      */
     private String nextAutoCode() {
-        long max = 0;
+        java.util.Set<Long> pris = new java.util.HashSet<>();
         for (String code : clients.findCodesStartingWith("CLI-")) {
             java.util.regex.Matcher m = CODE_AUTO.matcher(code);
             if (m.matches()) {
-                max = Math.max(max, Long.parseLong(m.group(1)));
+                pris.add(Long.parseLong(m.group(1)));
             }
         }
-        return String.format("CLI-%06d", max + 1);
+        long n = 1;
+        while (pris.contains(n)) {
+            n++;
+        }
+        return String.format("CLI-%06d", n);
     }
 
     public Client client(Long id) {

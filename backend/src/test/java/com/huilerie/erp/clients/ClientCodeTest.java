@@ -11,7 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Code client automatique : plus grand code CLI- existant + 1, non modifiable depuis le formulaire. */
+/** Code client automatique : plus petit numéro CLI- libre, non modifiable depuis le formulaire. */
 @SpringBootTest
 @ActiveProfiles("test")
 @WithMockUser(username = "gerant", authorities = {"CLIENT_VIEW", "CLIENT_MANAGE"})
@@ -45,11 +45,13 @@ class ClientCodeTest {
     }
 
     @Test
-    void suitLePlusGrandCodeExistant() {
-        withCode("Ali", "CLI-000023");
-        withCode("Salah", "CLI-000007");
+    void prendLePlusPetitNumeroLibreEtSauteLesNumerosDejaPris() {
+        withCode("Ali", "CLI-000001");
+        withCode("Salah", "CLI-000002");
+        withCode("Mis à part", "CLI-000004");
         withCode("Hors série", "BC-900");
-        assertThat(service.save(null, req("Nouveau")).code()).isEqualTo("CLI-000024");
+        assertThat(service.save(null, req("Troisième")).code()).isEqualTo("CLI-000003");
+        assertThat(service.save(null, req("Cinquième")).code()).isEqualTo("CLI-000005");
     }
 
     @Test
