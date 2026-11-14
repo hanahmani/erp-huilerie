@@ -4,7 +4,11 @@ import com.huilerie.erp.common.response.PageResponse;
 import com.huilerie.erp.salesdocs.dto.SalesDocDto;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -14,9 +18,22 @@ import java.time.LocalDate;
 public class SalesDocumentController {
 
     private final SalesDocumentService service;
+    private final SalesDocumentPdfService pdf;
 
-    public SalesDocumentController(SalesDocumentService service) {
+    public SalesDocumentController(SalesDocumentService service, SalesDocumentPdfService pdf) {
         this.service = service;
+        this.pdf = pdf;
+    }
+
+    /** PDF A4 ; inline pour l'aperçu, le nom de fichier sert au téléchargement. */
+    // Pas de « produces » : une erreur (paramètre manquant…) doit pouvoir repartir en JSON.
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> pdf(@PathVariable Long id) {
+        SalesDocumentPdfService.Pdf p = pdf.generate(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline().filename(p.fileName()).build().toString())
+                .body(p.content());
     }
 
     @GetMapping

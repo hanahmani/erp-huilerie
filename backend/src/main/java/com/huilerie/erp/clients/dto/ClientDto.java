@@ -24,18 +24,20 @@ public final class ClientDto {
             @Size(max = 50) String matriculeFiscal,
             @DecimalMin(value = "0", message = "Le plafond ne peut pas être négatif.") BigDecimal plafondCredit,
             @jakarta.validation.constraints.Email(message = "Adresse e-mail invalide.") @Size(max = 120) String email,
-            @Size(max = 100) String conditionsPaiement) {
+            @Size(max = 100) String conditionsPaiement,
+            @Size(max = 60) String pays) {
     }
 
     /** solde = total restant à payer sur les ventes validées. */
     public record Response(Long id, String code, ClientType type, String nom, String telephone, String adresse,
                            String cin, String matriculeFiscal, BigDecimal plafondCredit, BigDecimal solde,
-                           boolean actif, Instant createdAt, String email, String conditionsPaiement) {
+                           boolean actif, Instant createdAt, String email, String conditionsPaiement,
+                           String pays) {
 
         public static Response from(Client c, BigDecimal solde) {
             return new Response(c.getId(), c.getCode(), c.getType(), c.getNom(), c.getTelephone(), c.getAdresse(),
                     c.getCin(), c.getMatriculeFiscal(), c.getPlafondCredit(), solde, c.isActif(), c.getCreatedAt(),
-                    c.getEmail(), c.getConditionsPaiement());
+                    c.getEmail(), c.getConditionsPaiement(), c.getPays());
         }
     }
 }

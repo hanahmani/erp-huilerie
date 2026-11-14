@@ -6,6 +6,7 @@ import com.huilerie.erp.catalog.ArticleRepository;
 import com.huilerie.erp.catalog.OilUnits;
 import com.huilerie.erp.clients.Client;
 import com.huilerie.erp.clients.ClientRepository;
+import com.huilerie.erp.common.Devise;
 import com.huilerie.erp.common.Money;
 import com.huilerie.erp.common.SecurityUtils;
 import com.huilerie.erp.common.Text;
@@ -136,6 +137,14 @@ public class SalesDocumentService {
             throw new BusinessException("L'échéance ne peut pas précéder la date du document.");
         }
         d.header(c, r.dateDoc(), r.echeance(), Text.clean(r.refClient()), Text.clean(r.notes()));
+        Devise devise = r.devise() == null ? Devise.TND : r.devise();
+        SalesDocument.Regime regime = r.regime() == null ? SalesDocument.Regime.LOCAL : r.regime();
+        BigDecimal poidsNet = Money.strict(r.poidsNet(), "Poids net");
+        BigDecimal poidsBrut = Money.strict(r.poidsBrut(), "Poids brut");
+        if (poidsNet != null && poidsBrut != null && poidsBrut.compareTo(poidsNet) < 0) {
+            throw new BusinessException("Le poids brut ne peut pas être inférieur au poids net.");
+        }
+        d.commerce(devise, regime, Text.clean(r.paysOrigine()), Text.clean(r.incoterm()), poidsNet, poidsBrut);
         d.clearLines();
         BigDecimal ht = Money.zero();
         BigDecimal tva = Money.zero();
@@ -149,27 +158,45 @@ public class SalesDocumentService {
             if (l.enLitres() && !OilUnits.soldByLitre(a)) {
                 throw new BusinessException("« " + a.getNom() + " » n'a pas de prix au litre : vente au litre impossible.");
             }
-            BigDecimal catalogPrice = l.enLitres() ? a.getPrixVenteLitre() : a.getPrixVente();
+            // Les prix du catalogue sont en dinars : en devise étrangère, le prix doit être saisi.
+            BigDecimal catalogPrice = devise != Devise.TND ? null : l.enLitres() ? a.getPrixVenteLitre() : a.getPrixVente();
             BigDecimal pu = l.prixUnitaire() != null ? Money.strict(l.prixUnitaire(), "Prix") : catalogPrice;
             if (pu == null) {
-                throw new BusinessException("Indiquez un prix pour « " + a.getNom() + " ».");
+                throw new BusinessException("Indiquez un prix" + (devise != Devise.TND ? " en " + devise.name() : "")
+                        + " pour « " + a.getNom() + " ».");
+            }
+            if (pu.stripTrailingZeros().scale() > devise.decimales()) {
+                throw new BusinessException("Prix de « " + a.getNom() + " » : " + devise.decimales()
+                        + " décimales au maximum en " + devise.name() + ".");
             }
             BigDecimal remise = l.remisePct() == null ? BigDecimal.ZERO.setScale(2) : l.remisePct().setScale(2, RoundingMode.HALF_UP);
             BigDecimal rate = BigDecimal.ZERO.setScale(2);
-            if (l.taxId() != null) {
+            // Export et échantillons : exonérés de TVA, quelle que soit la taxe choisie.
+            if (l.taxId() != null && !regime.isExport()) {
                 Tax t = taxes.findById(l.taxId()).orElseThrow(() -> new NotFoundException("Taxe introuvable."));
                 rate = t.getTaux();
             }
             BigDecimal q = Money.strict(l.quantite(), "Quantité");
-            BigDecimal lht = PurchaseService.lineHt(q, pu, remise);
-            BigDecimal ltva = PurchaseService.lineTva(lht, rate);
+            BigDecimal lht = toCurrency(PurchaseService.lineHt(q, pu, remise), devise);
+            BigDecimal ltva = toCurrency(PurchaseService.lineTva(lht, rate), devise);
             // Au litre : quantité et prix en L sur le document, kg (L × densité) en sortie de stock.
             d.addLine(a, lot, l.enLitres() ? "L" : a.getUnite().getCode(), q,
-                    l.enLitres() ? OilUnits.litresToKg(q, density) : q, pu, remise, rate, lht, ltva);
+                    l.enLitres() ? OilUnits.litresToKg(q, density) : q, pu, remise, rate, lht, ltva,
+                    regime.isExport() ? Text.clean(l.codeSh()) : null);
             ht = ht.add(lht);
             tva = tva.add(ltva);
         }
         d.totals(ht, tva, Money.zero());
+    }
+
+    /** Montant arrondi à la précision de la devise (2 décimales en EUR / USD), stocké sur 3 décimales. */
+    static BigDecimal toCurrency(BigDecimal amount, Devise devise) {
+        return amount.setScale(devise.decimales(), RoundingMode.HALF_UP).setScale(Money.SCALE, RoundingMode.UNNECESSARY);
+    }
+
+    /** Timbre fiscal : factures locales en dinars seulement (pas à l'export ni en devise étrangère). */
+    static boolean timbreApplicable(SalesDocument d) {
+        return d.getType() == Type.FACTURE && d.getDevise() == Devise.TND && !d.getRegime().isExport();
     }
 
     // ---------------------------------------------------------------- validation
@@ -185,10 +212,11 @@ public class SalesDocumentService {
             throw new AccessDeniedException("La validation d'une facture exige la permission correspondante.");
         }
         if (d.getType() == Type.FACTURE) {
-            BigDecimal timbre = settings.find().map(s -> s.getTimbreFiscal()).orElse(null);
+            BigDecimal timbre = timbreApplicable(d) ? settings.find().map(s -> s.getTimbreFiscal()).orElse(null) : null;
             d.totals(d.getTotalHt(), d.getTotalTva(), timbre == null ? Money.zero() : timbre);
         }
-        if (d.getType() == Type.COMMANDE || d.getType() == Type.FACTURE) {
+        // Le plafond est en dinars : pas de contrôle sur un document en devise étrangère.
+        if ((d.getType() == Type.COMMANDE || d.getType() == Type.FACTURE) && d.getDevise() == Devise.TND) {
             checkCreditLimit(d);
         }
         String numero = numbers.nextYearly("DOC_" + d.getType().name(), PREFIX.get(d.getType()));
@@ -239,6 +267,7 @@ public class SalesDocumentService {
         }
         SalesDocument d = new SalesDocument(target, src.getClient(), src, SecurityUtils.username());
         d.header(src.getClient(), LocalDate.now(), src.getEcheance(), src.getRefClient(), src.getNotes());
+        d.commerceFrom(src);
         src.getLignes().forEach(d::copyLine);
         d.totals(src.getTotalHt(), src.getTotalTva(), Money.zero());
         src.markTransformed();
@@ -256,6 +285,10 @@ public class SalesDocumentService {
         SalesDocument d = lock(id);
         if (d.getType() != Type.FACTURE || d.getStatut() != Status.VALIDE) {
             throw new BusinessException("Seule une facture validée peut être réglée.");
+        }
+        if (d.getDevise() != Devise.TND) {
+            throw new BusinessException("Encaissement d'une facture en " + d.getDevise().name()
+                    + " non géré : la caisse est en dinars et le taux de change n'est pas encore pris en charge.");
         }
         BigDecimal amount = Money.strict(r.montant(), "Montant");
         if (amount.compareTo(d.reste()) > 0) {
@@ -284,6 +317,7 @@ public class SalesDocumentService {
         }
         SalesDocument a = new SalesDocument(Type.AVOIR, f.getClient(), f, SecurityUtils.username());
         a.header(f.getClient(), LocalDate.now(), null, f.getRefClient(), r.motif().trim());
+        a.commerceFrom(f);
         f.getLignes().forEach(a::copyLine);
         a.totals(f.getTotalHt(), f.getTotalTva(), f.getTimbre());
         String numero = numbers.nextYearly("DOC_AVOIR", "AVR");

@@ -28,7 +28,7 @@ class ClientCodeTest {
     }
 
     private static ClientDto.Request req(String nom) {
-        return new ClientDto.Request(ClientType.PARTICULIER, nom, null, null, null, null, null, null, null);
+        return new ClientDto.Request(ClientType.PARTICULIER, nom, null, null, null, null, null, null, null, null);
     }
 
     private Client withCode(String nom, String code) {

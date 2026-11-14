@@ -40,6 +40,9 @@ public class Client {
     @Column(length = 120)
     private String email;
 
+    @Column(length = 60)
+    private String pays;
+
     @Column(name = "conditions_paiement", length = 100)
     private String conditionsPaiement;
 
@@ -89,5 +92,7 @@ public class Client {
     public String getConditionsPaiement() { return conditionsPaiement; }
     public void setConditionsPaiement(String v) { conditionsPaiement = v; }
     public void setActif(boolean v) { actif = v; }
+    public String getPays() { return pays; }
+    public void setPays(String v) { pays = v; }
     public Instant getCreatedAt() { return createdAt; }
 }

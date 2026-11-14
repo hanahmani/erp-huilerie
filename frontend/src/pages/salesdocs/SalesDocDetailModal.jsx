@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react';
-import { ArrowRight, Ban, CheckCircle2, FileMinus, HandCoins, Pencil, Printer } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight, Ban, CheckCircle2, FileMinus, FileText, HandCoins, Pencil } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Button from '../../components/common/Button';
 import Alert from '../../components/common/Alert';
 import Spinner from '../../components/common/Spinner';
-import DocPrintDialog from '../../components/print/DocPrintDialog';
+import PdfPreviewDialog from '../../components/print/PdfPreviewDialog';
 import { useAuth } from '../../context/AuthContext';
 import { salesDocService } from '../../services/salesDocService';
-import { formatDateTime, formatDT, formatQty } from '../../utils/format';
-import { DOC_STATUS, DOC_STATUS_CLASS, DOC_TYPES, PAYMENT_MODES } from '../../utils/labels';
+import { formatDateTime, formatDT, formatMoney, formatQty } from '../../utils/format';
+import { DOC_REGIMES, DOC_STATUS, DOC_STATUS_CLASS, DOC_TYPES, PAYMENT_MODES } from '../../utils/labels';
 import { normalizeDecimal, toMillimes } from '../../utils/money';
 import SalesDocFormModal from './SalesDocFormModal';
-import SalesDocPrint from './SalesDocPrint';
 
 const NEXT = { DEVIS: ['COMMANDE', 'FACTURE'], COMMANDE: ['LIVRAISON', 'FACTURE'], LIVRAISON: ['FACTURE'] };
 
@@ -25,6 +24,7 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { setD(null); salesDocService.get(id).then(setD).catch((e) => setError(e.message)); }, [id]);
+  const loadPdf = useCallback(() => salesDocService.pdf(id), [id]);
 
   const run = async (fn, openResult) => {
     setBusy(true);
@@ -40,9 +40,9 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
 
   if (panel === 'edit') return <SalesDocFormModal type={d.type} doc={d} onClose={() => setPanel(null)} onSaved={(x) => { setD(x); setPanel(null); onChanged?.(); }} />;
   if (panel === 'print') {
-    return <DocPrintDialog title={`${DOC_TYPES[d.type]} ${d.numero || ''}`} onClose={() => setPanel(null)}
-                           render={(format, settings) => <SalesDocPrint d={d} settings={settings} format={format} />} />;
+    return <PdfPreviewDialog title={`${DOC_TYPES[d.type]} ${d.numero || '(brouillon)'}`} load={loadPdf} onClose={() => setPanel(null)} />;
   }
+  const money = (v) => formatMoney(v, d?.devise);
 
   const draft = d?.statut === 'BROUILLON';
   const valid = d?.statut === 'VALIDE';
@@ -53,14 +53,14 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
     <Modal title={d ? `${DOC_TYPES[d.type]} ${d.numero || '(brouillon)'}` : 'Document'} onClose={onClose} wide
            footer={d ? (
              <>
-               <Button variant="secondary" onClick={() => setPanel('print')}><Printer size={16} />Imprimer / PDF</Button>
+               <Button variant="secondary" onClick={() => setPanel('print')}><FileText size={16} />Aperçu PDF</Button>
                {manage && d.type !== 'AVOIR' && (draft || (valid && !isInvoice)) ? <Button variant="danger" onClick={() => { setPanel('cancel'); setForm({}); }}><Ban size={16} />Annuler</Button> : null}
                {draft && manage ? <Button variant="secondary" onClick={() => setPanel('edit')}><Pencil size={16} />Modifier</Button> : null}
                {canValidate ? <Button loading={busy} onClick={() => run(() => salesDocService.validate(d.id))}><CheckCircle2 size={16} />Valider</Button> : null}
                {valid && manage ? (NEXT[d.type] || []).map((t) => (
-                 <Button key={t} variant="secondary" loading={busy} onClick={() => run(() => salesDocService.transform(d.id, t), true)}><ArrowRight size={16} />{DOC_TYPES[t]}</Button>
+                 <Button key={t} variant="secondary" loading={busy} onClick={() => run(() => salesDocService.transform(d.id, t), true)}><ArrowRight size={16} />Convertir en {DOC_TYPES[t].toLowerCase()}</Button>
                )) : null}
-               {valid && isInvoice && Number(d.reste) > 0 && can(['SALESDOC_MANAGE', 'FINANCE_MANAGE'])
+               {valid && isInvoice && d.devise === 'TND' && Number(d.reste) > 0 && can(['SALESDOC_MANAGE', 'FINANCE_MANAGE'])
                  ? <Button onClick={() => { setPanel('pay'); setForm({ mode: 'VIREMENT', montant: String(d.reste) }); }}><HandCoins size={16} />Encaisser</Button> : null}
                {valid && isInvoice && can('INVOICE_VALIDATE') ? <Button variant="danger" onClick={() => { setPanel('avoir'); setForm({ retour: true, mode: 'ESPECES' }); }}><FileMinus size={16} />Avoir</Button> : null}
              </>
@@ -77,15 +77,21 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
               <dt>Date</dt><dd>{new Date(`${d.dateDoc}T12:00:00`).toLocaleDateString('fr-FR')}</dd>
               {d.echeance ? <><dt>Échéance</dt><dd>{new Date(`${d.echeance}T12:00:00`).toLocaleDateString('fr-FR')}</dd></> : null}
               {d.refClient ? <><dt>Réf. client</dt><dd>{d.refClient}</dd></> : null}
+              <dt>Devise</dt><dd>{d.devise}{d.regime !== 'LOCAL' ? <> · <span className="badge badge-role">{DOC_REGIMES[d.regime]}</span></> : null}</dd>
+              {d.regime !== 'LOCAL' ? (
+                <><dt>Export</dt><dd>{[d.paysOrigine && `origine ${d.paysOrigine}`, d.clientPays && `destination ${d.clientPays}`, d.incoterm,
+                  d.poidsNet != null && `net ${formatQty(d.poidsNet, 'kg')}`, d.poidsBrut != null && `brut ${formatQty(d.poidsBrut, 'kg')}`].filter(Boolean).join(' · ') || '—'}</dd></>
+              ) : null}
               <dt>Créé par</dt><dd>{d.creePar}, le {formatDateTime(d.createdAt)}</dd>
               {d.validePar ? <><dt>Validé par</dt><dd>{d.validePar}, le {formatDateTime(d.valideLe)}</dd></> : null}
             </dl>
             <dl className="kv">
-              <dt>Total HT</dt><dd>{formatDT(d.totalHt)}</dd>
-              <dt>TVA</dt><dd>{formatDT(d.totalTva)}</dd>
-              {Number(d.timbre) ? <><dt>Timbre</dt><dd>{formatDT(d.timbre)}</dd></> : null}
-              <dt>Total TTC</dt><dd><strong>{formatDT(d.totalTtc)}</strong></dd>
-              {isInvoice ? <><dt>Payé / reste</dt><dd>{formatDT(d.montantPaye)} / <strong>{formatDT(d.reste)}</strong></dd></> : null}
+              <dt>Total HT</dt><dd>{money(d.totalHt)}</dd>
+              <dt>TVA</dt><dd>{d.regime !== 'LOCAL' ? 'Exonérée (export)' : money(d.totalTva)}</dd>
+              {Number(d.timbre) ? <><dt>Timbre</dt><dd>{money(d.timbre)}</dd></> : null}
+              <dt>Total TTC</dt><dd><strong>{money(d.totalTtc)}</strong></dd>
+              {d.type !== 'LIVRAISON' ? <><dt>En lettres</dt><dd>{d.montantEnLettres}</dd></> : null}
+              {isInvoice ? <><dt>Payé / reste</dt><dd>{money(d.montantPaye)} / <strong>{money(d.reste)}</strong></dd></> : null}
               {d.source ? <><dt>Origine</dt><dd><button type="button" className="link-btn" onClick={() => onOpen(d.source.id)}>{DOC_TYPES[d.source.type]} {d.source.numero}</button></dd></> : null}
               {d.suites.length ? <><dt>Suite</dt><dd>{d.suites.map((s) => <button key={s.id} type="button" className="link-btn" onClick={() => onOpen(s.id)}>{DOC_TYPES[s.type]} {s.numero || '(brouillon)'}</button>)}</dd></> : null}
             </dl>
@@ -93,9 +99,9 @@ export default function SalesDocDetailModal({ id, onClose, onChanged, onOpen }) 
           <table className="table" style={{ marginTop: 16 }}>
             <thead><tr><th>Article</th><th>Lot</th><th className="num">Qté</th><th className="num">P.U. HT</th><th className="num">Rem.</th><th className="num">TVA</th><th className="num">Total HT</th></tr></thead>
             <tbody>{d.lignes.map((l) => (
-              <tr key={l.id}><td>{l.designation}</td><td>{l.lotNumero || '—'}</td><td className="num">{formatQty(l.quantite, l.unite)}{l.enLitres ? <><br /><span className="muted">{formatQty(l.quantiteStock, l.uniteStock)}</span></> : null}</td>
-                <td className="num">{formatDT(l.prixUnitaire)}</td><td className="num">{Number(l.remisePct)} %</td><td className="num">{Number(l.tauxTva)} %</td>
-                <td className="num">{formatDT(l.totalHt)}</td></tr>
+              <tr key={l.id}><td>{l.designation}{l.codeSh ? <><br /><span className="muted">SH {l.codeSh}</span></> : null}</td><td>{l.lotNumero || '—'}</td><td className="num">{formatQty(l.quantite, l.unite)}{l.enLitres ? <><br /><span className="muted">{formatQty(l.quantiteStock, l.uniteStock)}</span></> : null}</td>
+                <td className="num">{money(l.prixUnitaire)}</td><td className="num">{Number(l.remisePct)} %</td><td className="num">{Number(l.tauxTva)} %</td>
+                <td className="num">{money(l.totalHt)}</td></tr>
             ))}</tbody>
           </table>
           {d.paiements.length ? (

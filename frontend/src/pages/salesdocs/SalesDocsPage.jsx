@@ -13,7 +13,7 @@ import Pagination from '../../components/tables/Pagination';
 import { Toolbar, SearchBox, FilterSelect, DateInput } from '../../components/tables/Toolbar';
 import SalesDocFormModal from './SalesDocFormModal';
 import SalesDocDetailModal from './SalesDocDetailModal';
-import { formatDT } from '../../utils/format';
+import { formatMoney } from '../../utils/format';
 import { DOC_STATUS, DOC_STATUS_CLASS, toOptions } from '../../utils/labels';
 import { exportCsv } from '../../utils/exportCsv';
 
@@ -42,8 +42,8 @@ export default function SalesDocsPage({ type }) {
       const late = d.statut === 'VALIDE' && Number(d.reste) > 0 && d.echeance && new Date(`${d.echeance}T23:59:59`) < new Date();
       return <span style={late ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>{date(d.echeance)}</span>;
     }, csv: (d) => d.echeance }] : []),
-    { key: 't', header: 'Total TTC', align: 'right', render: (d) => formatDT(d.totalTtc), csv: (d) => Number(d.totalTtc) },
-    ...(invoice ? [{ key: 'r', header: 'Reste', align: 'right', render: (d) => (Number(d.reste) && d.statut === 'VALIDE' ? <strong>{formatDT(d.reste)}</strong> : '—'), csv: (d) => Number(d.reste) }] : []),
+    { key: 't', header: 'Total TTC', align: 'right', render: (d) => formatMoney(d.totalTtc, d.devise), csv: (d) => Number(d.totalTtc) },
+    ...(invoice ? [{ key: 'r', header: 'Reste', align: 'right', render: (d) => (Number(d.reste) && d.statut === 'VALIDE' ? <strong>{formatMoney(d.reste, d.devise)}</strong> : '—'), csv: (d) => Number(d.reste) }] : []),
     { key: 's', header: 'Statut', render: (d) => <span className={`badge ${DOC_STATUS_CLASS[d.statut]}`}>{DOC_STATUS[d.statut]}</span>, csv: (d) => DOC_STATUS[d.statut] },
   ];
 

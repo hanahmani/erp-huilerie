@@ -54,7 +54,53 @@ async function request(method, path, body) {
   return data;
 }
 
+/** Téléchargement binaire (PDF…) avec le jeton ; en cas d'erreur, le message JSON de l'API est remonté. */
+async function requestBlob(path) {
+  const headers = { Accept: 'application/pdf, application/json' };
+  const token = tokenStore.get();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { headers });
+  } catch {
+    throw new ApiError(0, 'Serveur injoignable. Vérifiez que le backend est démarré.');
+  }
+  if (response.status === 401 && token) {
+    tokenStore.clear();
+    window.dispatchEvent(new Event('auth:expired'));
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new ApiError(response.status, data?.message || `Erreur ${response.status}`);
+  }
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^";]+)"?/);
+  return { blob: await response.blob(), fileName: match ? match[1] : 'document.pdf' };
+}
+
+/** Envoi d'un fichier (multipart) ; le navigateur fixe lui-même le Content-Type. */
+async function upload(method, path, field, file) {
+  const headers = { Accept: 'application/json' };
+  const token = tokenStore.get();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const body = new FormData();
+  body.append(field, file);
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { method, headers, body });
+  } catch {
+    throw new ApiError(0, 'Serveur injoignable. Vérifiez que le backend est démarré.');
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new ApiError(response.status, data?.message || `Erreur ${response.status}`, data?.fieldErrors || {});
+  return data;
+}
+
+export const API_BASE_URL = BASE_URL;
+
 export const api = {
+  blob: requestBlob,
+  upload,
   get: (path) => request('GET', path),
   post: (path, body) => request('POST', path, body ?? {}),
   patch: (path, body) => request('PATCH', path, body ?? {}),

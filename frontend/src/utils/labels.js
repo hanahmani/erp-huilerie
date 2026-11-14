@@ -69,6 +69,8 @@ export const OIL_CATEGORIES = { EXTRA_VIERGE: 'Extra vierge', VIERGE: 'Vierge', 
 
 export const DOC_TYPES = { DEVIS: 'Devis', COMMANDE: 'Commande', LIVRAISON: 'Bon de livraison', FACTURE: 'Facture', AVOIR: 'Avoir' };
 export const DOC_PATHS = { DEVIS: 'devis', COMMANDE: 'commandes', LIVRAISON: 'livraisons', FACTURE: 'factures', AVOIR: 'avoirs' };
+export const DEVISES = { TND: 'Dinar tunisien (TND)', EUR: 'Euro (EUR)', USD: 'Dollar US (USD)' };
+export const DOC_REGIMES = { LOCAL: 'Vente locale', EXPORT: 'Export', ECHANTILLON: 'Échantillons (export)' };
 export const DOC_STATUS = { BROUILLON: 'Brouillon', VALIDE: 'Validé', TRANSFORME: 'Transformé', ANNULE: 'Annulé' };
 export const DOC_STATUS_CLASS = { BROUILLON: '', VALIDE: 'badge-ok', TRANSFORME: 'badge-role', ANNULE: 'badge-off' };
 export const EMPLOYEE_PAYMENT_TYPES = { SALAIRE: 'Salaire', TJM: 'Journées (TJM)', AVANCE: 'Avance' };

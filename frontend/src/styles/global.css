@@ -223,3 +223,6 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-weight: 500; }
 .link-btn { background: none; border: none; padding: 0; margin-right: 10px; font: inherit; color: var(--olive-600); text-decoration: underline; cursor: pointer; }
+
+/* Aperçu PDF des documents commerciaux */
+.pdf-frame { display: block; width: 100%; height: min(75vh, 900px); border: 1px solid var(--beige-300); border-radius: 8px; background: #f4f4f4; }

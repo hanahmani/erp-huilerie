@@ -28,6 +28,23 @@ public class CompanySettings {
     @Column(name = "matricule_fiscal", length = 50)
     private String matriculeFiscal;
 
+    @Column(length = 50)
+    private String rne;
+
+    /** Conditions de paiement et autres mentions imprimées sur les factures. */
+    @Column(name = "mentions_facture", length = 1000)
+    private String mentionsFacture;
+
+    /** Validité et autres mentions imprimées sur les devis. */
+    @Column(name = "mentions_devis", length = 1000)
+    private String mentionsDevis;
+
+    @Column(name = "mention_export")
+    private String mentionExport;
+
+    @Column(name = "mention_echantillon")
+    private String mentionEchantillon;
+
     @Column(name = "message_ticket")
     private String messageTicket;
 
@@ -71,6 +88,16 @@ public class CompanySettings {
     public void setEmail(String v) { email = v; }
     public String getMatriculeFiscal() { return matriculeFiscal; }
     public void setMatriculeFiscal(String v) { matriculeFiscal = v; }
+    public String getRne() { return rne; }
+    public void setRne(String v) { rne = v; }
+    public String getMentionsFacture() { return mentionsFacture; }
+    public void setMentionsFacture(String v) { mentionsFacture = v; }
+    public String getMentionsDevis() { return mentionsDevis; }
+    public void setMentionsDevis(String v) { mentionsDevis = v; }
+    public String getMentionExport() { return mentionExport; }
+    public void setMentionExport(String v) { mentionExport = v; }
+    public String getMentionEchantillon() { return mentionEchantillon; }
+    public void setMentionEchantillon(String v) { mentionEchantillon = v; }
     public String getMessageTicket() { return messageTicket; }
     public void setMessageTicket(String v) { messageTicket = v; }
     public boolean isVenteCreditAutorisee() { return venteCreditAutorisee; }

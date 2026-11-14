@@ -35,6 +35,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Logo de l'huilerie : information publique, chargée par une balise img sans jeton
+                        .requestMatchers(HttpMethod.GET, "/api/settings/logo").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth

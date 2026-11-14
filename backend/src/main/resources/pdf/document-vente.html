@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Gabarit commun des documents commerciaux (devis, commande, BL, facture, avoir), rendu en PDF A4 par OpenHTMLtoPDF.
+     Données : SalesDocumentPdfService.model(). Tout texte vient de la base ; aucune valeur par défaut ici. -->
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <title th:text="${titre + (numero != null ? ' ' + numero : '')}">Document</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 12mm 13mm 18mm 13mm;
+            @bottom-center { content: element(pied); }
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'DejaVu Sans'; font-size: 8.6pt; color: #1a1a1a; line-height: 1.32; margin: 0; }
+        b, strong, th { font-weight: 700; }
+        table { border-collapse: collapse; width: 100%; }
+
+        /* 1-2. En-tête */
+        .entete td { vertical-align: top; padding: 0; }
+        .societe .nom { font-size: 12.5pt; font-weight: 700; margin-bottom: 3px; }
+        .societe div { margin-bottom: 1px; }
+        .entete .droite { width: 42%; text-align: right; }
+        .logo { max-height: 24mm; max-width: 58mm; }
+        .date { margin-top: 6px; font-size: 9.5pt; }
+
+        /* 3. Titre */
+        .titre { text-align: center; margin: 12px 0 10px 0; }
+        .titre .t { font-size: 20pt; font-weight: 700; letter-spacing: 3px; }
+        .titre .st { font-size: 10pt; font-weight: 700; color: #444; margin-top: 1px; }
+        .titre .n { font-size: 10.5pt; margin-top: 3px; }
+
+        /* 4. Client et références : deux cadres de même hauteur */
+        .blocs td { vertical-align: top; }
+        .blocs td.ecart { width: 8px; padding: 0; }
+        .cadre { border: 0.6pt solid #333; padding: 6px 8px; }
+        .cadre .lib { font-size: 7.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+                      color: #444; border-bottom: 0.4pt solid #999; padding-bottom: 2px; margin-bottom: 4px; }
+        .cadre .nom { font-weight: 700; font-size: 9.6pt; }
+        .kv td { padding: 1px 0; vertical-align: top; }
+        .kv td.k { font-weight: 700; white-space: nowrap; padding-right: 6px; width: 1%; }
+        .cadre .lib.suite { margin-top: 6px; }
+
+        /* 5. Lignes */
+        .lignes { margin-top: 10px; -fs-table-paginate: paginate; }
+        .lignes thead { display: table-header-group; }
+        .lignes th { background: #ececec; border: 0.6pt solid #333; padding: 4px 5px; font-size: 8pt; text-align: center; }
+        .lignes td { border: 0.4pt solid #555; padding: 3.5px 5px; vertical-align: top; }
+        .lignes tr { page-break-inside: avoid; }
+        .lignes .r { text-align: right; white-space: nowrap; }
+        .lignes .c { text-align: center; white-space: nowrap; }
+        .lignes small { display: block; color: #555; font-size: 7.2pt; }
+
+        /* 6-9. Bas de document : gardé d'un bloc */
+        .fin { page-break-inside: avoid; margin-top: 8px; }
+        .recap { width: 46%; margin-left: 54%; }
+        .recap td { border: 0.4pt solid #555; padding: 3.5px 6px; }
+        .recap td.v { text-align: right; white-space: nowrap; width: 44%; }
+        .recap tr.ttc td { border: 0.8pt solid #222; background: #ececec; font-weight: 700; font-size: 9.6pt; }
+        .arrete { border: 0.6pt solid #333; padding: 6px 8px; margin-top: 8px; }
+        .mentions { margin-top: 8px; font-size: 7.8pt; color: #333; }
+        .mentions div { margin-bottom: 1px; }
+        .signatures { margin-top: 12px; }
+        .signatures td { vertical-align: top; padding: 0; width: 50%; }
+        .signature { width: 72mm; margin-left: auto; text-align: center; }
+        .signature .qui { font-weight: 700; margin-bottom: 3px; }
+        .signature .zone { border: 0.6pt solid #888; height: 30mm; }
+        .signature .aide { font-size: 7pt; color: #666; margin-top: 2px; }
+        .signature.gauche { margin-left: 0; }
+
+        /* 10. Pied de page */
+        .pied { position: running(pied); font-size: 7pt; color: #444; border-top: 0.4pt solid #888; padding-top: 3px; }
+        .pied td { padding: 0; vertical-align: top; }
+        .pied .pages { text-align: right; white-space: nowrap; width: 18mm; }
+        .pg:before { content: counter(page); }
+        .pgs:before { content: counter(pages); }
+
+        /* opacity n'est pas gérée par le moteur : gris très clair, derrière le contenu */
+        .filigrane { position: fixed; top: 110mm; left: 0; width: 100%; text-align: center; font-size: 64pt;
+                     font-weight: 700; color: #e9e9e9; z-index: -1; transform: rotate(-35deg); }
+    </style>
+</head>
+<body>
+
+<!-- Répété en bas de chaque page -->
+<div class="pied">
+    <table><tr>
+        <td th:text="${piedDePage}">Coordonnées légales</td>
+        <td class="pages">Page <span class="pg"></span>/<span class="pgs"></span></td>
+    </tr></table>
+</div>
+
+<div class="filigrane" th:if="${filigrane != null}" th:text="${filigrane}">BROUILLON</div>
+
+<!-- 1-2. En-tête : société à gauche, logo et date à droite -->
+<table class="entete"><tr>
+    <td class="societe">
+        <div class="nom" th:text="${societe.raisonSociale}">Raison sociale</div>
+        <div th:if="${societe.rne != null}"><b>RNE :</b> <span th:text="${societe.rne}"></span></div>
+        <div><b>MF :</b> <span th:text="${societe.mf}"></span></div>
+        <div><b>Adresse :</b> <span th:text="${societe.adresse}"></span></div>
+        <div th:if="${societe.telephone != null}"><b>Tél. :</b> <span th:text="${societe.telephone}"></span></div>
+        <div th:if="${societe.email != null}"><b>E-mail :</b> <span th:text="${societe.email}"></span></div>
+    </td>
+    <td class="droite">
+        <img class="logo" th:if="${logo != null}" th:src="${logo}" alt="Logo"/>
+        <div class="date"><b>Date :</b> <span th:text="${date}"></span></div>
+    </td>
+</tr></table>
+
+<!-- 3. Titre -->
+<div class="titre">
+    <div class="t" th:text="${titre}">FACTURE</div>
+    <div class="st" th:if="${sousTitre != null}" th:text="${sousTitre}"></div>
+    <div class="n">N° : <b th:text="${numero != null ? numero : 'brouillon (attribué à la validation)'}"></b></div>
+</div>
+
+<!-- 4. Client à gauche, références à droite -->
+<table class="blocs"><tr>
+    <td class="cadre" style="width: 57%;">
+        <div class="lib">Client</div>
+        <div class="nom" th:text="${client.nom}">Client</div>
+        <div th:if="${client.adresse != null}" th:text="${client.adresse}"></div>
+        <div th:if="${client.mf != null}"><b>MF :</b> <span th:text="${client.mf}"></span></div>
+        <div th:if="${client.pays != null}"><b>Pays :</b> <span th:text="${client.pays}"></span></div>
+    </td>
+    <th:block th:if="${!references.isEmpty() or export != null}">
+    <td class="ecart"></td>
+    <td class="cadre">
+        <th:block th:if="${!references.isEmpty()}">
+            <div class="lib">Références</div>
+            <table class="kv">
+                <tr th:each="r : ${references}"><td class="k" th:text="${r.label + ' :'}"></td><td th:text="${r.value}"></td></tr>
+            </table>
+        </th:block>
+        <th:block th:if="${export != null}">
+            <div class="lib" th:classappend="${references.isEmpty() ? '' : 'suite'}">Informations export</div>
+            <table class="kv">
+                <tr th:each="r : ${export}"><td class="k" th:text="${r.label + ' :'}"></td><td th:text="${r.value}"></td></tr>
+            </table>
+        </th:block>
+    </td>
+    </th:block>
+</tr></table>
+
+<!-- 5. Lignes -->
+<table class="lignes">
+    <thead>
+    <tr th:if="${prix}">
+        <th>Désignation</th>
+        <th style="width: 14%;">Contenance / Unité</th>
+        <th style="width: 9%;">Qté</th>
+        <th style="width: 13%;" th:text="${'P.U HT (' + devise + ')'}">P.U HT</th>
+        <th style="width: 8%;">Remise</th>
+        <th style="width: 15%;" th:text="${'Total HT (' + devise + ')'}">Total HT</th>
+    </tr>
+    <tr th:if="${!prix}">
+        <th>Désignation</th>
+        <th style="width: 18%;">Contenance / Unité</th>
+        <th style="width: 14%;">Qté</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="l : ${lignes}">
+        <td>
+            <span th:text="${l.designation}"></span>
+            <small th:if="${l.lot != null}" th:text="${'Lot ' + l.lot}"></small>
+            <small th:if="${l.codeSh != null}" th:text="${'Code SH : ' + l.codeSh}"></small>
+        </td>
+        <td class="c" th:text="${l.unite}"></td>
+        <td class="r" th:text="${l.quantite}"></td>
+        <th:block th:if="${prix}">
+            <td class="r" th:text="${l.pu}"></td>
+            <td class="r" th:text="${l.remise}"></td>
+            <td class="r" th:text="${l.totalHt}"></td>
+        </th:block>
+    </tr>
+    </tbody>
+</table>
+
+<div class="fin">
+    <!-- 6. Récapitulatif -->
+    <table class="recap" th:if="${prix}">
+        <tr th:each="r : ${recap}"><td th:text="${r.label}"></td><td class="v" th:text="${r.value}"></td></tr>
+        <tr class="ttc"><td>Total TTC</td><td class="v" th:text="${totalTtc}"></td></tr>
+    </table>
+
+    <!-- 7. Arrêté -->
+    <div class="arrete" th:if="${prix}">
+        <span th:text="${arrete}"></span> <b th:text="${montantLettres}"></b>
+    </div>
+
+    <!-- 8. Mentions -->
+    <div class="mentions" th:if="${!mentions.isEmpty()}">
+        <div th:each="t : ${mentions}" th:text="${t}"></div>
+    </div>
+
+    <!-- 9. Cachet et signature -->
+    <table class="signatures"><tr>
+        <td>
+            <div class="signature gauche" th:if="${livraison}">
+                <div class="qui">Reçu conforme — le client</div>
+                <div class="zone"></div>
+                <div class="aide">Date, nom et signature</div>
+            </div>
+        </td>
+        <td>
+            <div class="signature">
+                <div class="qui" th:text="${societe.raisonSociale}"></div>
+                <div class="zone"></div>
+                <div class="aide">Cachet et signature</div>
+            </div>
+        </td>
+    </tr></table>
+</div>
+
+</body>
+</html>

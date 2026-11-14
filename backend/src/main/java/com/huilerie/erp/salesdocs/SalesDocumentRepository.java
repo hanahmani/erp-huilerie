@@ -34,11 +34,14 @@ public interface SalesDocumentRepository extends JpaRepository<SalesDocument, Lo
                                @Param("from") LocalDate from, @Param("to") LocalDate to, @Param("unpaid") boolean unpaid,
                                Pageable pageable);
 
+    // Cumuls en dinars : seules les factures en TND sont additionnées (pas de taux de change).
+
     /** Reste dû sur les factures validées d'un client. */
     @Query("""
             select coalesce(sum(d.totalTtc - d.montantPaye), 0) from SalesDocument d
             where d.client.id = :clientId and d.type = com.huilerie.erp.salesdocs.SalesDocument.Type.FACTURE
               and d.statut = com.huilerie.erp.salesdocs.SalesDocument.Status.VALIDE
+              and d.devise = com.huilerie.erp.common.Devise.TND
             """)
     BigDecimal outstandingByClient(@Param("clientId") Long clientId);
 
@@ -46,6 +49,7 @@ public interface SalesDocumentRepository extends JpaRepository<SalesDocument, Lo
             select coalesce(sum(d.totalTtc - d.montantPaye), 0) from SalesDocument d
             where d.type = com.huilerie.erp.salesdocs.SalesDocument.Type.FACTURE
               and d.statut = com.huilerie.erp.salesdocs.SalesDocument.Status.VALIDE
+              and d.devise = com.huilerie.erp.common.Devise.TND
             """)
     BigDecimal totalOutstanding();
 
@@ -63,6 +67,7 @@ public interface SalesDocumentRepository extends JpaRepository<SalesDocument, Lo
             where d.type = com.huilerie.erp.salesdocs.SalesDocument.Type.FACTURE
               and d.statut <> com.huilerie.erp.salesdocs.SalesDocument.Status.BROUILLON
               and d.dateDoc >= :from and d.dateDoc <= :to
+              and d.devise = com.huilerie.erp.common.Devise.TND
             """)
     BigDecimal invoicedBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
 

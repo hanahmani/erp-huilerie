@@ -11,6 +11,11 @@ public record SettingsRequest(
         @Email(message = "Adresse e-mail invalide.") @Size(max = 120) String email,
         @Size(max = 50) String matriculeFiscal,
         @Size(max = 255) String messageTicket,
+        @Size(max = 50) String rne,
+        @Size(max = 1000) String mentionsFacture,
+        @Size(max = 1000) String mentionsDevis,
+        @Size(max = 255) String mentionExport,
+        @Size(max = 255) String mentionEchantillon,
         boolean venteCreditAutorisee,
         @jakarta.validation.constraints.DecimalMin(value = "0", message = "Le tarif ne peut pas être négatif.")
         java.math.BigDecimal tarifPressageKg,

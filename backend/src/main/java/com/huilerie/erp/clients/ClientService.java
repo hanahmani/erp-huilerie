@@ -83,6 +83,7 @@ public class ClientService {
         c.setPlafondCredit(Money.strict(r.plafondCredit(), "Plafond de crédit"));
         c.setEmail(Text.clean(r.email()));
         c.setConditionsPaiement(Text.clean(r.conditionsPaiement()));
+        c.setPays(Text.clean(r.pays()));
         c = clients.save(c);
         audit.log(SecurityUtils.username(), id == null ? "CREATE" : "UPDATE", "Client", String.valueOf(c.getId()), c.getCode());
         return ClientDto.Response.from(c, due(c.getId()));

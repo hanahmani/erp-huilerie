@@ -61,6 +61,17 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Génération PDF des documents commerciaux : HTML/CSS (Thymeleaf) rendu par OpenHTMLtoPDF -->
+        <dependency>
+            <groupId>io.github.openhtmltopdf</groupId>
+            <artifactId>openhtmltopdf-pdfbox</artifactId>
+            <version>1.1.100</version>
+        </dependency>
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+        </dependency>
+
         <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, "REQUETE_INVALIDE", "Le corps de la requête est illisible.", req);
     }
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleTooLarge(org.springframework.web.multipart.MaxUploadSizeExceededException ex, HttpServletRequest req) {
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "FICHIER_TROP_LOURD", "Fichier trop lourd : 500 Ko au maximum pour le logo.", req);
+    }
+
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest req) {
         return build(HttpStatus.NOT_FOUND, "INTROUVABLE", ex.getMessage(), req);

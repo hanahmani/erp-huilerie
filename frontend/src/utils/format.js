@@ -6,6 +6,16 @@ export function formatDT(value) {
   return `${dtFormatter.format(Number(value))} DT`;
 }
 
+const DEVISES = { TND: { decimals: 3, symbol: 'DT' }, EUR: { decimals: 2, symbol: '€' }, USD: { decimals: 2, symbol: '$' } };
+
+/** Montant dans la devise du document (TND : 3 décimales, EUR / USD : 2). */
+export function formatMoney(value, devise = 'TND') {
+  if (value === null || value === undefined || value === '') return '—';
+  const d = DEVISES[devise] || DEVISES.TND;
+  const f = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: d.decimals, maximumFractionDigits: d.decimals });
+  return `${f.format(Number(value))} ${d.symbol}`;
+}
+
 export function formatDateTime(value) {
   if (!value) return '—';
   return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short', hour12: false }).format(new Date(value));

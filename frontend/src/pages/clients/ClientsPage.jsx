@@ -13,6 +13,7 @@ const fields = [
   { name: 'email', label: 'E-mail', type: 'email' },
   { name: 'conditionsPaiement', label: 'Conditions de paiement', hint: 'Ex. comptant, 30 jours fin de mois' },
   { name: 'plafondCredit', label: 'Plafond de crédit (DT)', type: 'number', hint: 'Vide = pas de plafond.' },
+  { name: 'pays', label: 'Pays', hint: 'Imprimé sur les factures ; obligatoire pour un document export.' },
   { name: 'adresse', label: 'Adresse', type: 'textarea', wide: true },
 ];
 

@@ -9,6 +9,7 @@ export const salesDocService = {
   pay: (id, body) => api.post(`/sales-documents/${id}/pay`, body),
   creditNote: (id, body) => api.post(`/sales-documents/${id}/credit-note`, body),
   cancel: (id, motif) => api.post(`/sales-documents/${id}/cancel`, { motif }),
+  pdf: (id) => api.blob(`/sales-documents/${id}/pdf`),
 };
 
 export const hrService = {

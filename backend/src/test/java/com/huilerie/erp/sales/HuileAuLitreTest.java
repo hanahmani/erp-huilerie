@@ -134,7 +134,7 @@ class HuileAuLitreTest {
     @Test
     void changerLaDensiteRecalculeLePrixAuKg() {
         assertThat(settings.oilDensity()).isEqualByComparingTo("0.916");
-        settings.update(new SettingsRequest("Huilerie", null, null, null, null, null, false, null, null, null, null,
+        settings.update(new SettingsRequest("Huilerie", null, null, null, null, null, null, null, null, null, null, false, null, null, null, null,
                 new BigDecimal("0.92")));
         assertThat(articles.findById(huile.getId()).orElseThrow().getPrixVente()).isEqualByComparingTo("17.922");
 

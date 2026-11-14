@@ -1,5 +1,7 @@
 package com.huilerie.erp.salesdocs.dto;
 
+import com.huilerie.erp.common.Devise;
+import com.huilerie.erp.common.MontantEnLettres;
 import com.huilerie.erp.finance.PaymentMode;
 import com.huilerie.erp.salesdocs.SalesDocument;
 import jakarta.validation.Valid;
@@ -20,7 +22,13 @@ public final class SalesDocDto {
                               @DecimalMin(value = "0", message = "Prix positif ou nul.") BigDecimal prixUnitaire,
                               @DecimalMin("0") @DecimalMax("100") BigDecimal remisePct,
                               Long taxId,
-                              boolean enLitres) {
+                              boolean enLitres,
+                              @Size(max = 20) String codeSh) {
+
+        public LineRequest(Long articleId, Long lotId, BigDecimal quantite, BigDecimal prixUnitaire, BigDecimal remisePct,
+                           Long taxId, boolean enLitres) {
+            this(articleId, lotId, quantite, prixUnitaire, remisePct, taxId, enLitres, null);
+        }
     }
 
     public record Request(@NotNull(message = "Le type est obligatoire.") SalesDocument.Type type,
@@ -29,7 +37,19 @@ public final class SalesDocDto {
                           LocalDate echeance,
                           @Size(max = 60) String refClient,
                           @Size(max = 500) String notes,
-                          @NotEmpty(message = "Ajoutez au moins une ligne.") @Size(max = 200) List<@Valid LineRequest> lignes) {
+                          @NotEmpty(message = "Ajoutez au moins une ligne.") @Size(max = 200) List<@Valid LineRequest> lignes,
+                          Devise devise,
+                          SalesDocument.Regime regime,
+                          @Size(max = 60) String paysOrigine,
+                          @Size(max = 20) String incoterm,
+                          @DecimalMin(value = "0", message = "Poids positif.") BigDecimal poidsNet,
+                          @DecimalMin(value = "0", message = "Poids positif.") BigDecimal poidsBrut) {
+
+        /** Document local en dinars. */
+        public Request(SalesDocument.Type type, Long clientId, LocalDate dateDoc, LocalDate echeance, String refClient,
+                       String notes, List<LineRequest> lignes) {
+            this(type, clientId, dateDoc, echeance, refClient, notes, lignes, null, null, null, null, null, null);
+        }
     }
 
     public record TransformRequest(@NotNull SalesDocument.Type cible) {
@@ -51,7 +71,7 @@ public final class SalesDocDto {
     public record Line(Long id, Long articleId, Long lotId, String lotNumero, String designation, String unite,
                        BigDecimal quantite, boolean enLitres, BigDecimal quantiteStock, String uniteStock,
                        BigDecimal prixUnitaire, BigDecimal remisePct, BigDecimal tauxTva,
-                       BigDecimal totalHt, BigDecimal totalTva) {
+                       BigDecimal totalHt, BigDecimal totalTva, String codeSh) {
     }
 
     public record Payment(String numero, Instant date, PaymentMode mode, BigDecimal montant, String reference, String username) {
@@ -66,7 +86,9 @@ public final class SalesDocDto {
                          BigDecimal totalHt, BigDecimal totalTva, BigDecimal timbre, BigDecimal totalTtc,
                          BigDecimal montantPaye, BigDecimal reste, String creePar, Instant createdAt, String validePar,
                          Instant valideLe, String motifAnnulation, Related source, List<Related> suites,
-                         List<Line> lignes, List<Payment> paiements) {
+                         List<Line> lignes, List<Payment> paiements, Devise devise, SalesDocument.Regime regime,
+                         String paysOrigine, String incoterm, BigDecimal poidsNet, BigDecimal poidsBrut,
+                         String clientPays, String montantEnLettres) {
 
         public static Detail from(SalesDocument d, List<SalesDocument> children) {
             var c = d.getClient();
@@ -80,9 +102,11 @@ public final class SalesDocDto {
                             l.getLot() == null ? null : l.getLot().getId(), l.getLot() == null ? null : l.getLot().getNumero(),
                             l.getDesignation(), l.getUnite(), l.getQuantite(), l.isEnLitres(), l.getQuantiteStock(),
                             l.getArticle().getUnite().getCode(), l.getPrixUnitaire(), l.getRemisePct(),
-                            l.getTauxTva(), l.getTotalHt(), l.getTotalTva())).toList(),
+                            l.getTauxTva(), l.getTotalHt(), l.getTotalTva(), l.getCodeSh())).toList(),
                     d.getPaiements().stream().map(p -> new Payment(p.getNumero(), p.getDate(), p.getMode(), p.getMontant(),
-                            p.getReference(), p.getUsername())).toList());
+                            p.getReference(), p.getUsername())).toList(),
+                    d.getDevise(), d.getRegime(), d.getPaysOrigine(), d.getIncoterm(), d.getPoidsNet(), d.getPoidsBrut(),
+                    c.getPays(), MontantEnLettres.enLettres(d.getTotalTtc(), d.getDevise()));
         }
 
         static Related rel(SalesDocument d) {
@@ -91,10 +115,11 @@ public final class SalesDocDto {
     }
 
     public record Summary(Long id, SalesDocument.Type type, String numero, SalesDocument.Status statut, String clientNom,
-                          LocalDate dateDoc, LocalDate echeance, BigDecimal totalTtc, BigDecimal montantPaye, BigDecimal reste) {
+                          LocalDate dateDoc, LocalDate echeance, BigDecimal totalTtc, BigDecimal montantPaye, BigDecimal reste,
+                          Devise devise) {
         public static Summary from(SalesDocument d) {
             return new Summary(d.getId(), d.getType(), d.getNumero(), d.getStatut(), d.getClient().getNom(), d.getDateDoc(),
-                    d.getEcheance(), d.getTotalTtc(), d.getMontantPaye(), d.reste());
+                    d.getEcheance(), d.getTotalTtc(), d.getMontantPaye(), d.reste(), d.getDevise());
         }
     }
 }

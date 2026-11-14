@@ -2,6 +2,7 @@ package com.huilerie.erp.salesdocs;
 
 import com.huilerie.erp.catalog.Article;
 import com.huilerie.erp.clients.Client;
+import com.huilerie.erp.common.Devise;
 import com.huilerie.erp.finance.PaymentMode;
 import com.huilerie.erp.inventory.StockLot;
 import jakarta.persistence.*;
@@ -26,6 +27,15 @@ public class SalesDocument {
     public enum Type { DEVIS, COMMANDE, LIVRAISON, FACTURE, AVOIR }
 
     public enum Status { BROUILLON, VALIDE, TRANSFORME, ANNULE }
+
+    /** LOCAL : vente en Tunisie. EXPORT et ECHANTILLON : hors TVA, avec les informations douanières. */
+    public enum Regime {
+        LOCAL, EXPORT, ECHANTILLON;
+
+        public boolean isExport() {
+            return this != LOCAL;
+        }
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -93,6 +103,28 @@ public class SalesDocument {
     @Column(name = "motif_annulation")
     private String motifAnnulation;
 
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 3)
+    private Devise devise = Devise.TND;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 20)
+    private Regime regime = Regime.LOCAL;
+
+    @Column(name = "pays_origine", length = 60)
+    private String paysOrigine;
+
+    @Column(length = 20)
+    private String incoterm;
+
+    @Column(name = "poids_net", precision = 12, scale = 3)
+    private BigDecimal poidsNet;
+
+    @Column(name = "poids_brut", precision = 12, scale = 3)
+    private BigDecimal poidsBrut;
+
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id")
     private List<Line> lignes = new ArrayList<>();
@@ -120,20 +152,36 @@ public class SalesDocument {
         this.notes = notes;
     }
 
+    /** Devise, régime et informations export ; effacées pour un document local. */
+    void commerce(Devise devise, Regime regime, String paysOrigine, String incoterm, BigDecimal poidsNet, BigDecimal poidsBrut) {
+        this.devise = devise;
+        this.regime = regime;
+        boolean export = regime.isExport();
+        this.paysOrigine = export ? paysOrigine : null;
+        this.incoterm = export ? incoterm : null;
+        this.poidsNet = export ? poidsNet : null;
+        this.poidsBrut = export ? poidsBrut : null;
+    }
+
+    /** Recopie devise, régime et informations export d'un autre document (transformation, avoir). */
+    void commerceFrom(SalesDocument o) {
+        commerce(o.devise, o.regime, o.paysOrigine, o.incoterm, o.poidsNet, o.poidsBrut);
+    }
+
     void clearLines() {
         lignes.clear();
     }
 
     /** unite : celle de l'article, ou « L » pour une huile vendue au litre (stockQty en kg). */
     void addLine(Article a, StockLot lot, String unite, BigDecimal q, BigDecimal stockQty, BigDecimal pu,
-                 BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva) {
-        lignes.add(new Line(this, a, lot, unite, q, stockQty, pu, remise, tva, ht, mtva));
+                 BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva, String codeSh) {
+        lignes.add(new Line(this, a, lot, unite, q, stockQty, pu, remise, tva, ht, mtva, codeSh));
     }
 
     /** Copie d'une ligne (transformation, avoir) : mêmes unité et quantité de stock. */
     void copyLine(Line l) {
         addLine(l.getArticle(), l.getLot(), l.getUnite(), l.getQuantite(), l.getQuantiteStock(), l.getPrixUnitaire(),
-                l.getRemisePct(), l.getTauxTva(), l.getTotalHt(), l.getTotalTva());
+                l.getRemisePct(), l.getTauxTva(), l.getTotalHt(), l.getTotalTva(), l.getCodeSh());
     }
 
     void totals(BigDecimal ht, BigDecimal tva, BigDecimal timbre) {
@@ -194,6 +242,12 @@ public class SalesDocument {
     public String getMotifAnnulation() { return motifAnnulation; }
     public List<Line> getLignes() { return lignes; }
     public List<Payment> getPaiements() { return paiements; }
+    public Devise getDevise() { return devise; }
+    public Regime getRegime() { return regime; }
+    public String getPaysOrigine() { return paysOrigine; }
+    public String getIncoterm() { return incoterm; }
+    public BigDecimal getPoidsNet() { return poidsNet; }
+    public BigDecimal getPoidsBrut() { return poidsBrut; }
 
     @Entity(name = "SalesDocumentLine")
     @Table(name = "sales_document_lines")
@@ -229,13 +283,17 @@ public class SalesDocument {
         private BigDecimal totalHt;
         @Column(name = "total_tva", nullable = false, precision = 12, scale = 3)
         private BigDecimal totalTva;
+        /** Nomenclature douanière (système harmonisé), pour les documents export. */
+        @Column(name = "code_sh", length = 20)
+        private String codeSh;
 
         protected Line() {
         }
 
         Line(SalesDocument d, Article a, StockLot lot, String unite, BigDecimal q, BigDecimal stockQty, BigDecimal pu,
-             BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva) {
+             BigDecimal remise, BigDecimal tva, BigDecimal ht, BigDecimal mtva, String codeSh) {
             this.document = d;
+            this.codeSh = codeSh;
             this.article = a;
             this.lot = lot;
             this.designation = a.getNom();
@@ -262,6 +320,7 @@ public class SalesDocument {
         public BigDecimal getTauxTva() { return tauxTva; }
         public BigDecimal getTotalHt() { return totalHt; }
         public BigDecimal getTotalTva() { return totalTva; }
+        public String getCodeSh() { return codeSh; }
     }
 
     @Entity(name = "SalesDocumentPayment")

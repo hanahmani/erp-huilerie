@@ -63,3 +63,17 @@
     choisi : il est alors réservé au client. Chaque changement de propriétaire ouvre un nouveau lot (`CODE-2`, `CODE-3`…)
     au nom du nouveau propriétaire ; l'ancien lot, vide, garde son historique. L'huile d'un contenant client n'est
     jamais vendable.
+30. **PDF des documents commerciaux** : générés par le backend (`GET /api/sales-documents/{id}/pdf`) avec OpenHTMLtoPDF,
+    à partir d'un gabarit HTML/CSS unique (`backend/src/main/resources/pdf/document-vente.html`) et de la police DejaVu Sans
+    embarquée. Même gabarit pour devis, commande, BL, facture et avoir ; seuls le titre, la phrase d'arrêté (aucune sur le BL)
+    et les mentions changent. Génération refusée, avec un message clair, si la raison sociale, le matricule fiscal ou
+    l'adresse de l'huilerie manquent (et, pour l'export, la mention export, la mention échantillon et le pays du client).
+    Un brouillon porte le filigrane « BROUILLON ». Le logo est téléversé dans Paramètres et stocké en base.
+31. **Devise** : chaque document a sa devise (TND par défaut, 3 décimales ; EUR et USD, 2 décimales), sans taux de change.
+    En devise étrangère, le prix est saisi (le catalogue est en dinars), les montants sont arrondis au centime, il n'y a ni
+    timbre ni contrôle de plafond, l'encaissement est refusé, et les cumuls en dinars (encours, tableau de bord) ignorent
+    ces documents.
+32. **Export et échantillons** : régime du document. Exonéré de TVA (taux forcé à 0), sans timbre, avec pays d'origine,
+    incoterm, poids net et brut, code SH par ligne et mentions paramétrables.
+33. **Montant en lettres** : calculé par le backend (`MontantEnLettres`, orthographe traditionnelle : quatre-vingts,
+    deux cents, mais quatre-vingt mille, deux cent mille ; deux millions de dinars).
